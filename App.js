@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet } from 'react-native';
 
 export default function App() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Hello Suki!</Text>
+      <Image source={require('./assets/launch_logo.png')} style={styles.logo} />
     </View>
   );
 }
@@ -12,11 +12,13 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#7D0006',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  logo: {
+    width: 150,
+    height: 150,
+    resizeMode: 'contain',
   },
 });
