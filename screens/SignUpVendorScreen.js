@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, CheckBox,} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import CheckBox from '@react-native-community/checkbox';
 import { useNavigation } from '@react-navigation/native';
 
 export default function SignUpVendorScreen() {
@@ -11,9 +12,12 @@ export default function SignUpVendorScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={20} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.headerTopRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Icon name="arrow-left" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
         <Image
           source={require('../assets/white_vendor.png')}
           style={styles.vendorIcon}
@@ -30,7 +34,7 @@ export default function SignUpVendorScreen() {
 
         <Text style={styles.sectionLabel}>Contact Details</Text>
 
-        {/* Input Details*/}
+        {/* Phone Input */}
         <View style={styles.row}>
           <Image
             source={require('../assets/ph_flag.png')}
@@ -93,6 +97,12 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
     alignItems: 'center',
+    position: 'relative',
+  },
+  headerTopRow: {
+    position: 'absolute',
+    top: 50,
+    left: 25,
   },
   vendorIcon: {
     width: 35,
