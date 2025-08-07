@@ -1,4 +1,4 @@
-import React from 'react';
+import CheckBox from '@react-native-community/checkbox';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -16,7 +16,10 @@ export default function SignUpUserTypeScreen() {
         <Text style={styles.title}>Sign Up</Text>
         <Text style={styles.subtitle}>Please select your user type.</Text>
 
-        <TouchableOpacity style={styles.button}>
+        {/* Customer Button (added onPress) */}
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate('SignUpCustomer')}>
           <Image
             source={require('../assets/black_customer.png')}
             style={styles.imageIcon}
@@ -24,8 +27,10 @@ export default function SignUpUserTypeScreen() {
           <Text style={styles.buttonText}>Customer</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button}
-            onPress={() => navigation.navigate('SignUpVendor')}>
+        {/* Vendor Button (already had onPress) */}
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate('SignUpVendor')}>
           <Image
             source={require('../assets/black_vendor.png')}
             style={styles.imageIcon}
@@ -34,8 +39,14 @@ export default function SignUpUserTypeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Footer with pressable "Sign in here" */}
       <Text style={styles.footer}>
-        Already have an account? <Text style={styles.signIn}>Sign in here</Text>
+        Already have an account?{' '}
+        <Text
+          style={styles.signIn}
+          onPress={() => navigation.navigate('SignIn')}>
+          Sign in here
+        </Text>
       </Text>
     </View>
   );
@@ -95,5 +106,7 @@ const styles = StyleSheet.create({
   signIn: {
     fontWeight: 'bold',
     textDecorationLine: 'underline',
+    color: '#7D0006',
   },
 });
+

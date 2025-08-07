@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
+import CheckBox from '@react-native-community/checkbox';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import CheckBox from '@react-native-community/checkbox'; // ✅ Only one import
 import { useNavigation } from '@react-navigation/native';
 
 export default function SignUpVendorScreen() {
@@ -12,17 +12,14 @@ export default function SignUpVendorScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerTopRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Icon name="arrow-left" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Icon name="arrow-left" size={20} color="#fff" />
+        </TouchableOpacity>
         <Image
-          source={require('../assets/white_vendor.png')}
+          source={require('../assets/white_customer_icon.png')}
           style={styles.vendorIcon}
         />
-        <Text style={styles.vendorLabel}>Vendor</Text>
+        <Text style={styles.vendorLabel}>Customer</Text>
       </View>
 
       {/* Form */}
@@ -34,7 +31,7 @@ export default function SignUpVendorScreen() {
 
         <Text style={styles.sectionLabel}>Contact Details</Text>
 
-        {/* Phone Input */}
+        {/* Input Details */}
         <View style={styles.row}>
           <Image
             source={require('../assets/ph_flag.png')}
@@ -97,12 +94,6 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
     alignItems: 'center',
-    position: 'relative',
-  },
-  headerTopRow: {
-    position: 'absolute',
-    top: 50,
-    left: 25,
   },
   vendorIcon: {
     width: 35,
