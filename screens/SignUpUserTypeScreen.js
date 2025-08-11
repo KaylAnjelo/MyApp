@@ -16,7 +16,8 @@ export default function SignUpUserTypeScreen() {
         <Text style={styles.title}>Sign Up</Text>
         <Text style={styles.subtitle}>Please select your user type.</Text>
 
-        <TouchableOpacity style={styles.button}>
+        <TouchableOpacity style={styles.button}
+          onPress={() => navigation.navigate('SignUpCustomer')}>
           <Image
             source={require('../assets/black_customer.png')}
             style={styles.imageIcon}

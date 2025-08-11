@@ -6,6 +6,7 @@ import LaunchScreen from './screens/LaunchScreen';
 import GetStartedScreen from './screens/GetStartedScreen';
 import SignUpUserTypeScreen from './screens/SignUpUserTypeScreen';
 import SignUpVendorScreen from './screens/SignUpVendorScreen';
+import SignUpCustomerScreen from './screens/SignUpCustomerScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -17,6 +18,7 @@ export default function App() {
         <Stack.Screen name="GetStarted" component={GetStartedScreen} />
         <Stack.Screen name="SignUp" component={SignUpUserTypeScreen} />
         <Stack.Screen name="SignUpVendor" component={SignUpVendorScreen} />
+        <Stack.Screen name="SignUpCustomer" component={SignUpCustomerScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
