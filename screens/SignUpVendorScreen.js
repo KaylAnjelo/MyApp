@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import CheckBox from '@react-native-community/checkbox';
+import CheckBox from '@react-native-community/checkbox'; // ✅ Only one import
 import { useNavigation } from '@react-navigation/native';
 
 export default function SignUpVendorScreen() {

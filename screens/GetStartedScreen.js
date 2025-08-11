@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native'; // ✅ Add this
+import { useNavigation } from '@react-navigation/native';
 
 export default function GetStartedScreen() {
-  const navigation = useNavigation(); // ✅ Fix: use the hook properly
+  const navigation = useNavigation();
 
   return (
     <View style={styles.container}>
@@ -14,7 +14,7 @@ export default function GetStartedScreen() {
       <Text style={styles.title}>Eat smart. Earn points</Text>
       <TouchableOpacity
         style={styles.button}
-        onPress={() => navigation.navigate('SignUp')} // ✅ navigation now defined
+        onPress={() => navigation.navigate('SignUp')}
       >
         <Text style={styles.buttonText}>GET STARTED</Text>
       </TouchableOpacity>
@@ -59,3 +59,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
+

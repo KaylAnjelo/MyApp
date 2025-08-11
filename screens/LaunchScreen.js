@@ -1,3 +1,4 @@
+import CheckBox from '@react-native-community/checkbox';
 import React, { useEffect } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
 
