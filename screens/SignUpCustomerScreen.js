@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Switch } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import CheckBox from '@react-native-community/checkbox';
 import { useNavigation } from '@react-navigation/native';
 
 export default function SignUpCustomerScreen() {
@@ -53,9 +52,9 @@ export default function SignUpCustomerScreen() {
         <TextInput placeholder="Last Name" style={styles.input} />
         <TextInput placeholder="Password" secureTextEntry style={styles.input} />
 
-        {/* Terms Checkbox */}
+        {/* Terms Switch */}
         <View style={styles.checkboxRow}>
-          <CheckBox value={agree} onValueChange={setAgree} />
+          <Switch value={agree} onValueChange={setAgree} />
           <Text style={styles.checkboxText}>
             I have read and understood the{' '}
             <Text style={styles.link}>Privacy Policy</Text> and{' '}
