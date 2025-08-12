@@ -143,9 +143,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   continueButton: {
-    backgroundColor: '#6A0004', // A slightly darker red for contrast
+    backgroundColor: '#9c161bff', // A slightly darker red for contrast
     paddingVertical: 15,
-    borderRadius: 25,
+    borderRadius: 20,
     alignItems: 'center',
     marginTop: 20,
   },
