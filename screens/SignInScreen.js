@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   continueButton: {
-    backgroundColor: '#9c161bff', // A slightly darker red for contrast
+    backgroundColor: '#9c161bff', 
     paddingVertical: 15,
     borderRadius: 20,
     alignItems: 'center',
