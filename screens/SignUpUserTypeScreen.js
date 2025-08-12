@@ -61,7 +61,8 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingHorizontal: 25,
     paddingBottom: 100,
-    borderBottomLeftRadius: 60,
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
   },
   title: {
     color: '#fff',
