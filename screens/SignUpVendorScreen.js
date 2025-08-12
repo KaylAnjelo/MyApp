@@ -42,15 +42,19 @@ export default function SignUpVendorScreen() {
           <Text style={styles.prefix}>+63</Text>
           <TextInput
             placeholder="Mobile Number"
+            placeholderTextColor="#888"
             style={styles.phoneInput}
             keyboardType="phone-pad"
           />
         </View>
 
         {/* Other fields */}
-        <TextInput placeholder="First Name" style={styles.input} />
-        <TextInput placeholder="Last Name" style={styles.input} />
-        <TextInput placeholder="Password" secureTextEntry style={styles.input} />
+        <TextInput placeholder="First Name" style={styles.input}
+        placeholderTextColor="#888" />
+        <TextInput placeholder="Last Name" style={styles.input}
+        placeholderTextColor="#888" />
+        <TextInput placeholder="Password" secureTextEntry style={styles.input}
+        placeholderTextColor="#888" />
 
         {/* Terms Switch */}
         <View style={styles.checkboxRow}>
@@ -156,6 +160,7 @@ const styles = StyleSheet.create({
   phoneInput: {
     flex: 1,
     fontSize: 14,
+    color: '#000',
   },
   input: {
     borderBottomWidth: 1,
@@ -163,6 +168,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 15,
     fontSize: 14,
+    color: '#000',
   },
   checkboxRow: {
     flexDirection: 'row',

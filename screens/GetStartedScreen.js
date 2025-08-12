@@ -14,7 +14,7 @@ export default function GetStartedScreen() {
       <Text style={styles.title}>Eat smart. Earn points</Text>
       <TouchableOpacity
         style={styles.button}
-        onPress={() => navigation.navigate('SignUp')}
+        onPress={() => navigation.navigate('SignIn')}
       >
         <Text style={styles.buttonText}>GET STARTED</Text>
       </TouchableOpacity>

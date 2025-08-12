@@ -5,8 +5,8 @@ import { View, Image, StyleSheet } from 'react-native';
 export default function LaunchScreen({ navigation }) {
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.replace('GetStarted'); // 4 seconds delay
-    }, 4000);
+      navigation.replace('GetStarted'); // 2.5 seconds delay
+    }, 2500);
     return () => clearTimeout(timer);
   }, [navigation]);
 
