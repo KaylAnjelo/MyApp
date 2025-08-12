@@ -9,9 +9,11 @@ export default function SignInScreen() {
   const [rememberMe, setRememberMe] = useState(false);
 
   const handleSignIn = () => {
-    // Implement your sign-in logic here
+    // This is the line that will navigate you to the HomePage
+    navigation.navigate('HomePage');
+    
+    // You can keep your sign-in logic here after this line if you have any
     console.log('Signing in with:', email, password);
-    // Example: navigation.navigate('Home');
   };
 
   return (
@@ -62,6 +64,7 @@ export default function SignInScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* This button now calls the updated handleSignIn function */}
         <TouchableOpacity style={styles.continueButton} onPress={handleSignIn}>
           <Text style={styles.continueButtonText}>Continue</Text>
         </TouchableOpacity>
