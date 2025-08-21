@@ -1,22 +1,32 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 
-export default function HomePageScreen() {
+export default function HomePageScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
 
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.logoText}>SUKI</Text>
-          <Icon name="notifications-outline" size={26} color="#7D0006" />
-        </View>
+<View style={styles.header}>
+  <Image
+    source={require('../assets/logo_maroon.png')}  // 👈 replace with your logo file
+    style={styles.logoImage}
+    resizeMode="contain"
+  />
+  <FontAwesome name="bell-o" size={22} color={Colors.primary} />
+</View>
+
 
         {/* Feature Cards Section */}
         <View style={styles.cardContainer}>
           {/* Big Left Card (Highest Available Points) */}
-          <View style={styles.bigCard}>
+          <TouchableOpacity
+            style={styles.bigCard}
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate("MyPoints")}
+          >
             <Text style={styles.cardTitle}>Highest Available Points</Text>
             <View style={styles.cardContent}>
               <Image
@@ -29,48 +39,59 @@ export default function HomePageScreen() {
                 <Text style={styles.cardPoints}>115 points</Text>
               </View>
             </View>
-            <TouchableOpacity>
+
+            {/* Use now button */}
+            <TouchableOpacity
+              style={styles.useNowButton}
+              onPress={() => navigation.navigate("MyPoints")}
+            >
               <Text style={styles.useNowText}>Use now</Text>
             </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
 
-          {/* Right Two Small Cards */}
-          <View style={styles.cardRightContainer}>
-            {/* Food Chase Card */}
-            <View style={[styles.smallCard]}>
-              <Text style={styles.cardTitle}>Food Chase</Text>
-              <Text style={styles.cardSubtitle}>Explore Missions</Text>
-              <Icon name="restaurant-outline" size={30} color="#fff" style={styles.smallCardIcon} />
-            </View>
-            
-            {/* My Rewards Card */}
-            <View style={[styles.smallCard, { marginBottom: 0 }]}>
-              <Text style={styles.cardTitle}>My Rewards</Text>
-              <Icon name="gift-outline" size={30} color="#fff" style={styles.smallCardIcon} />
-            </View>
-          </View>
+         {/* Right Two Small Cards */}
+<View style={styles.cardRightContainer}>
+  {/* Food Chase Card */}
+  <TouchableOpacity
+    style={styles.smallCard}
+    activeOpacity={0.9}
+    onPress={() => navigation.navigate("FoodChase")}
+  >
+    <Text style={styles.cardTitle}>Food Chase</Text>
+    <Text style={styles.cardSubtitle}>Explore Missions</Text>
+    <FontAwesome name="cutlery" size={26} color="#fff" style={styles.smallCardIcon} />
+  </TouchableOpacity>
+
+  {/* My Rewards Card */}
+  <TouchableOpacity
+    style={[styles.smallCard, { marginBottom: 0 }]}
+    activeOpacity={0.9}
+    onPress={() => navigation.navigate("MyRewards")}
+  >
+    <Text style={styles.cardTitle}>My Rewards</Text>
+    <FontAwesome name="gift" size={26} color="#fff" style={styles.smallCardIcon} />
+  </TouchableOpacity>
+</View>
         </View>
+
 
         {/* Popular Stores Section */}
         <Text style={styles.sectionTitle}>Popular Stores</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
           <View style={styles.storeCard}>
-            {/* Store Logo positioned above the name */}
             <View style={styles.storeImagePlaceholder}>
-              {/* This is a placeholder for your store logo image */}
               <Image 
-                  source={{ uri: 'https://via.placeholder.com/80' }} // Replace with actual image source
+                  source={{ uri: 'https://via.placeholder.com/80' }} 
                   style={styles.storeImage} 
               />
-              <Icon name="heart" size={20} color="#7D0006" style={styles.favoriteIcon} />
+              <FontAwesome name="heart" size={18} color="#7D0006" style={styles.favoriteIcon} />
             </View>
             <Text style={styles.storeName}>Waffles</Text>
             <View style={styles.storeRating}>
-              <Icon name="star" size={14} color="#FFD700" />
+              <FontAwesome name="star" size={12} color="#FFD700" />
               <Text style={styles.storeRatingText}>5.0</Text>
             </View>
           </View>
-          {/* Add more store cards here */}
         </ScrollView>
 
         {/* Recent Activities Section */}
@@ -86,23 +107,23 @@ export default function HomePageScreen() {
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
         <View style={styles.navItem}>
-          <Icon name="home" size={22} color="#7D0006" />
+          <FontAwesome name="home" size={20} color="#7D0006" />
           <Text style={[styles.navText, { color: '#7D0006' }]}>Home</Text>
         </View>
         <View style={styles.navItem}>
-          <Icon name="storefront-outline" size={22} color="#555" />
+          <FontAwesome name="building-o" size={20} color="#555" />
           <Text style={styles.navText}>Stores</Text>
         </View>
         <View style={styles.navItem}>
-          <Icon name="qr-code-outline" size={22} color="#555" />
+          <FontAwesome name="qrcode" size={20} color="#555" />
           <Text style={styles.navText}>QR Scan</Text>
         </View>
         <View style={styles.navItem}>
-          <Icon name="receipt-outline" size={22} color="#555" />
+          <FontAwesome name="list-alt" size={20} color="#555" />
           <Text style={styles.navText}>Activity</Text>
         </View>
         <View style={styles.navItem}>
-          <Icon name="person-outline" size={22} color="#555" />
+          <FontAwesome name="user-o" size={20} color="#555" />
           <Text style={styles.navText}>Profile</Text>
         </View>
       </View>
@@ -111,105 +132,54 @@ export default function HomePageScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollViewContent: {
-    padding: 20,
-    paddingBottom: 90,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#7D0006',
-  },
-  logoImage: {
-    width: 100,
-    height: 40,
-  },
-  cardContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  scrollViewContent: { padding: Spacing.xl, paddingBottom: 90 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
+  logoText: { fontSize: 32, fontWeight: 'bold', color: Colors.primary },
+
+  cardContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   bigCard: {
-    backgroundColor: '#7D0006',
-    borderRadius: 20,
-    padding: 15,
+    backgroundColor: Colors.primary,
+    borderRadius: Radii.lg,
+    padding: Spacing.lg,
     width: '60%',
     justifyContent: 'space-between',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
+    ...Shadows.light,
   },
   smallCard: {
-    backgroundColor: '#7D0006',
-    borderRadius: 20,
-    padding: 15,
+    backgroundColor: Colors.primary,
+    borderRadius: Radii.lg,
+    padding: Spacing.lg,
     height: '48%',
     justifyContent: 'center',
-    marginBottom: 10,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
+    marginBottom: Spacing.md,
+    ...Shadows.light,
   },
-  cardRightContainer: {
-    width: '38%',
-    justifyContent: 'space-between',
+  cardRightContainer: { width: '38%', justifyContent: 'space-between' },
+  cardTitle: { fontSize: Typography.body, fontWeight: 'bold', color: Colors.white },
+  cardSubtitle: { fontSize: Typography.small, color: '#f0f0f0', marginTop: Spacing.xs },
+  cardContent: { flexDirection: 'row', alignItems: 'center', marginVertical: Spacing.md },
+  cardText: { color: Colors.white, fontSize: Typography.body },
+  cardPoints: { color: Colors.white, fontSize: Typography.h2, fontWeight: 'bold' },
+
+  useNowButton: {
+    backgroundColor: Colors.white,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radii.sm,
+    alignSelf: 'flex-start',
+    marginTop: Spacing.xs,
   },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: '#f0f0f0',
-    marginTop: 3,
-  },
-  cardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 12,
-  },
-  cardText: {
-    color: '#fff',
-    fontSize: 13,
-  },
-  cardPoints: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  useNowText: {
-    color: '#fff',
-    fontSize: 12,
-    textDecorationLine: 'underline',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginVertical: 10,
-    color: '#000',
-  },
-  horizontalScroll: {
-    flexDirection: 'row',
-  },
+  useNowText: { color: Colors.primary, fontSize: Typography.small, fontWeight: '600' },
+
+  sectionTitle: { fontSize: Typography.h3, fontWeight: '600', marginVertical: Spacing.md, color: Colors.textPrimary },
+  horizontalScroll: { flexDirection: 'row' },
   storeCard: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 15,
-    marginRight: 15,
-    alignItems: 'center', // Centers children horizontally
+    backgroundColor: Colors.white,
+    borderRadius: Radii.md,
+    padding: Spacing.lg,
+    marginRight: Spacing.lg,
+    alignItems: 'center',
     width: 140,
     elevation: 2,
     shadowColor: '#000',
@@ -219,49 +189,24 @@ const styles = StyleSheet.create({
   storeImagePlaceholder: {
     width: 80,
     height: 80,
-    borderRadius: 15,
-    backgroundColor: '#7D0006',
+    borderRadius: Radii.md,
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: Spacing.md,
   },
-  storeImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 15,
-  },
-  storeLogoText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  storeName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000',
-    marginTop: 3,
-  },
-  storeRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 5,
-  },
-  storeRatingText: {
-    fontSize: 12,
-    color: '#555',
-    marginLeft: 5,
-  },
-  recentActivitiesCard: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 15,
-    height: 150,
-    marginTop: 10,
-  },
+  storeImage: { width: '100%', height: '100%', borderRadius: 15 },
+  storeName: { fontSize: Typography.body, fontWeight: '600', color: Colors.textPrimary, marginTop: Spacing.xs },
+  storeRating: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.sm },
+  storeRatingText: { fontSize: Typography.small, color: Colors.textSecondary, marginLeft: Spacing.sm },
+  recentActivitiesCard: { backgroundColor: '#f5f5f5', borderRadius: Radii.md, height: 150, marginTop: Spacing.md },
+
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     height: 65,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderTopWidth: 1,
     borderTopColor: '#eee',
     position: 'absolute',
@@ -269,26 +214,16 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
   },
-  navItem: {
-    alignItems: 'center',
-  },
-  navText: {
-    fontSize: 11,
-    marginTop: 2,
-    color: '#555',
-  },
-  rewardPointsImage: {
-    width: 20,
-    height: 20,
-  },
-  smallCardIcon: {
-    position: 'absolute',
-    right: 15,
-    bottom: 15,
-  },
-  favoriteIcon: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-  },
+  navItem: { alignItems: 'center' },
+  navText: { fontSize: 11, marginTop: 2, color: Colors.textSecondary },
+
+  rewardPointsImage: { width: 20, height: 20 },
+  smallCardIcon: { position: 'absolute', right: 15, bottom: 15 },
+  favoriteIcon: { position: 'absolute', top: 5, right: 5 },
+
+  logoImage: {
+  width: 100,   // adjust depending on your logo size
+  height: 40,
+},
+
 });

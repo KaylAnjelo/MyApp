@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Switch } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
+import { Colors, Typography, Spacing, Radii } from '../styles/theme';
 
 export default function SignUpCustomerScreen() {
   const navigation = useNavigation();
@@ -13,7 +14,7 @@ export default function SignUpCustomerScreen() {
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Icon name="arrow-left" size={20} color="#fff" />
+            <Icon name="chevron-left" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
 
@@ -90,22 +91,22 @@ export default function SignUpCustomerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.background,
   },
   header: {
-    backgroundColor: '#7D0006',
+    backgroundColor: Colors.primary,
     paddingTop: 50,
-    paddingHorizontal: 25,
-    paddingBottom: 30,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.xxl,
+    borderBottomLeftRadius: Radii.xxl,
+    borderBottomRightRadius: Radii.xxl,
     alignItems: 'center',
     position: 'relative',
   },
   headerTopRow: {
     position: 'absolute',
     top: 50,
-    left: 25,
+    left: Spacing.xl,
   },
   vendorIcon: {
     width: 35,
@@ -114,112 +115,112 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   vendorLabel: {
-    color: '#fff',
-    marginTop: 5,
-    fontSize: 16,
+    color: Colors.white,
+    marginTop: Spacing.xs,
+    fontSize: Typography.body,
     fontWeight: '600',
   },
   formContainer: {
-    paddingHorizontal: 25,
-    paddingTop: 30,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xxl,
   },
   title: {
-    fontSize: 20,
+    fontSize: Typography.h2,
     fontWeight: 'bold',
-    color: '#000',
+    color: Colors.textPrimary,
   },
   subtitle: {
-    fontSize: 12,
-    color: '#555',
-    marginTop: 5,
-    marginBottom: 20,
+    fontSize: Typography.small,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xl,
   },
   sectionLabel: {
     fontWeight: '600',
-    marginBottom: 10,
-    fontSize: 14,
+    marginBottom: Spacing.md,
+    fontSize: Typography.body,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: Spacing.md,
     borderBottomWidth: 1,
     borderColor: '#ccc',
-    paddingBottom: 5,
+    paddingBottom: Spacing.xs,
   },
   flagIcon: {
     width: 24,
     height: 16,
-    marginRight: 5,
+    marginRight: Spacing.xs,
     resizeMode: 'contain',
   },
   prefix: {
-    marginRight: 10,
-    fontSize: 14,
+    marginRight: Spacing.md,
+    fontSize: Typography.body,
   },
   phoneInput: {
     flex: 1,
-    fontSize: 14,
-    color: '#000',
+    fontSize: Typography.body,
+    color: Colors.textPrimary,
   },
   input: {
     borderBottomWidth: 1,
     borderColor: '#ccc',
-    paddingVertical: 8,
-    marginBottom: 15,
-    fontSize: 14,
-    color: '#000',
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.md,
+    fontSize: Typography.body,
+    color: Colors.textPrimary,
   },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   checkboxText: {
     flex: 1,
-    marginLeft: 10,
-    fontSize: 12,
-    color: '#000',
+    marginLeft: Spacing.md,
+    fontSize: Typography.small,
+    color: Colors.textPrimary,
   },
   link: {
-    color: '#7D0006',
+    color: Colors.primary,
     fontWeight: 'bold',
     textDecorationLine: 'underline',
   },
   signupButton: {
-    backgroundColor: '#7D0006',
-    paddingVertical: 14,
-    borderRadius: 30,
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.xl,
+    borderRadius: Radii.xl,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   signupText: {
-    color: '#fff',
+    color: Colors.white,
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: Typography.body,
   },
   orText: {
     textAlign: 'center',
-    marginBottom: 20,
-    fontSize: 12,
+    marginBottom: Spacing.xl,
+    fontSize: Typography.small,
     color: '#777',
   },
   googleButton: {
     flexDirection: 'row',
     borderWidth: 1,
     borderColor: '#000',
-    paddingVertical: 12,
-    borderRadius: 30,
+    paddingVertical: Spacing.lg,
+    borderRadius: Radii.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
   googleIcon: {
     width: 20,
     height: 20,
-    marginRight: 10,
+    marginRight: Spacing.md,
   },
   googleText: {
-    fontSize: 14,
+    fontSize: Typography.body,
     fontWeight: '500',
   },
 });

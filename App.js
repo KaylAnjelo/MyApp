@@ -9,6 +9,8 @@ import SignInScreen from './screens/SignInScreen';
 import SignUpVendorScreen from './screens/SignUpVendorScreen';
 import SignUpCustomerScreen from './screens/SignUpCustomerScreen';
 import HomePageScreen from './screens/HomePageScreen';
+import MyPointsScreen from './screens/MyPointsScreen';
+import FoodChasePage from './screens/FoodChaseScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -23,6 +25,8 @@ export default function App() {
         <Stack.Screen name="HomePage" component={HomePageScreen} />   
         <Stack.Screen name="SignUpVendor" component={SignUpVendorScreen} />
         <Stack.Screen name="SignUpCustomer" component={SignUpCustomerScreen} />
+        <Stack.Screen name="MyPoints" component={MyPointsScreen} />
+        <Stack.Screen name="FoodChase" component={FoodChasePage} />
       </Stack.Navigator>
     </NavigationContainer>
   );

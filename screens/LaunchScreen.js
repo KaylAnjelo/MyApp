@@ -1,6 +1,7 @@
 import CheckBox from '@react-native-community/checkbox';
 import React, { useEffect } from 'react';
 import { View, Image, StyleSheet } from 'react-native';
+import { Colors } from '../styles/theme';
 
 export default function LaunchScreen({ navigation }) {
   useEffect(() => {
@@ -20,7 +21,7 @@ export default function LaunchScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#7D0006',
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
