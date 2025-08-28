@@ -9,7 +9,13 @@ export default function HomePageScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.logoText}>SUKI</Text>
+          <View style={{ flex: 1, alignItems: 'flex-start' }}>
+            <Image 
+              source={require('../assets/logo_maroon.png')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
           <Icon name="notifications-outline" size={26} color="#7D0006" />
         </View>
 
@@ -57,7 +63,6 @@ export default function HomePageScreen() {
           <View style={styles.storeCard}>
             {/* Store Logo positioned above the name */}
             <View style={styles.storeImagePlaceholder}>
-              {/* This is a placeholder for your store logo image */}
               <Image 
                   source={{ uri: 'https://via.placeholder.com/80' }} // Replace with actual image source
                   style={styles.storeImage} 
@@ -90,7 +95,7 @@ export default function HomePageScreen() {
           <Text style={[styles.navText, { color: '#7D0006' }]}>Home</Text>
         </View>
         <View style={styles.navItem}>
-          <Icon name="storefront-outline" size={22} color="#555" />
+          <Icon name="business-outline" size={22} color="#555" />
           <Text style={styles.navText}>Stores</Text>
         </View>
         <View style={styles.navItem}>
@@ -117,7 +122,7 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     padding: 20,
-    paddingBottom: 90,
+    paddingBottom: 70,
   },
   header: {
     flexDirection: 'row',
@@ -125,14 +130,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 15,
   },
-  logoText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#7D0006',
-  },
   logoImage: {
-    width: 100,
+    width: 120,
     height: 40,
+    resizeMode: 'contain',
+    marginLeft: -35, // ensures it’s at the very left
   },
   cardContainer: {
     flexDirection: 'row',
@@ -209,7 +211,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     padding: 15,
     marginRight: 15,
-    alignItems: 'center', // Centers children horizontally
+    alignItems: 'center',
     width: 140,
     elevation: 2,
     shadowColor: '#000',
@@ -229,10 +231,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 15,
-  },
-  storeLogoText: {
-    color: '#fff',
-    fontWeight: 'bold',
   },
   storeName: {
     fontSize: 14,
