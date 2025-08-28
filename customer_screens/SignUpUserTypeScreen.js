@@ -2,6 +2,7 @@ import CheckBox from '@react-native-community/checkbox';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import { Colors, Typography, Spacing, Radii } from '../styles/theme';
 
 export default function SignUpUserTypeScreen() {
   const navigation = useNavigation();
@@ -10,7 +11,7 @@ export default function SignUpUserTypeScreen() {
     <View style={styles.container}>
       <View style={styles.topSection}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={20} color="#fff" />
+          <Icon name="chevron-left" size={20} color="#fff" />
         </TouchableOpacity>
 
         <Text style={styles.title}>Sign Up</Text>
@@ -53,59 +54,59 @@ export default function SignUpUserTypeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.background,
     justifyContent: 'space-between',
   },
   topSection: {
-    backgroundColor: '#7D0006',
+    backgroundColor: Colors.primary,
     paddingTop: 60,
-    paddingHorizontal: 25,
+    paddingHorizontal: Spacing.xl,
     paddingBottom: 100,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
+    borderBottomLeftRadius: Radii.xxl,
+    borderBottomRightRadius: Radii.xxl,
   },
   title: {
-    color: '#fff',
-    fontSize: 28,
+    color: Colors.white,
+    fontSize: Typography.h1,
     fontWeight: 'bold',
-    marginTop: 20,
+    marginTop: Spacing.lg,
   },
   subtitle: {
-    color: '#fff',
-    fontSize: 14,
-    marginTop: 5,
-    marginBottom: 30,
+    color: Colors.white,
+    fontSize: Typography.body,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xxl,
   },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderRadius: 30,
-    marginBottom: 20,
+    backgroundColor: Colors.white,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: Radii.xl,
+    marginBottom: Spacing.xl,
   },
   imageIcon: {
     width: 24,
     height: 24,
-    marginRight: 10,
+    marginRight: Spacing.md,
     resizeMode: 'contain',
   },
   buttonText: {
-    fontSize: 16,
-    color: '#000',
+    fontSize: Typography.h3,
+    color: Colors.textPrimary,
     fontWeight: '500',
   },
   footer: {
     textAlign: 'center',
-    color: '#7D0006',
-    fontSize: 13,
+    color: Colors.primary,
+    fontSize: Typography.small,
     marginBottom: 200,
   },
   signIn: {
     fontWeight: 'bold',
     textDecorationLine: 'underline',
-    color: '#7D0006',
+    color: Colors.primary,
   },
 });
 

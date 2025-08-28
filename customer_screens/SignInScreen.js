@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 
 export default function SignInScreen() {
   const navigation = useNavigation();
@@ -83,7 +84,7 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -97,67 +98,63 @@ const styles = StyleSheet.create({
     height: 150,
   },
   formContainer: {
-    backgroundColor: '#7D0006',
-    padding: 30,
-    borderRadius: 30,
+    backgroundColor: Colors.primary,
+    padding: Spacing.xxl,
+    borderRadius: Radii.xl,
     width: '90%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
+    ...Shadows.medium,
   },
   title: {
-    fontSize: 32,
+    fontSize: Typography.h1,
     fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 5,
+    color: Colors.white,
+    marginBottom: Spacing.xs,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#fff',
-    marginBottom: 20,
+    fontSize: Typography.body,
+    color: Colors.white,
+    marginBottom: Spacing.xl,
   },
   inputContainer: {
-    marginBottom: 15,
+    marginBottom: Spacing.md,
   },
   input: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    fontSize: 16,
+    backgroundColor: Colors.white,
+    borderRadius: Radii.md,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    fontSize: Typography.h3,
   },
   optionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: Spacing.xl,
   },
   rememberMeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   rememberMeText: {
-    color: '#fff',
-    marginLeft: 5,
-    fontSize: 12,
+    color: Colors.white,
+    marginLeft: Spacing.xs,
+    fontSize: Typography.small,
   },
   forgotPassword: {
-    color: '#fff',
-    fontSize: 12,
+    color: Colors.white,
+    fontSize: Typography.small,
   },
   continueButton: {
     backgroundColor: '#9c161bff', 
-    paddingVertical: 15,
-    borderRadius: 20,
+    paddingVertical: Spacing.xl,
+    borderRadius: Radii.lg,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: Spacing.xl,
   },
   continueButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: Typography.h3,
   },
   signupContainer: {
     flexDirection: 'row',
@@ -167,11 +164,11 @@ const styles = StyleSheet.create({
     bottom: 50,
   },
   signupText: {
-    fontSize: 14,
-    color: '#7D0006',
+    fontSize: Typography.body,
+    color: Colors.primary,
   },
   signupLink: {
-    color: '#7D0006',
+    color: Colors.primary,
     fontWeight: 'bold',
     textDecorationLine: 'underline',
   },
