@@ -2,17 +2,17 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import LaunchScreen from './screens/LaunchScreen';
-import GetStartedScreen from './screens/GetStartedScreen';
-import SignUpUserTypeScreen from './screens/SignUpUserTypeScreen';
-import SignInScreen from './screens/SignInScreen';
-import SignUpVendorScreen from './screens/SignUpVendorScreen';
-import SignUpCustomerScreen from './screens/SignUpCustomerScreen';
-import HomePageScreen from './screens/HomePageScreen';
-import MyPointsScreen from './screens/MyPointsScreen';
-import FoodChasePage from './screens/FoodChaseScreen';
-import MyRewardsPage from './screens/MyRewardsScreen';
-import ProfilePageScreen from './screens/ProfilePageScreen';
+import LaunchScreen from './customer_screens/LaunchScreen';
+import GetStartedScreen from './customer_screens/GetStartedScreen';
+import SignUpUserTypeScreen from './customer_screens/SignUpUserTypeScreen';
+import SignInScreen from './customer_screens/SignInScreen';
+import SignUpVendorScreen from './customer_screens/SignUpVendorScreen';
+import SignUpCustomerScreen from './customer_screens/SignUpCustomerScreen';
+import HomePageScreen from './customer_screens/HomePageScreen';
+import MyPointsScreen from './customer_screens/MyPointsScreen';
+import FoodChasePage from './customer_screens/FoodChaseScreen';
+import MyRewardsPage from './customer_screens/MyRewardsScreen';
+import ProfilePageScreen from './customer_screens/ProfilePageScreen';
 
 const Stack = createNativeStackNavigator();
 

@@ -1,6 +1,7 @@
 // stray import below was causing an error, remove it if present
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 
 export default function ProfilePageScreen({ navigation }) {
@@ -10,9 +11,7 @@ export default function ProfilePageScreen({ navigation }) {
         {/* Red top with header and quick actions */}
         <View style={styles.topSection}>
           <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <FontAwesome name="chevron-left" size={20} color={Colors.white} />
-            </TouchableOpacity>
+            <View style={{ width: 22 }} />
             <Text style={styles.headerTitle}>Profile</Text>
             <View style={{ width: 22 }} />
           </View>
@@ -74,6 +73,30 @@ export default function ProfilePageScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Bottom Navigation Bar */}
+      <View style={styles.bottomNav}>
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('HomePage')}>
+          <FontAwesome name="home" size={20} color="#555" />
+          <Text style={styles.navText}>Home</Text>
+        </TouchableOpacity>
+        <View style={styles.navItem}>
+          <Ionicons name="storefront-outline" size={22} color="#555" />
+          <Text style={styles.navText}>Stores</Text>
+        </View>
+        <View style={styles.navItem}>
+          <FontAwesome name="qrcode" size={20} color="#555" />
+          <Text style={styles.navText}>QR Scan</Text>
+        </View>
+        <View style={styles.navItem}>
+          <FontAwesome name="list-alt" size={20} color="#555" />
+          <Text style={styles.navText}>Activity</Text>
+        </View>
+        <View style={styles.navItem}>
+          <FontAwesome name="user-o" size={20} color="#7D0006" />
+          <Text style={[styles.navText, { color: '#7D0006' }]}>Profile</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -233,6 +256,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#e9eaec',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    height: 65,
+    backgroundColor: Colors.white,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  navItem: {
+    alignItems: 'center',
+  },
+  navText: {
+    fontSize: 11,
+    marginTop: 2,
+    color: '#555',
   },
 });
 

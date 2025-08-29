@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 
 export default function HomePageScreen({ navigation }) {
@@ -9,15 +10,10 @@ export default function HomePageScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
 
         {/* Header */}
-<View style={styles.header}>
-  <Image
-    source={require('../assets/logo_maroon.png')}  // 👈 replace with your logo file
-    style={styles.logoImage}
-    resizeMode="contain"
-  />
-  <FontAwesome name="bell-o" size={22} color={Colors.primary} />
-</View>
-
+        <View style={styles.header}>
+          <Text style={styles.logoText}>SUKI</Text>
+          <Ionicons name="notifications-outline" size={26} color="#7D0006" />
+        </View>
 
         {/* Feature Cards Section */}
         <View style={styles.cardContainer}>
@@ -111,7 +107,7 @@ export default function HomePageScreen({ navigation }) {
           <Text style={[styles.navText, { color: '#7D0006' }]}>Home</Text>
         </View>
         <View style={styles.navItem}>
-          <FontAwesome name="building-o" size={20} color="#555" />
+          <Ionicons name="storefront-outline" size={22} color="#555" />
           <Text style={styles.navText}>Stores</Text>
         </View>
         <View style={styles.navItem}>
@@ -132,12 +128,34 @@ export default function HomePageScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  scrollViewContent: { padding: Spacing.xl, paddingBottom: 90 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
-  logoText: { fontSize: 32, fontWeight: 'bold', color: Colors.primary },
-
-  cardContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  scrollViewContent: {
+    padding: 20,
+    paddingBottom: 90,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  logoText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#7D0006',
+  },
+  logoImage: {
+    width: 100,
+    height: 40,
+  },
+  cardContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
   bigCard: {
     backgroundColor: Colors.primary,
     borderRadius: Radii.lg,
@@ -180,6 +198,37 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     marginRight: Spacing.lg,
     alignItems: 'center',
+    marginVertical: 12,
+  },
+  cardText: {
+    color: '#fff',
+    fontSize: 13,
+  },
+  cardPoints: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  useNowText: {
+    color: '#fff',
+    fontSize: 12,
+    textDecorationLine: 'underline',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginVertical: 10,
+    color: '#000',
+  },
+  horizontalScroll: {
+    flexDirection: 'row',
+  },
+  storeCard: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 15,
+    marginRight: 15,
+    alignItems: 'center', // Centers children horizontally
     width: 140,
     elevation: 2,
     shadowColor: '#000',
@@ -195,12 +244,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.md,
   },
-  storeImage: { width: '100%', height: '100%', borderRadius: 15 },
-  storeName: { fontSize: Typography.body, fontWeight: '600', color: Colors.textPrimary, marginTop: Spacing.xs },
-  storeRating: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.sm },
-  storeRatingText: { fontSize: Typography.small, color: Colors.textSecondary, marginLeft: Spacing.sm },
-  recentActivitiesCard: { backgroundColor: '#f5f5f5', borderRadius: Radii.md, height: 150, marginTop: Spacing.md },
-
+  storeImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 15,
+  },
+  storeLogoText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  storeName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000',
+    marginTop: 3,
+  },
+  storeRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  storeRatingText: {
+    fontSize: 12,
+    color: '#555',
+    marginLeft: 5,
+  },
+  recentActivitiesCard: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 15,
+    height: 150,
+    marginTop: 10,
+  },
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -214,16 +288,26 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
   },
-  navItem: { alignItems: 'center' },
-  navText: { fontSize: 11, marginTop: 2, color: Colors.textSecondary },
-
-  rewardPointsImage: { width: 20, height: 20 },
-  smallCardIcon: { position: 'absolute', right: 15, bottom: 15 },
-  favoriteIcon: { position: 'absolute', top: 5, right: 5 },
-
-  logoImage: {
-  width: 100,   // adjust depending on your logo size
-  height: 40,
-},
-
+  navItem: {
+    alignItems: 'center',
+  },
+  navText: {
+    fontSize: 11,
+    marginTop: 2,
+    color: '#555',
+  },
+  rewardPointsImage: {
+    width: 20,
+    height: 20,
+  },
+  smallCardIcon: {
+    position: 'absolute',
+    right: 15,
+    bottom: 15,
+  },
+  favoriteIcon: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+  },
 });
