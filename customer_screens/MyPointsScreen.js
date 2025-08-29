@@ -33,8 +33,11 @@ const MyPointsScreen = ({ navigation }) => {
         setStores(mockStores);
         const top = mockStores.reduce((max, s) => (s.customerPoints > max ? s.customerPoints : max), 0);
         setHighestPoints(top);
-        const topStore = mockStores.reduce((prev, curr) => (curr.customerPoints > prev.customerPoints ? curr : prev), mockStores[0]);
-        setStoreImage(topStore?.logoUrl ?? null);
+        // For testing: set storeImage to null to see the gray placeholder
+        setStoreImage(null);
+        // When you have real data, uncomment this line:
+        // const topStore = mockStores.reduce((prev, curr) => (curr.customerPoints > prev.customerPoints ? curr : prev), mockStores[0]);
+        // setStoreImage(topStore?.logoUrl ?? null);
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -139,7 +142,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     alignItems: "center",
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.quad,
+    paddingTop: Spacing.md,
     paddingBottom: Spacing.quad + 20,
     borderBottomLeftRadius: Radii.lg,
     borderBottomRightRadius: Radii.lg,

@@ -1,9 +1,17 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from "react-native";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { Colors, Typography, Spacing, Radii } from "../styles/theme";
 
 export default function FoodChasePage({ navigation }) {
+  const [transactions, setTransactions] = useState([]);
+
+  useEffect(() => {
+    // TODO: Replace with real database/API call to fetch recent transactions
+    // Example:
+    // fetchRecentTransactions(userId).then(setTransactions).catch(console.error);
+  }, []);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.pageContent}>
       {/* Header */}
@@ -55,14 +63,22 @@ export default function FoodChasePage({ navigation }) {
             <Text style={styles.viewAll}>View All ›</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.transactionRow}>
-          <Image source={{ uri: 'https://via.placeholder.com/56/cccccc/cccccc' }} style={styles.txnLogoCircle} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.txnTitle}>SHAWARMA</Text>
-            <Text style={styles.txnDate}>Aug 1</Text>
+        {transactions.length === 0 ? (
+          <View style={styles.emptyState}> 
+            <Text style={styles.emptyTitle}>No transactions yet</Text>
           </View>
-          <Text style={styles.txnAmount}>₱ 125.00</Text>
-        </View>
+        ) : (
+          transactions.map((txn, idx) => (
+            <View key={idx} style={styles.transactionRow}>
+              <Image source={{ uri: txn.logoUrl }} style={styles.txnLogoCircle} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.txnTitle}>{txn.storeName}</Text>
+                <Text style={styles.txnDate}>{txn.dateLabel}</Text>
+              </View>
+              <Text style={styles.txnAmount}>{txn.amountLabel}</Text>
+            </View>
+          ))
+        )}
         </View>
       </View>
     </ScrollView>
@@ -192,4 +208,13 @@ const styles = StyleSheet.create({
   txnTitle: { fontWeight: '700', color: Colors.textPrimary },
   txnDate: { color: Colors.textSecondary, marginTop: Spacing.xs },
   txnAmount: { fontWeight: '700', color: Colors.textPrimary },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: Spacing.quad,
+    marginTop: Spacing.lg,
+  },
+  emptyTitle: {
+    fontSize: Typography.h4,
+    color: Colors.textSecondary,
+  },
 });

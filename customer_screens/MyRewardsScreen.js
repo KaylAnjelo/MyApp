@@ -1,9 +1,17 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 
 export default function MyRewardsScreen({ navigation }) {
+  const [rewards, setRewards] = useState([]); // populate from DB when available
+
+  useEffect(() => {
+    // TODO: Replace with real database/API call
+    // Example:
+    // fetchRewardsForUser(userId).then(setRewards).catch(console.error);
+  }, []);
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.pageContent}>
@@ -16,24 +24,30 @@ export default function MyRewardsScreen({ navigation }) {
           <View style={{ width: 22 }} />
         </View>
 
-        {/* Top Section */}
-        <View style={styles.topSection}>
-          <FontAwesome name="gift" size={80} color={Colors.white} />
-          <Text style={styles.welcomeTitle}>Welcome to Rewards!</Text>
-          <Text style={styles.welcomeSubtitle}>
-            Discover amazing rewards and exclusive offers from your favorite stores.
-          </Text>
-        </View>
-
         {/* White Content Area */}
         <View style={styles.whiteBox}>
           <View style={styles.whiteContent}>
-            <Text style={styles.sectionTitle}>Available Rewards</Text>
-            <View style={styles.rewardsCard}>
-              <FontAwesome name="star" size={24} color={Colors.primary} />
-              <Text style={styles.rewardsText}>No rewards available yet</Text>
-              <Text style={styles.rewardsSubtext}>Complete missions to earn rewards</Text>
-            </View>
+            {rewards.length === 0 ? (
+              <View style={styles.emptyState}>
+                <FontAwesome name="star" size={18} color={Colors.primary} style={{ marginBottom: 14 }} />
+                <Text style={styles.rewardsText}>No rewards available yet</Text>
+                <Text style={styles.rewardsSubtext}>Complete missions to earn rewards</Text>
+              </View>
+            ) : (
+              <View>
+                {rewards.map((reward, idx) => (
+                  <View key={idx} style={styles.rewardItem}>
+                    <View style={styles.rewardItemLeft}>
+                      <FontAwesome name="gift" size={18} color={Colors.primary} />
+                      <Text style={styles.rewardItemTitle}>{reward.title}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.redeemButton} activeOpacity={0.8} onPress={() => console.log('Redeem', reward.id)}>
+                      <Text style={styles.redeemText}>Redeem</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -44,7 +58,7 @@ export default function MyRewardsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.white,
   },
   scroll: {
     flex: 1,
@@ -58,7 +72,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.quad,
-    paddingBottom: Spacing.md,
+    paddingBottom: Spacing.xxl,
     backgroundColor: Colors.primary,
   },
   headerTitle: {
@@ -90,19 +104,14 @@ const styles = StyleSheet.create({
   whiteBox: {
     flex: 1,
     backgroundColor: Colors.white,
-    marginTop: -20,
-    borderTopLeftRadius: Radii.lg,
-    borderTopRightRadius: Radii.lg,
+    marginTop: 0,
   },
   whiteContent: {
-    padding: Spacing.xl,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.quad * 2,
-  },
-  sectionTitle: {
-    fontSize: Typography.h3,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: Spacing.lg,
   },
   rewardsCard: {
     backgroundColor: Colors.white,
@@ -110,6 +119,11 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
     alignItems: 'center',
     ...Shadows.light,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 60,
   },
   rewardsText: {
     fontSize: Typography.h2,
@@ -122,5 +136,38 @@ const styles = StyleSheet.create({
     fontSize: Typography.body,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  rewardItem: {
+    backgroundColor: Colors.white,
+    borderRadius: Radii.md,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+    ...Shadows.light,
+  },
+  rewardItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  rewardItemTitle: {
+    marginLeft: 10,
+    fontSize: Typography.body,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+  },
+  redeemButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: Radii.sm,
+  },
+  redeemText: {
+    color: Colors.white,
+    fontWeight: '700',
+    fontSize: Typography.small,
   },
 });
