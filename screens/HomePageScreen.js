@@ -122,10 +122,10 @@ export default function HomePageScreen({ navigation }) {
           <FontAwesome name="list-alt" size={20} color="#555" />
           <Text style={styles.navText}>Activity</Text>
         </View>
-        <View style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ProfilePage')}>
           <FontAwesome name="user-o" size={20} color="#555" />
           <Text style={styles.navText}>Profile</Text>
-        </View>
+        </TouchableOpacity>
       </View>
     </View>
   );

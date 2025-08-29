@@ -1,11 +1,11 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from "react-native";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { Colors, Typography, Spacing, Radii } from "../styles/theme";
 
 export default function FoodChasePage({ navigation }) {
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.pageContent}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -30,9 +30,42 @@ export default function FoodChasePage({ navigation }) {
 
       {/* White Content Area */}
       <View style={styles.whiteBox}>
-        {/* missions content here */}
+        <View style={styles.whiteContent}>
+        {/* Explore Missions */}
+        <Text style={styles.sectionTitle}>Explore Missions</Text>
+        <View style={styles.missionsRow}>
+          <View style={styles.missionCard}>
+            <Image source={{ uri: 'https://via.placeholder.com/80/cccccc/cccccc' }} style={styles.missionLogo} />
+            <TouchableOpacity style={styles.missionGoButton}>
+              <Text style={styles.missionGoText}>Go</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.missionCard}>
+            <Image source={{ uri: 'https://via.placeholder.com/80/cccccc/cccccc' }} style={styles.missionLogo} />
+            <TouchableOpacity style={styles.missionGoButton}>
+              <Text style={styles.missionGoText}>Go</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Recent Transactions */}
+        <View style={styles.recentHeaderRow}>
+          <Text style={styles.sectionTitle}>Recent Transactions</Text>
+          <TouchableOpacity>
+            <Text style={styles.viewAll}>View All ›</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.transactionRow}>
+          <Image source={{ uri: 'https://via.placeholder.com/56/cccccc/cccccc' }} style={styles.txnLogoCircle} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.txnTitle}>SHAWARMA</Text>
+            <Text style={styles.txnDate}>Aug 1</Text>
+          </View>
+          <Text style={styles.txnAmount}>₱ 125.00</Text>
+        </View>
+        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -40,6 +73,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.primary,
+  },
+  pageContent: {
+    flexGrow: 1,
   },
   header: {
     flexDirection: "row",
@@ -80,6 +116,80 @@ const styles = StyleSheet.create({
     marginTop: -20,
     borderTopLeftRadius: Radii.lg,
     borderTopRightRadius: Radii.lg,
-    padding: Spacing.xl,
   },
+  whiteContent: {
+    padding: Spacing.xl,
+    paddingBottom: Spacing.quad * 2,
+  },
+  sectionTitle: {
+    fontSize: Typography.h3,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: Spacing.lg,
+  },
+  missionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.quad,
+  },
+  missionCard: {
+    backgroundColor: Colors.white,
+    width: '48%',
+    borderRadius: Radii.lg,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  missionLogo: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#e0e0e0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.lg,
+  },
+  missionLogoImg: { width: 80, height: 80, borderRadius: 40 },
+  missionGoButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.quad,
+    borderRadius: Radii.sm,
+  },
+  missionGoText: { color: Colors.white, fontWeight: '700' },
+  recentHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: Spacing.quad,
+    marginBottom: Spacing.lg,
+  },
+  viewAll: { color: Colors.textSecondary },
+  transactionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: Radii.lg,
+    padding: Spacing.lg,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  txnLogoCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#e0e0e0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.lg,
+  },
+  txnLogoImg: { width: 56, height: 56, borderRadius: 28 },
+  txnTitle: { fontWeight: '700', color: Colors.textPrimary },
+  txnDate: { color: Colors.textSecondary, marginTop: Spacing.xs },
+  txnAmount: { fontWeight: '700', color: Colors.textPrimary },
 });
