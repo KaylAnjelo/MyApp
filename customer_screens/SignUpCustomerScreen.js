@@ -68,7 +68,10 @@ export default function SignUpCustomerScreen() {
         </View>
 
         {/* Sign Up Button */}
-        <TouchableOpacity style={styles.signupButton}>
+        <TouchableOpacity 
+          style={styles.signupButton}
+          onPress={() => navigation.replace("HomePage")} // 🔹 Added navigation here
+        >
           <Text style={styles.signupText}>Sign Up</Text>
         </TouchableOpacity>
 

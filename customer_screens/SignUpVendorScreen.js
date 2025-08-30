@@ -67,10 +67,20 @@ export default function SignUpVendorScreen() {
           </Text>
         </View>
 
-        {/* Sign Up Button */}
-        <TouchableOpacity style={styles.signupButton}>
-          <Text style={styles.signupText}>Sign Up</Text>
-        </TouchableOpacity>
+{/* Sign Up Button */}
+<TouchableOpacity 
+  style={styles.signupButton}
+  onPress={() => {
+    if (!agree) {
+      alert("Please accept the Terms and Conditions before signing up.");
+      return;
+    }
+    navigation.replace("VendorHomePage"); // ✅ make sure this matches App.js
+  }}
+>
+  <Text style={styles.signupText}>Sign Up</Text>
+</TouchableOpacity>
+
 
         {/* OR */}
         <Text style={styles.orText}>or</Text>
