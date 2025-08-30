@@ -57,7 +57,7 @@ const ProductCard = ({ product }) => (
   </View>
 );
 
-const VendorHomePage = () => {
+const VendorHomePage = ({ navigation }) => { // <-- Add navigation prop
   const [activeMonth, setActiveMonth] = useState(0);
 
   return (
@@ -138,26 +138,26 @@ const VendorHomePage = () => {
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
-        <View style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('VendorHomePage')}>
           <Icon name="home" size={22} color="#D22B2B" />
           <Text style={[styles.navText, { color: '#D22B2B', fontWeight: 'bold' }]}>Home</Text>
-        </View>
-        <View style={styles.navItem}>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('SalesPage')}>
           <Icon name="stats-chart-outline" size={22} color="#555" />
           <Text style={styles.navText}>Sales</Text>
-        </View>
-        <View style={styles.navItem}>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('CreateOrderPage')}>
           <Icon name="add-circle-outline" size={22} color="#555" />
           <Text style={styles.navText}>Create</Text>
-        </View>
-        <View style={styles.navItem}>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('TransactionPage')}>
           <Icon name="receipt-outline" size={22} color="#555" />
           <Text style={styles.navText}>Transactions</Text>
-        </View>
-        <View style={styles.navItem}>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('VendorProfilePage')}>
           <Icon name="person-outline" size={22} color="#555" />
           <Text style={styles.navText}>Profile</Text>
-        </View>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
