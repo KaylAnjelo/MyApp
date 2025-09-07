@@ -1,13 +1,59 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
+import apiService from '../services/apiService';
 
 export default function HomePageScreen({ navigation }) {
+  const [stores, setStores] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [storesData, productsData] = await Promise.all([
+        apiService.getStores(),
+        apiService.getProducts()
+      ]);
+      
+      setStores(storesData);
+      setProducts(productsData);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollViewContent}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollViewContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
 
         {/* Header */}
         <View style={styles.header}>
@@ -74,20 +120,32 @@ export default function HomePageScreen({ navigation }) {
         {/* Popular Stores Section */}
         <Text style={styles.sectionTitle}>Popular Stores</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-          <View style={styles.storeCard}>
-            <View style={styles.storeImagePlaceholder}>
-              <Image 
-                  source={{ uri: 'https://via.placeholder.com/80' }} 
-                  style={styles.storeImage} 
-              />
-              <FontAwesome name="heart" size={18} color="#7D0006" style={styles.favoriteIcon} />
+          {stores.length > 0 ? (
+            stores.map((store) => (
+              <TouchableOpacity 
+                key={store.id} 
+                style={styles.storeCard}
+                onPress={() => navigation.navigate('SpecificStore', { storeId: store.id })}
+              >
+                <View style={styles.storeImagePlaceholder}>
+                  <Image 
+                    source={{ uri: store.image_url || 'https://via.placeholder.com/80' }} 
+                    style={styles.storeImage} 
+                  />
+                  <FontAwesome name="heart" size={18} color="#7D0006" style={styles.favoriteIcon} />
+                </View>
+                <Text style={styles.storeName}>{store.name || 'Store'}</Text>
+                <View style={styles.storeRating}>
+                  <FontAwesome name="star" size={12} color="#FFD700" />
+                  <Text style={styles.storeRatingText}>{store.rating || '5.0'}</Text>
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No stores available</Text>
             </View>
-            <Text style={styles.storeName}>Waffles</Text>
-            <View style={styles.storeRating}>
-              <FontAwesome name="star" size={12} color="#FFD700" />
-              <Text style={styles.storeRatingText}>5.0</Text>
-            </View>
-          </View>
+          )}
         </ScrollView>
 
         {/* Recent Activities Section */}
@@ -309,5 +367,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 5,
     right: 5,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: Typography.body,
+    color: Colors.textSecondary,
+  },
+  emptyState: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: Colors.textSecondary,
+    fontSize: Typography.body,
   },
 });

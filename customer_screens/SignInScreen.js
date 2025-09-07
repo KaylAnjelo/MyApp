@@ -1,20 +1,37 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Image, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
+import apiService from '../services/apiService';
 
 export default function SignInScreen() {
   const navigation = useNavigation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSignIn = () => {
-    // This is the line that will navigate you to the HomePage
-    navigation.navigate('HomePage');
-    
-    // You can keep your sign-in logic here after this line if you have any
-    console.log('Signing in with:', email, password);
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await apiService.login(email, password);
+      
+      // Store user data (you might want to use AsyncStorage for persistence)
+      console.log('Login successful:', response);
+      
+      // Navigate to HomePage on successful login
+      navigation.navigate('HomePage');
+      
+    } catch (error) {
+      Alert.alert('Login Failed', error.message || 'Invalid email or password');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -66,8 +83,16 @@ export default function SignInScreen() {
         </View>
 
         {/* This button now calls the updated handleSignIn function */}
-        <TouchableOpacity style={styles.continueButton} onPress={handleSignIn}>
-          <Text style={styles.continueButtonText}>Continue</Text>
+        <TouchableOpacity 
+          style={[styles.continueButton, loading && styles.continueButtonDisabled]} 
+          onPress={handleSignIn}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={Colors.white} />
+          ) : (
+            <Text style={styles.continueButtonText}>Continue</Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -155,6 +180,9 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: 'bold',
     fontSize: Typography.h3,
+  },
+  continueButtonDisabled: {
+    opacity: 0.6,
   },
   signupContainer: {
     flexDirection: 'row',

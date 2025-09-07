@@ -1,12 +1,60 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Switch, Alert, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii } from '../styles/theme';
+import apiService from '../services/apiService';
 
 export default function SignUpCustomerScreen() {
   const navigation = useNavigation();
   const [agree, setAgree] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    password: '',
+    email: ''
+  });
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSignUp = async () => {
+    if (!formData.firstName || !formData.lastName || !formData.phone || !formData.password || !formData.email) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (!agree) {
+      Alert.alert('Error', 'Please agree to the terms and conditions');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const userData = {
+        email: formData.email,
+        password: formData.password,
+        user_type: 'customer',
+        full_name: `${formData.firstName} ${formData.lastName}`,
+        phone: `+63${formData.phone}`
+      };
+
+      const response = await apiService.register(userData);
+      
+      console.log('Registration successful:', response);
+      Alert.alert('Success', 'Account created successfully!', [
+        { text: 'OK', onPress: () => navigation.replace("HomePage") }
+      ]);
+      
+    } catch (error) {
+      Alert.alert('Registration Failed', error.message || 'Failed to create account');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -46,16 +94,43 @@ export default function SignUpCustomerScreen() {
             placeholderTextColor="#888"
             style={styles.phoneInput}
             keyboardType="phone-pad"
+            value={formData.phone}
+            onChangeText={(value) => handleInputChange('phone', value)}
           />
         </View>
 
         {/* Other fields */}
-        <TextInput placeholder="First Name" style={styles.input}
-        placeholderTextColor="#888" />
-        <TextInput placeholder="Last Name" style={styles.input}
-        placeholderTextColor="#888" />
-        <TextInput placeholder="Password" secureTextEntry style={styles.input}
-        placeholderTextColor="#888" />
+        <TextInput 
+          placeholder="First Name" 
+          style={styles.input}
+          placeholderTextColor="#888"
+          value={formData.firstName}
+          onChangeText={(value) => handleInputChange('firstName', value)}
+        />
+        <TextInput 
+          placeholder="Last Name" 
+          style={styles.input}
+          placeholderTextColor="#888"
+          value={formData.lastName}
+          onChangeText={(value) => handleInputChange('lastName', value)}
+        />
+        <TextInput 
+          placeholder="Email" 
+          style={styles.input}
+          placeholderTextColor="#888"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={formData.email}
+          onChangeText={(value) => handleInputChange('email', value)}
+        />
+        <TextInput 
+          placeholder="Password" 
+          secureTextEntry 
+          style={styles.input}
+          placeholderTextColor="#888"
+          value={formData.password}
+          onChangeText={(value) => handleInputChange('password', value)}
+        />
 
         {/* Terms Switch */}
         <View style={styles.checkboxRow}>
@@ -69,10 +144,15 @@ export default function SignUpCustomerScreen() {
 
         {/* Sign Up Button */}
         <TouchableOpacity 
-          style={styles.signupButton}
-          onPress={() => navigation.replace("HomePage")} // 🔹 Added navigation here
+          style={[styles.signupButton, loading && styles.signupButtonDisabled]}
+          onPress={handleSignUp}
+          disabled={loading}
         >
-          <Text style={styles.signupText}>Sign Up</Text>
+          {loading ? (
+            <ActivityIndicator color={Colors.white} />
+          ) : (
+            <Text style={styles.signupText}>Sign Up</Text>
+          )}
         </TouchableOpacity>
 
         {/* OR */}
@@ -201,6 +281,9 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: 'bold',
     fontSize: Typography.body,
+  },
+  signupButtonDisabled: {
+    opacity: 0.6,
   },
   orText: {
     textAlign: 'center',
