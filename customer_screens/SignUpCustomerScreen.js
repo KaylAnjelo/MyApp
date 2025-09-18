@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Switch, Ale
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii } from '../styles/theme';
-import apiService from '../services/apiService';
+import apiService from '../services/apiService'; // replace with your actual API service
 
 export default function SignUpCustomerScreen() {
   const navigation = useNavigation();
@@ -13,8 +13,8 @@ export default function SignUpCustomerScreen() {
     firstName: '',
     lastName: '',
     phone: '',
-    password: '',
-    email: ''
+    email: '',
+    password: ''
   });
 
   const handleInputChange = (field, value) => {
@@ -22,7 +22,7 @@ export default function SignUpCustomerScreen() {
   };
 
   const handleSignUp = async () => {
-    if (!formData.firstName || !formData.lastName || !formData.phone || !formData.password || !formData.email) {
+    if (!formData.firstName || !formData.lastName || !formData.phone || !formData.email || !formData.password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -37,18 +37,18 @@ export default function SignUpCustomerScreen() {
       const userData = {
         email: formData.email,
         password: formData.password,
+        phone: formData.phone,
         user_type: 'customer',
-        full_name: `${formData.firstName} ${formData.lastName}`,
-        phone: `+63${formData.phone}`
+        full_name: `${formData.firstName} ${formData.lastName}`
       };
 
       const response = await apiService.register(userData);
-      
+
       console.log('Registration successful:', response);
       Alert.alert('Success', 'Account created successfully!', [
         { text: 'OK', onPress: () => navigation.replace("HomePage") }
       ]);
-      
+
     } catch (error) {
       Alert.alert('Registration Failed', error.message || 'Failed to create account');
     } finally {
@@ -82,24 +82,6 @@ export default function SignUpCustomerScreen() {
 
         <Text style={styles.sectionLabel}>Contact Details</Text>
 
-        {/* Phone Input */}
-        <View style={styles.row}>
-          <Image
-            source={require('../assets/ph_flag.png')}
-            style={styles.flagIcon}
-          />
-          <Text style={styles.prefix}>+63</Text>
-          <TextInput
-            placeholder="Mobile Number"
-            placeholderTextColor="#888"
-            style={styles.phoneInput}
-            keyboardType="phone-pad"
-            value={formData.phone}
-            onChangeText={(value) => handleInputChange('phone', value)}
-          />
-        </View>
-
-        {/* Other fields */}
         <TextInput 
           placeholder="First Name" 
           style={styles.input}
@@ -113,6 +95,16 @@ export default function SignUpCustomerScreen() {
           placeholderTextColor="#888"
           value={formData.lastName}
           onChangeText={(value) => handleInputChange('lastName', value)}
+        />
+        <TextInput 
+          placeholder="Phone" 
+          style={styles.input}
+          placeholderTextColor="#888"  
+          keyboardType="phone-pad"      
+          value={formData.phone}
+          onChangeText={(value) => {
+            const numericValue = value.replace(/[^0-9]/g, '');
+              handleInputChange('phone', numericValue);}}
         />
         <TextInput 
           placeholder="Email" 
@@ -155,22 +147,13 @@ export default function SignUpCustomerScreen() {
           )}
         </TouchableOpacity>
 
-        {/* OR */}
-        <Text style={styles.orText}>or</Text>
 
-        {/* Google Sign-In */}
-        <TouchableOpacity style={styles.googleButton}>
-          <Image
-            source={require('../assets/google_logo.png')}
-            style={styles.googleIcon}
-          />
-          <Text style={styles.googleText}>Continue with Google</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
 }
 
+// Styles remain the same as Vendor screen
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -222,29 +205,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: Spacing.md,
     fontSize: Typography.body,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-    borderBottomWidth: 1,
-    borderColor: '#ccc',
-    paddingBottom: Spacing.xs,
-  },
-  flagIcon: {
-    width: 24,
-    height: 16,
-    marginRight: Spacing.xs,
-    resizeMode: 'contain',
-  },
-  prefix: {
-    marginRight: Spacing.md,
-    fontSize: Typography.body,
-  },
-  phoneInput: {
-    flex: 1,
-    fontSize: Typography.body,
-    color: Colors.textPrimary,
   },
   input: {
     borderBottomWidth: 1,

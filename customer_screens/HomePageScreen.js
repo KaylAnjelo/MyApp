@@ -57,7 +57,9 @@ export default function HomePageScreen({ navigation }) {
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.logoText}>SUKI</Text>
+          <Image
+            source={require('../assets/logo_maroon.png')}
+            style={styles.logoImage}/>
           <Ionicons name="notifications-outline" size={26} color="#7D0006" />
         </View>
 
@@ -198,16 +200,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#7D0006',
+    marginBottom: 20,
   },
   logoImage: {
-    width: 100,
-    height: 40,
+  width: 150,
+  height: 50,
+  resizeMode: 'contain',
+  marginLeft: -50,
   },
   cardContainer: {
     flexDirection: 'row',

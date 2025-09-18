@@ -65,7 +65,9 @@ const VendorHomePage = ({ navigation }) => { // <-- Add navigation prop
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.logoText}>SUKI</Text>
+          <Image
+            source={require('../assets/logo_maroon.png')}
+            style={styles.logoImage}/>
           <TouchableOpacity>
             <Icon name="notifications" size={24} color="#000" />
           </TouchableOpacity>
@@ -179,10 +181,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  logoText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#D22B2B',
+  logoImage: {
+  width: 150,
+  height: 50,
+  resizeMode: 'contain',
+  marginLeft: -50,
   },
   statsContainer: {
     flexDirection: 'row',

@@ -1,12 +1,60 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Switch, Alert, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii } from '../styles/theme';
+import apiService from '../services/apiService'; // replace with your actual API service
 
 export default function SignUpVendorScreen() {
   const navigation = useNavigation();
   const [agree, setAgree] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    email: '',
+    password: ''
+  });
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSignUp = async () => {
+    if (!formData.firstName || !formData.lastName || !formData.phone || !formData.email || !formData.password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (!agree) {
+      Alert.alert('Error', 'Please agree to the terms and conditions');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const userData = {
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        user_type: 'vendor',
+        full_name: `${formData.firstName} ${formData.lastName}`
+      };
+
+      const response = await apiService.register(userData);
+
+      console.log('Registration successful:', response);
+      Alert.alert('Success', 'Account created successfully!', [
+        { text: 'OK', onPress: () => navigation.replace("VendorHomePage") }
+      ]);
+
+    } catch (error) {
+      Alert.alert('Registration Failed', error.message || 'Failed to create account');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -34,28 +82,47 @@ export default function SignUpVendorScreen() {
 
         <Text style={styles.sectionLabel}>Contact Details</Text>
 
-        {/* Phone Input */}
-        <View style={styles.row}>
-          <Image
-            source={require('../assets/ph_flag.png')}
-            style={styles.flagIcon}
-          />
-          <Text style={styles.prefix}>+63</Text>
-          <TextInput
-            placeholder="Mobile Number"
-            placeholderTextColor="#888"
-            style={styles.phoneInput}
-            keyboardType="phone-pad"
-          />
-        </View>
-
-        {/* Other fields */}
-        <TextInput placeholder="First Name" style={styles.input}
-        placeholderTextColor="#888" />
-        <TextInput placeholder="Last Name" style={styles.input}
-        placeholderTextColor="#888" />
-        <TextInput placeholder="Password" secureTextEntry style={styles.input}
-        placeholderTextColor="#888" />
+        <TextInput 
+          placeholder="First Name" 
+          style={styles.input}
+          placeholderTextColor="#888"
+          value={formData.firstName}
+          onChangeText={(value) => handleInputChange('firstName', value)}
+        />
+        <TextInput 
+          placeholder="Last Name" 
+          style={styles.input}
+          placeholderTextColor="#888"
+          value={formData.lastName}
+          onChangeText={(value) => handleInputChange('lastName', value)}
+        />
+        <TextInput 
+          placeholder="Phone" 
+          style={styles.input}
+          placeholderTextColor="#888"  
+          keyboardType="phone-pad"      
+          value={formData.phone}
+          onChangeText={(value) => {
+            const numericValue = value.replace(/[^0-9]/g, '');
+            handleInputChange('phone', numericValue);}}
+        />
+        <TextInput 
+          placeholder="Email" 
+          style={styles.input}
+          placeholderTextColor="#888"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={formData.email}
+          onChangeText={(value) => handleInputChange('email', value)}
+        />
+        <TextInput 
+          placeholder="Password" 
+          secureTextEntry 
+          style={styles.input}
+          placeholderTextColor="#888"
+          value={formData.password}
+          onChangeText={(value) => handleInputChange('password', value)}
+        />
 
         {/* Terms Switch */}
         <View style={styles.checkboxRow}>
@@ -67,37 +134,24 @@ export default function SignUpVendorScreen() {
           </Text>
         </View>
 
-{/* Sign Up Button */}
-<TouchableOpacity 
-  style={styles.signupButton}
-  onPress={() => {
-    if (!agree) {
-      alert("Please accept the Terms and Conditions before signing up.");
-      return;
-    }
-    navigation.replace("VendorHomePage"); // ✅ make sure this matches App.js
-  }}
->
-  <Text style={styles.signupText}>Sign Up</Text>
-</TouchableOpacity>
-
-
-        {/* OR */}
-        <Text style={styles.orText}>or</Text>
-
-        {/* Google Sign-In */}
-        <TouchableOpacity style={styles.googleButton}>
-          <Image
-            source={require('../assets/google_logo.png')}
-            style={styles.googleIcon}
-          />
-          <Text style={styles.googleText}>Continue with Google</Text>
+        {/* Sign Up Button */}
+        <TouchableOpacity 
+          style={[styles.signupButton, loading && styles.signupButtonDisabled]}
+          onPress={handleSignUp}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={Colors.white} />
+          ) : (
+            <Text style={styles.signupText}>Sign Up</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
+// Styles remain the same as your customer screen
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -150,29 +204,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     fontSize: Typography.body,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-    borderBottomWidth: 1,
-    borderColor: '#ccc',
-    paddingBottom: Spacing.xs,
-  },
-  flagIcon: {
-    width: 24,
-    height: 16,
-    marginRight: Spacing.xs,
-    resizeMode: 'contain',
-  },
-  prefix: {
-    marginRight: Spacing.md,
-    fontSize: Typography.body,
-  },
-  phoneInput: {
-    flex: 1,
-    fontSize: Typography.body,
-    color: Colors.textPrimary,
-  },
   input: {
     borderBottomWidth: 1,
     borderColor: '#ccc',
@@ -208,6 +239,9 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: 'bold',
     fontSize: Typography.body,
+  },
+  signupButtonDisabled: {
+    opacity: 0.6,
   },
   orText: {
     textAlign: 'center',

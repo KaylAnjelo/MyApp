@@ -39,6 +39,7 @@ export default function App() {
         <Stack.Screen name="SalesPage" component={SalesPage} />
         <Stack.Screen name="VendorProfilePage" component={VendorProfilePage} />
         <Stack.Screen name="TransactionPage" component={TransactionPage} />
+
       </Stack.Navigator>
     </NavigationContainer>
   );
