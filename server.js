@@ -56,51 +56,43 @@ app.get('/health', async (req, res) => {
 });
 
 // =======================
-// Authentication routes
+// Authentication routes (using your users table)
 // =======================
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password, user_type, full_name, phone } = req.body;
+    const { username, password, first_name, last_name, contact_number, user_email, role } = req.body;
 
-    // Step 1: Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { user_type, full_name, phone }
-      }
-    });
+    // Insert directly into your users table
+    const { data, error } = await supabase
+      .from('users')
+      .insert([
+        {
+          username,
+          password, // ⚠️ for now plain text, but you should hash it later with bcrypt
+          first_name,
+          last_name,
+          contact_number,
+          user_email,
+          role
+        }
+      ])
+      .select()
+      .single();
 
-    if (authError) return res.status(400).json({ error: authError.message });
-
-    const userId = authData.user?.id;
-
-    // Step 2: Insert into profiles table
-    if (userId) {
-      const { error: insertError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: userId,    // foreign key to auth.users.id
-          email,
-          user_type,
-          full_name,
-          phone
-        });
-
-      if (insertError) {
-        console.error('Error inserting user profile:', insertError.message);
-        return res.status(400).json({ error: insertError.message });
-      }
+    if (error) {
+      console.error('Error inserting user:', error.message);
+      return res.status(400).json({ error: error.message });
     }
 
     res.json({
       message: 'User registered successfully',
-      user: authData.user
+      user: data
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // =======================
 // User profile routes
