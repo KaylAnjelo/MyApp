@@ -6,29 +6,26 @@ import apiService from '../services/apiService';
 
 export default function SignInScreen() {
   const navigation = useNavigation();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');   // ✅ renamed from email → username
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSignIn = async () => {
-    if (!email || !password) {
+    if (!username || !password) {   // ✅ check username instead of email
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await apiService.login(email, password);
-      
-      // Store user data (you might want to use AsyncStorage for persistence)
+      const response = await apiService.login(username, password); // ✅ match API
       console.log('Login successful:', response);
-      
+
       // Navigate to HomePage on successful login
       navigation.navigate('HomePage');
-      
     } catch (error) {
-      Alert.alert('Login Failed', error.message || 'Invalid email or password');
+      Alert.alert('Login Failed', error.message || 'Invalid username or password');
     } finally {
       setLoading(false);
     }
@@ -44,15 +41,15 @@ export default function SignInScreen() {
         <Text style={styles.title}>Welcome!</Text>
         <Text style={styles.subtitle}>Login to your account</Text>
 
+        {/* ✅ Changed label to "Username" */}
         <View style={styles.inputContainer}>
           <TextInput
-            placeholder="Email"
+            placeholder="Username"
             placeholderTextColor="#888"
             style={styles.input}
-            keyboardType="email-address"
             autoCapitalize="none"
-            value={email}
-            onChangeText={setEmail}
+            value={username}
+            onChangeText={setUsername}
           />
         </View>
 
@@ -82,7 +79,6 @@ export default function SignInScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* This button now calls the updated handleSignIn function */}
         <TouchableOpacity 
           style={[styles.continueButton, loading && styles.continueButtonDisabled]} 
           onPress={handleSignIn}

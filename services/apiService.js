@@ -1,5 +1,5 @@
 // Centralized API service for all backend communication
-const API_BASE_URL = 'http://10.0.2.2:3000/api';
+const API_BASE_URL = 'http://10.0.2.2:3000/api'; // ✅ keep emulator-friendly base URL
 
 class ApiService {
   constructor() {
@@ -40,10 +40,10 @@ class ApiService {
     });
   }
 
-  async login(email, password) {
+  async login(username, password) {   // ✅ changed email → username
     return this.request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ username, password }),
     });
   }
 
