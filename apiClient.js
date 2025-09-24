@@ -1,5 +1,5 @@
 // API Client for React Native app to communicate with the backend
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'http://10.0.2.2:3000/api'; // ✅ changed localhost → 10.0.2.2
 
 class ApiClient {
   constructor() {
@@ -40,10 +40,10 @@ class ApiClient {
     });
   }
 
-  async login(email, password) {
+  async login(username, password) {   // ✅ changed email → username
     return this.request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ username, password }),
     });
   }
 
