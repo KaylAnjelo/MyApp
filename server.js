@@ -3,7 +3,8 @@ const cors = require("cors");
 require("dotenv").config();
 
 const { supabase } = require("./supabaseClient.js");
-const authRoutes = require("./routes/authRoutes"); // import your routes
+const authRoutes = require("./routes/authRoutes"); // import your auth routes
+const storeRoutes = require("./routes/storeRoutes"); // import your new store routes
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,24 +15,25 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Root route
-app.get('/', (req, res) => {
-  res.send('Welcome! API is running. Try /health or /api/auth/register');
+app.get("/", (req, res) => {
+  res.send("Welcome! API is running. Try /health or /api/auth/register");
 });
 
 // Health Check Route
-app.get('/health', (req, res) => {
-  res.status(200).send('OK');
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
 });
 
-// Use auth routes
-app.use('/api', authRoutes);
+// Use routes
+app.use("/api", authRoutes);  // for /api/auth/*
+app.use("/api", storeRoutes); // for /api/stores
 
 // Optional: print local network IP for testing from other devices
-const os = require('os');
+const os = require("os");
 const networkInterfaces = os.networkInterfaces();
 const localIp = Object.values(networkInterfaces)
   .flat()
-  .find((i) => i.family === 'IPv4' && !i.internal)?.address;
+  .find((i) => i.family === "IPv4" && !i.internal)?.address;
 
 app.listen(PORT, () => {
   console.log(`Server is running at:`);
