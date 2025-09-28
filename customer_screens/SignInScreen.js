@@ -6,24 +6,24 @@ import apiService from '../services/apiService';
 
 export default function SignInScreen() {
   const navigation = useNavigation();
-  const [username, setUsername] = useState('');   // ✅ renamed from email → username
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSignIn = async () => {
-    if (!username || !password) {   // ✅ check username instead of email
+    if (!username || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await apiService.login(username, password); // ✅ match API
+      const response = await apiService.login(username, password);
       console.log('Login successful:', response);
 
-      // Navigate to HomePage on successful login
-      navigation.navigate('HomePage');
+      // ✅ Go to HomePageScreen and pass the user data
+      navigation.navigate('HomePage', { user: response.user });
     } catch (error) {
       Alert.alert('Login Failed', error.message || 'Invalid username or password');
     } finally {
@@ -41,7 +41,6 @@ export default function SignInScreen() {
         <Text style={styles.title}>Welcome!</Text>
         <Text style={styles.subtitle}>Login to your account</Text>
 
-        {/* ✅ Changed label to "Username" */}
         <View style={styles.inputContainer}>
           <TextInput
             placeholder="Username"

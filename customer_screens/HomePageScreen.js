@@ -170,10 +170,10 @@ export default function HomePageScreen({ navigation }) {
           <Ionicons name="storefront-outline" size={22} color="#555" />
           <Text style={styles.navText}>Stores</Text>
         </View>
-        <View style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ScannerScreen')}>
           <FontAwesome name="qrcode" size={20} color="#555" />
           <Text style={styles.navText}>QR Scan</Text>
-        </View>
+        </TouchableOpacity>
         <View style={styles.navItem}>
           <FontAwesome name="list-alt" size={20} color="#555" />
           <Text style={styles.navText}>Activity</Text>

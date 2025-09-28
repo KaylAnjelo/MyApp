@@ -17,6 +17,8 @@ import VendorHomePage from './vendor_screens/VendorHomePage';
 import SalesPage from './vendor_screens/SalesPage';
 import VendorProfilePage from './vendor_screens/VendorProfilePage';
 import TransactionPage from './vendor_screens/TransactionPage';
+import ScannerScreen from './customer_screens/ScannerScreen';
+
 
 const Stack = createNativeStackNavigator();
 
@@ -39,6 +41,7 @@ export default function App() {
         <Stack.Screen name="SalesPage" component={SalesPage} />
         <Stack.Screen name="VendorProfilePage" component={VendorProfilePage} />
         <Stack.Screen name="TransactionPage" component={TransactionPage} />
+        <Stack.Screen name="ScannerScreen" component={ScannerScreen} />
 
       </Stack.Navigator>
     </NavigationContainer>

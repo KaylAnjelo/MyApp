@@ -1,10 +1,25 @@
-// stray import below was causing an error, remove it if present
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
+import apiService from '../services/apiService';
 
 export default function ProfilePageScreen({ navigation }) {
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const data = await apiService.getCurrentUserProfile();
+        setProfile(data);
+      } catch (error) {
+        console.error('Failed to fetch profile:', error);
+      }
+    };
+    fetchProfile();
+  }, []);
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.pageContent}>
@@ -47,13 +62,13 @@ export default function ProfilePageScreen({ navigation }) {
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Name</Text>
             <View style={styles.infoValueBox}>
-              <Text style={styles.infoValue}>Jecka Acupido</Text>
+              <Text style={styles.infoValue}>{profile?.name || 'N/A'}</Text>
             </View>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Email</Text>
             <View style={styles.infoValueBox}>
-              <Text style={styles.infoValue}>acupidojecka@gmail.com</Text>
+              <Text style={styles.infoValue}>{profile?.email || 'N/A'}</Text>
             </View>
           </View>
 
@@ -65,7 +80,14 @@ export default function ProfilePageScreen({ navigation }) {
 
           {/* Logout */}
           <Text style={[styles.blockTitle, styles.logoutTitle]}>Logout</Text>
-          <TouchableOpacity style={styles.logoutRow} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.logoutRow}
+            activeOpacity={0.8}
+            onPress={async () => {
+              await apiService.logout();
+              navigation.replace('Login'); // redirect to login after logout
+            }}
+          >
             <Text style={styles.logoutText}>Logout</Text>
             <View style={styles.logoutIconPill}>
               <FontAwesome name="arrow-right" size={14} color={Colors.textSecondary} />
@@ -102,16 +124,9 @@ export default function ProfilePageScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scroll: {
-    flex: 1,
-  },
-  pageContent: {
-    flexGrow: 1,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  scroll: { flex: 1 },
+  pageContent: { flexGrow: 1 },
   topSection: {
     backgroundColor: Colors.primary,
     paddingTop: Spacing.quad,
@@ -125,11 +140,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
   },
-  headerTitle: {
-    color: Colors.white,
-    fontSize: Typography.h3,
-    fontWeight: '700',
-  },
+  headerTitle: { color: Colors.white, fontSize: Typography.h3, fontWeight: '700' },
   quickActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -150,25 +161,10 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
   },
-  bodyContent: {
-    padding: Spacing.xl,
-    paddingBottom: Spacing.quad * 2,
-  },
-  sectionHeader: {
-    fontSize: Typography.h3,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: Spacing.lg,
-  },
-  avatarWrapper: {
-    alignSelf: 'center',
-    position: 'relative',
-  },
-  avatarLarge: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-  },
+  bodyContent: { padding: Spacing.xl, paddingBottom: Spacing.quad * 2 },
+  sectionHeader: { fontSize: Typography.h3, fontWeight: '600', color: Colors.textPrimary, marginBottom: Spacing.lg },
+  avatarWrapper: { alignSelf: 'center', position: 'relative' },
+  avatarLarge: { width: 120, height: 120, borderRadius: 60 },
   editBadge: {
     position: 'absolute',
     right: 6,
@@ -180,43 +176,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  nameText: {
-    marginTop: Spacing.lg,
-    fontSize: Typography.h2,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
-  subText: {
-    marginTop: Spacing.xs,
-    fontSize: Typography.body,
-    color: Colors.textSecondary,
-  },
-  blockTitle: {
-    marginTop: Spacing.xl,
-    fontSize: Typography.h3,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
-  infoRow: {
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
-  infoLabel: {
-    fontSize: Typography.small,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xs,
-  },
+  blockTitle: { marginTop: Spacing.xl, fontSize: Typography.h3, fontWeight: '600', color: Colors.textPrimary },
+  infoRow: { marginTop: Spacing.md, marginBottom: Spacing.sm },
+  infoLabel: { fontSize: Typography.small, color: Colors.textSecondary, marginBottom: Spacing.xs },
   infoValueBox: {
     backgroundColor: '#f3f3f3',
     borderRadius: Radii.md,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xl,
   },
-  infoValue: {
-    fontSize: Typography.body,
-    color: Colors.textSecondary,
-    textAlign: 'right',
-  },
+  infoValue: { fontSize: Typography.body, color: Colors.textSecondary, textAlign: 'right' },
   settingsRow: {
     marginTop: Spacing.md,
     backgroundColor: Colors.white,
@@ -228,13 +197,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     ...Shadows.light,
   },
-  settingsText: {
-    fontSize: Typography.body,
-    color: Colors.textPrimary,
-  },
-  logoutTitle: {
-    marginTop: Spacing.lg,
-  },
+  settingsText: { fontSize: Typography.body, color: Colors.textPrimary },
+  logoutTitle: { marginTop: Spacing.lg },
   logoutRow: {
     marginTop: Spacing.md,
     backgroundColor: '#f3f3f3',
@@ -245,10 +209,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  logoutText: {
-    fontSize: Typography.body,
-    color: Colors.textPrimary,
-  },
+  logoutText: { fontSize: Typography.body, color: Colors.textPrimary },
   logoutIconPill: {
     width: 28,
     height: 28,
@@ -270,14 +231,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
   },
-  navItem: {
-    alignItems: 'center',
-  },
-  navText: {
-    fontSize: 11,
-    marginTop: 2,
-    color: '#555',
-  },
+  navItem: { alignItems: 'center' },
+  navText: { fontSize: 11, marginTop: 2, color: '#555' },
 });
-
- 
