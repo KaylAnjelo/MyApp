@@ -2,49 +2,31 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from "react-native";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
 import { Colors, Typography, Spacing, Radii, Shadows } from "../styles/theme";
+import apiService from "../services/apiService";
 
 const MyPointsScreen = ({ navigation }) => {
-  const [highestPoints, setHighestPoints] = useState(0);
-  const [storeImage, setStoreImage] = useState(null);
   const [stores, setStores] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Simulate fetching from DB
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchStores = async () => {
       try {
-        // TODO: Replace with real API call
-        const mockStores = [
-          {
-            id: "1",
-            name: "Shawarma Store",
-            logoUrl: "https://via.placeholder.com/64",
-            customerPoints: 85,
-            claimThreshold: 100,
-          },
-          {
-            id: "2",
-            name: "Pizza Hub",
-            logoUrl: "https://via.placeholder.com/64",
-            customerPoints: 120,
-            claimThreshold: 100,
-          },
-        ];
-
-        setStores(mockStores);
-        const top = mockStores.reduce((max, s) => (s.customerPoints > max ? s.customerPoints : max), 0);
-        setHighestPoints(top);
-        // For testing: set storeImage to null to see the gray placeholder
-        setStoreImage(null);
-        // When you have real data, uncomment this line:
-        // const topStore = mockStores.reduce((prev, curr) => (curr.customerPoints > prev.customerPoints ? curr : prev), mockStores[0]);
-        // setStoreImage(topStore?.logoUrl ?? null);
+        const data = await apiService.getStores();
+        setStores(data);
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Failed to fetch stores:", error);
+      } finally {
+        setLoading(false);
       }
     };
-
-    fetchData();
+    fetchStores();
   }, []);
+
+  // Calculate the highest points available from all stores
+  const highestPoints = stores.reduce(
+    (max, store) => Math.max(max, store.customerPoints || 0), // Use 0 if customerPoints is undefined
+    0
+  );
 
   return (
     <View style={styles.container}>
@@ -60,13 +42,9 @@ const MyPointsScreen = ({ navigation }) => {
 
         {/* Top Section */}
         <View style={styles.topSection}>
-          {storeImage ? (
-            <Image source={{ uri: storeImage }} style={styles.storeImage} />
-          ) : (
-            <View style={styles.placeholderImage} />
-          )}
+          {/* Add a placeholder image logic if needed */}
           <Text style={styles.subText}>Highest available points</Text>
-          <Text style={styles.pointsText}>{highestPoints} points</Text>
+          <Text style={styles.pointsText}>{loading ? '...' : `${highestPoints} points`}</Text>
         </View>
 
         {/* White Content Area */}
@@ -74,29 +52,42 @@ const MyPointsScreen = ({ navigation }) => {
           <View style={styles.whiteBoxContent}>
             {/* Dynamic Store Cards */}
             <View style={styles.cardsContainer}>
-              {stores.map((store) => {
-                const canClaim = store.customerPoints >= store.claimThreshold;
-                return (
-                  <View key={store.id} style={styles.storeCard}>
-                    <View style={styles.logoCircle}>
-                      <Image source={{ uri: store.logoUrl }} style={styles.logoImage} />
+              {loading ? (
+                <Text style={styles.loadingText}>Loading stores...</Text>
+              ) : stores.length === 0 ? (
+                <Text style={styles.loadingText}>No stores found.</Text>
+              ) : (
+                stores.map((store) => {
+                  const canClaim = store.customerPoints >= store.claimThreshold;
+                  return (
+                    <View key={store.id} style={styles.storeCard}>
+                      <View style={styles.logoCircle}>
+                        <Image source={{ uri: store.logoUrl }} style={styles.logoImage} />
+                      </View>
+                      <View style={styles.cardInfo}>
+                        {/* 🌟 FIX/ENHANCEMENT: Use optional chaining and fallback text */}
+                        <Text style={styles.storeName}>
+                          {store.name || "Store Name Missing"} 
+                        </Text>
+                        <Text style={styles.storePoints}>
+                          <Text style={{ fontWeight: "700" }}>{store.customerPoints} points</Text>
+                        </Text>
+                        {!canClaim && (
+                          <Text style={styles.storeNote}>Insufficient points.</Text>
+                        )}
+                      </View>
+                      <TouchableOpacity 
+                        style={[styles.cardButton, canClaim ? styles.useButton : styles.collectButton]} 
+                        activeOpacity={0.9}
+                      >
+                        <Text style={[styles.cardButtonText, canClaim ? { color: Colors.white } : null]}>
+                          {canClaim ? "Use points" : "Collect points"}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
-                    <View style={styles.cardInfo}>
-                      <Text style={styles.storeName}>{store.name}</Text>
-                      <Text style={styles.storePoints}><Text style={{ fontWeight: "700" }}>{store.customerPoints} points</Text></Text>
-                      {!canClaim && (
-                        <Text style={styles.storeNote}>Insufficient points.</Text>
-                      )}
-
-                    </View>
-                    <TouchableOpacity style={[styles.cardButton, canClaim ? styles.useButton : styles.collectButton]} activeOpacity={0.9}>
-                      <Text style={[styles.cardButtonText, canClaim ? { color: Colors.white } : null]}>
-                        {canClaim ? "Use points" : "Collect points"}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
+                  );
+                })
+              )}
             </View>
 
             {/* Points History CTA */}
@@ -113,6 +104,7 @@ const MyPointsScreen = ({ navigation }) => {
 export default MyPointsScreen;
 
 const styles = StyleSheet.create({
+  // ... (Your existing styles are here)
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -257,5 +249,12 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: "700",
     fontSize: Typography.h3,
+  },
+  // New style for loading/no data text
+  loadingText: {
+    textAlign: 'center',
+    marginTop: Spacing.quad,
+    fontSize: Typography.body,
+    color: Colors.textSecondary,
   },
 });
