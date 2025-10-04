@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii } from '../styles/theme';
 import apiService from '../services/apiService'; // replace with your actual API service
 
-export default function SignUpVendorScreen() {
+export default function SignUpCustomerScreen() {
   const navigation = useNavigation();
   const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -34,25 +34,31 @@ export default function SignUpVendorScreen() {
 
     setLoading(true);
     try {
+      // Make sure these field names match your backend
       const userData = {
-        email: formData.email,
+        username: formData.email, // Use email as username as per backend
         password: formData.password,
-        phone: formData.phone,
-        user_type: 'vendor',
-        full_name: `${formData.firstName} ${formData.lastName}`
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        contact_number: formData.phone,
+        user_email: formData.email,
+        role: 'vendor',
+        store_id: null // Explicitly setting this as the backend expects it
       };
 
       const response = await apiService.register(userData);
 
       console.log('Registration successful:', response);
       Alert.alert('Success', 'Account created successfully!', [
-        { text: 'OK', onPress: () => navigation.replace("VendorHomePage") }
+        { text: 'OK', onPress: () => navigation.replace("VendorHomePage") } // make sure "HomePage" exists in your navigator
       ]);
 
     } catch (error) {
-      Alert.alert('Registration Failed', error.message || 'Failed to create account');
-    } finally {
-      setLoading(false);
+        if (error.message.includes("duplicate key")) {
+    Alert.alert("Registration Failed", "This email is already registered. Please use another email.");
+      } else {
+    Alert.alert("Registration Failed", error.message || "Failed to create account");
+      }
     }
   };
 
@@ -99,12 +105,13 @@ export default function SignUpVendorScreen() {
         <TextInput 
           placeholder="Phone" 
           style={styles.input}
-          placeholderTextColor="#888"  
-          keyboardType="phone-pad"      
+          placeholderTextColor="#888"
+          keyboardType="phone-pad"
           value={formData.phone}
           onChangeText={(value) => {
-            const numericValue = value.replace(/[^0-9]/g, '');
-            handleInputChange('phone', numericValue);}}
+          const numericValue = value.replace(/[^0-9]/g, '');
+          handleInputChange('phone', numericValue);
+          }}
         />
         <TextInput 
           placeholder="Email" 
@@ -151,7 +158,7 @@ export default function SignUpVendorScreen() {
   );
 }
 
-// Styles remain the same as your customer screen
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,

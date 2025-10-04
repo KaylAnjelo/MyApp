@@ -12,24 +12,30 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleSignIn = async () => {
-    if (!username || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
+  if (!username || !password) {
+    Alert.alert('Missing Fields', 'Please enter both username and password');
+    return;
+  }
 
-    setLoading(true);
-    try {
-      const response = await apiService.login(username, password);
-      console.log('Login successful:', response);
+  setLoading(true);
+  try {
+    const response = await apiService.login(username, password);
+    console.log('Login successful:', response);
 
-      // ✅ Go to HomePageScreen and pass the user data
-      navigation.navigate('HomePage', { user: response.user });
-    } catch (error) {
-      Alert.alert('Login Failed', error.message || 'Invalid username or password');
-    } finally {
-      setLoading(false);
+    // Get role from response (adjust if API sends it differently)
+    const userRole = response.user?.role;
+
+    if (userRole === 'vendor') {
+      navigation.replace('VendorHomePage', { user: response.user });
+    } else {
+      navigation.replace('HomePage', { user: response.user });
     }
-  };
+  } catch (error) {
+    Alert.alert('Login Failed', error.message || 'Invalid username or password');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <View style={styles.container}>
