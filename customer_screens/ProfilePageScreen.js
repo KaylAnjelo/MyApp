@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
@@ -7,14 +8,61 @@ import apiService from '../services/apiService';
 
 export default function ProfilePageScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
+  const [profileError, setProfileError] = useState(null);
+
+  // Derived display fields with sensible fallbacks for different backend shapes
+  const displayName = (
+    profile && (
+      ((profile.first_name || profile.last_name)
+        ? `${(profile.first_name || '').trim()} ${(profile.last_name || '').trim()}`.trim()
+        : null)
+      || profile.name || profile.full_name || profile.username || 'N/A'
+    )
+  ) || 'N/A';
+
+  const displayEmail = (
+    profile && (
+      profile.email || profile.user_email || profile.userEmail || profile.username
+    )
+  ) || 'N/A';
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
+        // First try to use cached user saved during login to avoid hitting a missing endpoint
+        const stored = await AsyncStorage.getItem('@app_user');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          console.debug('ProfilePage: loaded cached @app_user:', parsed);
+          setProfile(parsed);
+          setProfileError(null);
+
+          // If we have a user id, try to refresh from server using the ID-specific route
+          const userId = parsed.user_id || parsed.userId || parsed.id || (parsed._raw && (parsed._raw.user_id || parsed._raw.id));
+          if (userId) {
+            try {
+              const fresh = await apiService.getUserProfile(userId);
+              if (fresh) {
+                console.debug('ProfilePage: refreshed profile from server:', fresh);
+                setProfile(fresh);
+                setProfileError(null);
+              }
+            } catch (refreshErr) {
+              // Non-fatal: log and keep cached profile
+              console.warn('Failed to refresh profile from server:', refreshErr.message || refreshErr);
+            }
+          }
+          return;
+        }
+
+        // No cached user — fall back to the token-based endpoint (may be unimplemented on backend)
         const data = await apiService.getCurrentUserProfile();
         setProfile(data);
       } catch (error) {
-        console.error('Failed to fetch profile:', error);
+        // show a non-blocking inline error instead of a modal popup
+        const msg = error && error.message ? error.message : 'Failed to fetch profile';
+        setProfileError(msg);
+        console.warn('Failed to fetch profile:', msg);
       }
     };
     fetchProfile();
@@ -59,16 +107,22 @@ export default function ProfilePageScreen({ navigation }) {
           </View>
 
           <Text style={styles.blockTitle}>Personal Information</Text>
+          {profileError ? (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{profileError}</Text>
+            </View>
+          ) : null}
+
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Name</Text>
             <View style={styles.infoValueBox}>
-              <Text style={styles.infoValue}>{profile?.name || 'N/A'}</Text>
+              <Text style={styles.infoValue}>{displayName}</Text>
             </View>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Email</Text>
             <View style={styles.infoValueBox}>
-              <Text style={styles.infoValue}>{profile?.email || 'N/A'}</Text>
+              <Text style={styles.infoValue}>{displayEmail}</Text>
             </View>
           </View>
 
@@ -85,7 +139,8 @@ export default function ProfilePageScreen({ navigation }) {
             activeOpacity={0.8}
             onPress={async () => {
               await apiService.logout();
-              navigation.replace('Login'); // redirect to login after logout
+              // App.js registers the sign-in screen as 'SignIn'
+              navigation.replace('SignIn'); // redirect to sign-in after logout
             }}
           >
             <Text style={styles.logoutText}>Logout</Text>
@@ -186,6 +241,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
   },
   infoValue: { fontSize: Typography.body, color: Colors.textSecondary, textAlign: 'right' },
+  errorBanner: {
+    backgroundColor: '#ffe6e6',
+    borderRadius: Radii.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  errorText: { color: '#b00020', fontSize: Typography.small },
   settingsRow: {
     marginTop: Spacing.md,
     backgroundColor: Colors.white,
