@@ -10,59 +10,53 @@ export default function ProfilePageScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [profileError, setProfileError] = useState(null);
 
-  // Derived display fields with sensible fallbacks for different backend shapes
-  const displayName = (
-    profile && (
-      ((profile.first_name || profile.last_name)
+  const displayName =
+    (profile &&
+      (((profile.first_name || profile.last_name)
         ? `${(profile.first_name || '').trim()} ${(profile.last_name || '').trim()}`.trim()
-        : null)
-      || profile.name || profile.full_name || profile.username || 'N/A'
-    )
-  ) || 'N/A';
+        : null) ||
+        profile.name ||
+        profile.full_name ||
+        profile.username ||
+        'N/A')) ||
+    'N/A';
 
-  const displayEmail = (
-    profile && (
-      profile.email || profile.user_email || profile.userEmail || profile.username
-    )
-  ) || 'N/A';
+  const displayEmail =
+    (profile &&
+      (profile.email || profile.user_email || profile.userEmail || profile.username)) ||
+    'N/A';
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // First try to use cached user saved during login to avoid hitting a missing endpoint
         const stored = await AsyncStorage.getItem('@app_user');
         if (stored) {
           const parsed = JSON.parse(stored);
-          console.debug('ProfilePage: loaded cached @app_user:', parsed);
           setProfile(parsed);
           setProfileError(null);
-
-          // If we have a user id, try to refresh from server using the ID-specific route
-          const userId = parsed.user_id || parsed.userId || parsed.id || (parsed._raw && (parsed._raw.user_id || parsed._raw.id));
+          const userId =
+            parsed.user_id ||
+            parsed.userId ||
+            parsed.id ||
+            (parsed._raw && (parsed._raw.user_id || parsed._raw.id));
           if (userId) {
             try {
               const fresh = await apiService.getUserProfile(userId);
               if (fresh) {
-                console.debug('ProfilePage: refreshed profile from server:', fresh);
                 setProfile(fresh);
                 setProfileError(null);
               }
             } catch (refreshErr) {
-              // Non-fatal: log and keep cached profile
               console.warn('Failed to refresh profile from server:', refreshErr.message || refreshErr);
             }
           }
           return;
         }
-
-        // No cached user — fall back to the token-based endpoint (may be unimplemented on backend)
         const data = await apiService.getCurrentUserProfile();
         setProfile(data);
       } catch (error) {
-        // show a non-blocking inline error instead of a modal popup
-        const msg = error && error.message ? error.message : 'Failed to fetch profile';
+        const msg = error?.message || 'Failed to fetch profile';
         setProfileError(msg);
-        console.warn('Failed to fetch profile:', msg);
       }
     };
     fetchProfile();
@@ -71,28 +65,9 @@ export default function ProfilePageScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.pageContent}>
-        {/* Red top with header and quick actions */}
+        {/* Simplified red top header (like SpecificStoreScreen) */}
         <View style={styles.topSection}>
-          <View style={styles.headerRow}>
-            <View style={{ width: 22 }} />
-            <Text style={styles.headerTitle}>Profile</Text>
-            <View style={{ width: 22 }} />
-          </View>
-
-          <View style={styles.quickActionsRow}>
-            <View style={styles.quickAction}>
-              <FontAwesome name="ticket" size={18} color={Colors.textPrimary} />
-              <Text style={styles.quickActionLabel}>Vouchers</Text>
-            </View>
-            <View style={styles.quickAction}>
-              <FontAwesome name="comment-o" size={18} color={Colors.textPrimary} />
-              <Text style={styles.quickActionLabel}>Messages</Text>
-            </View>
-            <View style={styles.quickAction}>
-              <FontAwesome name="users" size={18} color={Colors.textPrimary} />
-              <Text style={styles.quickActionLabel}>Invite Friends</Text>
-            </View>
-          </View>
+          <Text style={styles.headerTitle}>Profile</Text>
         </View>
 
         {/* Body content */}
@@ -119,6 +94,7 @@ export default function ProfilePageScreen({ navigation }) {
               <Text style={styles.infoValue}>{displayName}</Text>
             </View>
           </View>
+
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Email</Text>
             <View style={styles.infoValueBox}>
@@ -132,15 +108,13 @@ export default function ProfilePageScreen({ navigation }) {
             <FontAwesome name="chevron-right" size={14} color={Colors.textSecondary} />
           </TouchableOpacity>
 
-          {/* Logout */}
           <Text style={[styles.blockTitle, styles.logoutTitle]}>Logout</Text>
           <TouchableOpacity
             style={styles.logoutRow}
             activeOpacity={0.8}
             onPress={async () => {
               await apiService.logout();
-              // App.js registers the sign-in screen as 'SignIn'
-              navigation.replace('SignIn'); // redirect to sign-in after logout
+              navigation.replace('SignIn');
             }}
           >
             <Text style={styles.logoutText}>Logout</Text>
@@ -157,10 +131,10 @@ export default function ProfilePageScreen({ navigation }) {
           <FontAwesome name="home" size={20} color="#555" />
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
-        <View style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('Stores')}>
           <Ionicons name="storefront-outline" size={22} color="#555" />
           <Text style={styles.navText}>Stores</Text>
-        </View>
+        </TouchableOpacity>
         <View style={styles.navItem}>
           <FontAwesome name="qrcode" size={20} color="#555" />
           <Text style={styles.navText}>QR Scan</Text>
@@ -184,37 +158,17 @@ const styles = StyleSheet.create({
   pageContent: { flexGrow: 1 },
   topSection: {
     backgroundColor: Colors.primary,
-    paddingTop: Spacing.quad,
+    paddingTop: Spacing.quad + 15,
     paddingBottom: Spacing.xxl,
     borderBottomLeftRadius: Radii.lg,
     borderBottomRightRadius: Radii.lg,
-  },
-  headerRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
+    justifyContent: 'center',
   },
-  headerTitle: { color: Colors.white, fontSize: Typography.h3, fontWeight: '700' },
-  quickActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: Spacing.lg,
-    paddingHorizontal: Spacing.lg,
-  },
-  quickAction: {
-    backgroundColor: Colors.white,
-    width: '30%',
-    borderRadius: Radii.md,
-    alignItems: 'center',
-    paddingVertical: Spacing.lg,
-    ...Shadows.light,
-  },
-  quickActionLabel: {
-    marginTop: Spacing.xs,
-    fontSize: Typography.small,
-    color: Colors.textSecondary,
-    textAlign: 'center',
+  headerTitle: {
+    color: Colors.white,
+    fontSize: Typography.h3,
+    fontWeight: '700',
   },
   bodyContent: { padding: Spacing.xl, paddingBottom: Spacing.quad * 2 },
   sectionHeader: { fontSize: Typography.h3, fontWeight: '600', color: Colors.textPrimary, marginBottom: Spacing.lg },

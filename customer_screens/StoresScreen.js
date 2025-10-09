@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  RefreshControl
+} from 'react-native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
 
@@ -41,7 +51,7 @@ export default function StoresScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollViewContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -49,9 +59,8 @@ export default function StoresScreen({ navigation }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <FontAwesome name="chevron-left" size={20} color={Colors.primary} />
-          </TouchableOpacity>
+          {/* Spacer to keep title centered (no back button on Stores screen) */}
+          <View style={{ width: 24 }} />
           <Text style={styles.headerTitle}>Stores</Text>
           <View style={styles.headerRight} />
         </View>
@@ -60,37 +69,100 @@ export default function StoresScreen({ navigation }) {
         <View style={styles.storesGrid}>
           {stores.length > 0 ? (
             stores.map((store) => (
-              <TouchableOpacity 
-                key={store.id} 
+              <TouchableOpacity
+                key={store.id}
                 style={styles.storeCard}
-                onPress={() => navigation.navigate('SpecificStore', { storeId: store.id })}
+                onPress={() =>
+                  navigation.navigate('SpecificStore', { storeId: store.id })
+                }
               >
                 <View style={styles.storeImageContainer}>
-                  <Image 
-                    source={{ uri: store.image_url || 'https://via.placeholder.com/150' }} 
-                    style={styles.storeImage} 
+                  <Image
+                    source={{
+                      uri: store.image_url || 'https://via.placeholder.com/150',
+                    }}
+                    style={styles.storeImage}
                   />
-                  <FontAwesome name="heart" size={18} color="#7D0006" style={styles.favoriteIcon} />
+                  <FontAwesome
+                    name="heart"
+                    size={18}
+                    color="#7D0006"
+                    style={styles.favoriteIcon}
+                  />
                 </View>
                 <View style={styles.storeInfo}>
                   <Text style={styles.storeName}>{store.name || 'Store'}</Text>
-                  <Text style={styles.storeAddress}>{store.address || 'Address not available'}</Text>
+                  <Text style={styles.storeAddress}>
+                    {store.address || 'Address not available'}
+                  </Text>
                   <View style={styles.storeRating}>
                     <FontAwesome name="star" size={12} color="#FFD700" />
-                    <Text style={styles.storeRatingText}>{store.rating || '5.0'}</Text>
+                    <Text style={styles.storeRatingText}>
+                      {store.rating || '5.0'}
+                    </Text>
                   </View>
                 </View>
               </TouchableOpacity>
             ))
           ) : (
             <View style={styles.emptyState}>
-              <FontAwesome name="store" size={50} color={Colors.textSecondary} />
+              <FontAwesome
+                name="store"
+                size={50}
+                color={Colors.textSecondary}
+              />
               <Text style={styles.emptyText}>No stores available</Text>
-              <Text style={styles.emptySubtext}>Check back later for new stores</Text>
+              <Text style={styles.emptySubtext}>
+                Check back later for new stores
+              </Text>
             </View>
           )}
         </View>
       </ScrollView>
+
+      {/* Bottom Navigation Bar */}
+      <View style={styles.bottomNav}>
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('HomePage')}
+        >
+          <FontAwesome name="home" size={20} color="#555" />
+          <Text style={styles.navText}>Home</Text>
+        </TouchableOpacity>
+
+        <View style={styles.navItem}>
+          <Ionicons name="storefront-outline" size={22} color="#7D0006" />
+          <Text style={[styles.navText, { color: '#7D0006' }]}>Stores</Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('ScannerScreen')}
+        >
+          <FontAwesome name="qrcode" size={20} color="#555" />
+          <Text style={styles.navText}>QR Scan</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('ActivityScreen')}
+        >
+          <FontAwesome name="list-alt" size={20} color="#555" />
+          <Text style={styles.navText}>Activity</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('ProfilePage')}
+        >
+          <FontAwesome name="user-o" size={20} color="#555" />
+          <Text style={styles.navText}>Profile</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -195,5 +267,26 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: Spacing.xs,
     textAlign: 'center',
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    height: 65,
+    backgroundColor: Colors.white,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  navItem: {
+    alignItems: 'center',
+  },
+  navText: {
+    fontSize: 11,
+    marginTop: 2,
+    color: '#555',
   },
 });
