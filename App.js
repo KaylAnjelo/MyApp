@@ -9,6 +9,8 @@ import SignInScreen from './customer_screens/SignInScreen';
 import SignUpVendorScreen from './customer_screens/SignUpVendorScreen';
 import SignUpCustomerScreen from './customer_screens/SignUpCustomerScreen';
 import HomePageScreen from './customer_screens/HomePageScreen';
+import StoresScreen from './customer_screens/StoresScreen';
+import SpecificStoreScreen from './customer_screens/SpecificStoreScreen';
 import MyPointsScreen from './customer_screens/MyPointsScreen';
 import FoodChasePage from './customer_screens/FoodChaseScreen';
 import MyRewardsPage from './customer_screens/MyRewardsScreen';
@@ -31,6 +33,8 @@ export default function App() {
         <Stack.Screen name="SignUp" component={SignUpUserTypeScreen} />
         <Stack.Screen name="SignIn" component={SignInScreen} />
         <Stack.Screen name="HomePage" component={HomePageScreen} />   
+  <Stack.Screen name="Stores" component={StoresScreen} />
+  <Stack.Screen name="SpecificStore" component={SpecificStoreScreen} />
         <Stack.Screen name="SignUpVendor" component={SignUpVendorScreen} />
         <Stack.Screen name="SignUpCustomer" component={SignUpCustomerScreen} />
         <Stack.Screen name="MyPoints" component={MyPointsScreen} />
