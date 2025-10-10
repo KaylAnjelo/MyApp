@@ -185,12 +185,67 @@ class ApiService {
   }
 
   async getStores() {
-    return this.request('/stores');
+            const data = await this.request('/stores');
+            // Normalize common DB field names into the shape the client expects
+            if (Array.isArray(data)) {
+                              return data.map(s => ({
+                                    ...s,
+                                    // name normalization (store_name in DB -> name expected by UI)
+                                    name: s.name || s.store_name || s.storeName || s.store || null,
+                                    // address normalization (location -> address)
+                                    address: s.address || s.location || s.city || null,
+                                    // image normalization (support various column names)
+                                    image_url: s.image_url || s.logoUrl || s.logo_url || s.image || null,
+                                    logoUrl: s.logoUrl || s.image_url || s.logo_url || s.image || null,
+                                    // rating fallback
+                                    rating: s.rating ?? s.store_rating ?? s.avg_rating ?? 5.0,
+                              }));
+            }
+            return data;
   }
 
   async getStore(storeId) {
-    return this.request(`/stores/${storeId}`);
+            const data = await this.request(`/stores/${storeId}`);
+            if (data && typeof data === 'object') {
+                              return {
+                                    ...data,
+                                    name: data.name || data.store_name || data.storeName || data.store || null,
+                                    address: data.address || data.location || data.city || null,
+                                    image_url: data.image_url || data.logoUrl || data.logo_url || data.image || null,
+                                    logoUrl: data.logoUrl || data.image_url || data.logo_url || data.image || null,
+                                    rating: data.rating ?? data.store_rating ?? data.avg_rating ?? 5.0,
+                              };
+            }
+            return data;
   }
+
+                  async getProducts() {
+                        const data = await this.request('/products');
+                        if (Array.isArray(data)) {
+                              return data.map(p => ({
+                                    ...p,
+                                    id: p.id || p.product_id || p.uid || null,
+                                    name: p.name || p.title || p.product_name || null,
+                                    image_url: p.image_url || p.image || p.imageUrl || null,
+                                    price: p.price ?? p.amount ?? null,
+                              }));
+                        }
+                        return data;
+                  }
+
+                  async getProductsByStore(storeId) {
+                        const data = await this.request(`/products/${storeId}`);
+                        if (Array.isArray(data)) {
+                              return data.map(p => ({
+                                    ...p,
+                                    id: p.id || p.product_id || p.uid || null,
+                                    name: p.name || p.title || p.product_name || null,
+                                    image_url: p.image_url || p.image || p.imageUrl || null,
+                                    price: p.price ?? p.amount ?? null,
+                              }));
+                        }
+                        return data;
+                  }
 
   async getProducts() {
     return this.request('/products');

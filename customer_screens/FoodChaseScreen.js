@@ -69,7 +69,7 @@ export default function FoodChasePage({ navigation }) {
           </View>
         ) : (
           transactions.map((txn, idx) => (
-            <View key={idx} style={styles.transactionRow}>
+            <View key={txn && txn.id ? String(txn.id) : `txn-${idx}`} style={styles.transactionRow}>
               <Image source={{ uri: txn.logoUrl }} style={styles.txnLogoCircle} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.txnTitle}>{txn.storeName}</Text>

@@ -68,9 +68,9 @@ export default function StoresScreen({ navigation }) {
         {/* Stores Grid */}
         <View style={styles.storesGrid}>
           {stores.length > 0 ? (
-            stores.map((store) => (
+            stores.map((store, idx) => (
               <TouchableOpacity
-                key={store.id}
+                key={store && store.id ? String(store.id) : `store-${idx}`}
                 style={styles.storeCard}
                 onPress={() =>
                   navigation.navigate('SpecificStore', { storeId: store.id })
@@ -122,11 +122,7 @@ export default function StoresScreen({ navigation }) {
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('HomePage')}
-        >
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('HomePage')}>
           <FontAwesome name="home" size={20} color="#555" />
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
@@ -136,29 +132,17 @@ export default function StoresScreen({ navigation }) {
           <Text style={[styles.navText, { color: '#7D0006' }]}>Stores</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('ScannerScreen')}
-        >
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ScannerScreen')}>
           <FontAwesome name="qrcode" size={20} color="#555" />
           <Text style={styles.navText}>QR Scan</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('ActivityScreen')}
-        >
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ActivityScreen')}>
           <FontAwesome name="list-alt" size={20} color="#555" />
           <Text style={styles.navText}>Activity</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.navItem}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('ProfilePage')}
-        >
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ProfilePage')}>
           <FontAwesome name="user-o" size={20} color="#555" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>

@@ -123,9 +123,9 @@ export default function HomePageScreen({ navigation }) {
         <Text style={styles.sectionTitle}>Popular Stores</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
           {stores.length > 0 ? (
-            stores.map((store) => (
+            stores.map((store, idx) => (
               <TouchableOpacity 
-                key={store.id} 
+                key={store && store.id ? String(store.id) : `store-${idx}`} 
                 style={styles.storeCard}
                 onPress={() => navigation.navigate('SpecificStore', { storeId: store.id })}
               >
@@ -166,18 +166,22 @@ export default function HomePageScreen({ navigation }) {
           <FontAwesome name="home" size={20} color="#7D0006" />
           <Text style={[styles.navText, { color: '#7D0006' }]}>Home</Text>
         </View>
+        
         <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('Stores')}>
           <Ionicons name="storefront-outline" size={22} color="#555" />
           <Text style={styles.navText}>Stores</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ScannerScreen')}>
           <FontAwesome name="qrcode" size={20} color="#555" />
           <Text style={styles.navText}>QR Scan</Text>
         </TouchableOpacity>
-        <View style={styles.navItem}>
+
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8}onPress={() => navigation.navigate('ActivityScreen')}>
           <FontAwesome name="list-alt" size={20} color="#555" />
           <Text style={styles.navText}>Activity</Text>
-        </View>
+          </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ProfilePage')}>
           <FontAwesome name="user-o" size={20} color="#555" />
           <Text style={styles.navText}>Profile</Text>
@@ -267,9 +271,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   useNowText: {
-    color: '#fff',
-    fontSize: 12,
+    color: Colors.primary,
+    fontSize: Typography.small,
     textDecorationLine: 'underline',
+    fontWeight: '600',
   },
   sectionTitle: {
     fontSize: 18,
