@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 // Centralized API service for all backend communication
 // Use emulator-friendly host: Android emulator -> 10.0.2.2, iOS simulator -> localhost
 const API_BASE_URL = Platform.OS === 'android'
-      ? 'http://10.0.2.2:3000/api'
+      ? 'http://192.168.1.32:3000/api'
       : 'http://localhost:3000/api';
 const TOKEN_KEY = '@app_auth_token'; 
 
