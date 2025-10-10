@@ -57,10 +57,10 @@ const MyPointsScreen = ({ navigation }) => {
               ) : stores.length === 0 ? (
                 <Text style={styles.loadingText}>No stores found.</Text>
               ) : (
-                stores.map((store) => {
+                stores.map((store, idx) => {
                   const canClaim = store.customerPoints >= store.claimThreshold;
                   return (
-                    <View key={store.id} style={styles.storeCard}>
+                    <View key={store && store.id ? String(store.id) : `store-${idx}`} style={styles.storeCard}>
                       <View style={styles.logoCircle}>
                         <Image source={{ uri: store.logoUrl }} style={styles.logoImage} />
                       </View>

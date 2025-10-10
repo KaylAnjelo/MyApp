@@ -36,7 +36,7 @@ export default function MyRewardsScreen({ navigation }) {
             ) : (
               <View>
                 {rewards.map((reward, idx) => (
-                  <View key={idx} style={styles.rewardItem}>
+                  <View key={reward && reward.id ? String(reward.id) : `reward-${idx}`} style={styles.rewardItem}>
                     <View style={styles.rewardItemLeft}>
                       <FontAwesome name="gift" size={18} color={Colors.primary} />
                       <Text style={styles.rewardItemTitle}>{reward.title}</Text>
