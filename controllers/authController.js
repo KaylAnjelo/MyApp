@@ -34,7 +34,12 @@ class AuthController {
         user: {
           user_id: users.user_id,
           username: users.username,
-          role: users.role
+          role: users.role,
+          store_id: users.store_id || null,  
+          first_name: users.first_name || null,
+          last_name: users.last_name || null,
+          contact_number: users.contact_number || null,
+          user_email: users.user_email || null
         }
         // You can add JWT token generation here if needed
       });
