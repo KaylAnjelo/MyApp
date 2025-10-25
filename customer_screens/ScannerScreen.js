@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { View, Text, Button, StyleSheet } from "react-native";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import { Camera } from "expo-camera";
 
-export default function CameraScreen() {
-  const [permission, requestPermission] = useCameraPermissions();
+export default function ScannerScreen() {
+  const [permission, requestPermission] = Camera.useCameraPermissions();
   const [open, setOpen] = useState(true); // auto-open camera
 
   if (!permission) {
@@ -18,7 +18,7 @@ export default function CameraScreen() {
     return (
       <View style={styles.center}>
         <Text style={styles.text}>We need camera access</Text>
-        <Button onPress={requestPermission} title="Grant Permission" />
+        <Button onPress={() => requestPermission()} title="Grant Permission" />
       </View>
     );
   }
@@ -26,7 +26,7 @@ export default function CameraScreen() {
   return (
     <View style={{ flex: 1 }}>
       {open ? (
-        <CameraView style={{ flex: 1 }} facing="back" />
+        <Camera style={{ flex: 1 }} type={Camera.Constants.Type.back} />
       ) : (
         <View style={styles.center}>
           <Text style={styles.text}>📸 Ready to open camera</Text>
