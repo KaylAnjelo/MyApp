@@ -79,13 +79,55 @@ export default function ScannerScreen({ navigation }) {
     processQRCode(code);
   };
 
-  const handleManualSubmit = () => {
+  const handleManualSubmit = async () => {
     if (!manualCode.trim()) {
       Alert.alert("Error", "Please enter a code");
       return;
     }
 
-    processQRCode(manualCode);
+    setProcessing(true);
+
+    try {
+      // Get customer ID from AsyncStorage
+      const userDataStr = await AsyncStorage.getItem('userData');
+      if (!userDataStr) {
+        Alert.alert('Error', 'Please log in first');
+        navigation.navigate('SignIn');
+        return;
+      }
+      
+      const userData = JSON.parse(userDataStr);
+      const customerId = userData.user_id;
+
+      // Process manual code
+      const response = await apiService.processManualCode(customerId, manualCode.trim());
+      
+      if (response.success) {
+        Alert.alert(
+          'Transaction Successful! 🎉',
+          `Total: ₱${response.transaction.total_amount}\n` +
+          `Points Earned: ${response.transaction.total_points}\n` +
+          `Reference: ${response.transaction.reference_number}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setManualCode('');
+                setProcessing(false);
+                setShowCamera(true);
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', response.message || 'Transaction failed');
+        setProcessing(false);
+      }
+    } catch (error) {
+      console.error('Error processing manual code:', error);
+      Alert.alert('Error', error.message || 'Failed to process code');
+      setProcessing(false);
+    }
   };
 
   if (showCamera) {

@@ -320,6 +320,16 @@ class ApiService {
     });
   }
 
+  async processManualCode(customerId, shortCode) {
+    return this.request('/transactions/process-code', {
+      method: 'POST',
+      body: JSON.stringify({
+        short_code: shortCode,
+        customer_id: customerId
+      }),
+    });
+  }
+
   async createTransaction(transactionData) {
     return this.request('/transactions', {
       method: 'POST',
