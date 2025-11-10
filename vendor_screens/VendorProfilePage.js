@@ -295,7 +295,7 @@ export default function VendorProfilePage({ navigation }) {
           <Icon name="stats-chart-outline" size={22} color="#555" />
           <Text style={styles.navText}>Sales</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('CreateOrderPage')}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('CreateOrder')}>
           <Icon name="add-circle-outline" size={22} color="#555" />
           <Text style={styles.navText}>Create</Text>
         </TouchableOpacity>
