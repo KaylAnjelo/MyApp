@@ -10,6 +10,9 @@ router.post('/transactions/generate-qr', (req, res) => transactionController.cre
 // POST - Process scanned QR code
 router.post('/transactions/process-qr', (req, res) => transactionController.processScannedQR(req, res));
 
+// POST - Process manual code entry
+router.post('/transactions/process-code', (req, res) => transactionController.processShortCode(req, res));
+
 // GET - Get transactions by user
 router.get('/transactions/user/:userId', (req, res) => transactionController.getUserTransactions(req, res));
 

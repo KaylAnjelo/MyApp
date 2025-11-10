@@ -46,6 +46,7 @@ const CreateOrderScreen = ({ navigation }) => {
   const [cart, setCart] = useState([]);
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrData, setQrData] = useState(null);
+  const [shortCode, setShortCode] = useState(null);
   const [generatingQR, setGeneratingQR] = useState(false);
 
   useEffect(() => {
@@ -156,8 +157,9 @@ const CreateOrderScreen = ({ navigation }) => {
 
       console.log('QR Response:', response);
 
-      if (response && response.qr_string) {
+      if (response && response.qr_string && response.short_code) {
         setQrData(response.qr_string);
+        setShortCode(response.short_code);
         setShowQRModal(true);
       } else {
         Alert.alert('Error', 'Invalid response from server');
@@ -174,6 +176,7 @@ const CreateOrderScreen = ({ navigation }) => {
   const closeQRModal = () => {
     setShowQRModal(false);
     setQrData(null);
+    setShortCode(null);
     setCart([]); // Clear cart after QR is shown
   };
 
@@ -261,14 +264,24 @@ const CreateOrderScreen = ({ navigation }) => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Transaction QR Code</Text>
-            <Text style={styles.modalSubtext}>Customer scans this to complete purchase</Text>
+            <Text style={styles.modalTitle}>Transaction Code</Text>
+            <Text style={styles.modalSubtext}>Customer can scan QR or enter code manually</Text>
             
+            {/* Manual Entry Code */}
+            {shortCode && (
+              <View style={styles.codeContainer}>
+                <Text style={styles.codeLabel}>Manual Entry Code:</Text>
+                <Text style={styles.codeText}>{shortCode}</Text>
+                <Text style={styles.codeExpiry}>Valid for 10 minutes</Text>
+              </View>
+            )}
+
+            {/* QR Code */}
             {qrData && (
               <View style={styles.qrContainer}>
                 <QRCode
                   value={qrData}
-                  size={250}
+                  size={200}
                   backgroundColor="white"
                 />
               </View>
@@ -438,8 +451,37 @@ const styles = StyleSheet.create({
   modalSubtext: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 25,
+    marginBottom: 20,
     textAlign: 'center',
+  },
+  codeContainer: {
+    backgroundColor: '#F5F5F5',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+    width: '100%',
+    borderWidth: 2,
+    borderColor: '#FF6F61',
+  },
+  codeLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  codeText: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#FF6F61',
+    letterSpacing: 4,
+    marginVertical: 5,
+  },
+  codeExpiry: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 5,
+    fontStyle: 'italic',
   },
   qrContainer: {
     backgroundColor: '#FFFFFF',
