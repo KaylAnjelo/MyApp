@@ -1,46 +1,16 @@
 // backend/routes/TransactionRoutes.js
 const express = require('express');
-const { supabase } = require('../config/supabase');
-const { sendSuccess, sendError } = require('../utils/response');
+const transactionController = require('../controllers/transactionController');
 
 const router = express.Router();
 
-// GET all transactions for a specific user
-router.get('/user/:userId', async (req, res) => {
-  const { userId } = req.params;
-  try {
-    const { data, error } = await supabase
-      .from('transactions')  // make sure your table is named 'transactions'
-      .select('*')
-      .eq('user_id', userId)
-      .order('transaction_date', { ascending: false });
+// POST - Generate QR code data for transaction
+router.post('/transactions/generate-qr', (req, res) => transactionController.createTransaction(req, res));
 
-    if (error) {
-      return sendError(res, 'Failed to fetch transactions', 500, error.message);
-    }
+// POST - Process scanned QR code
+router.post('/transactions/process-qr', (req, res) => transactionController.processScannedQR(req, res));
 
-    return sendSuccess(res, data);
-  } catch (err) {
-    return sendError(res, 'Server error', 500, err.message);
-  }
-});
-
-// Optional: Create a new transaction
-router.post('/', async (req, res) => {
-  const transactionData = req.body;
-  try {
-    const { data, error } = await supabase
-      .from('transactions')
-      .insert([transactionData]);
-
-    if (error) {
-      return sendError(res, 'Failed to create transaction', 500, error.message);
-    }
-
-    return sendSuccess(res, data);
-  } catch (err) {
-    return sendError(res, 'Server error', 500, err.message);
-  }
-});
+// GET - Get transactions by user
+router.get('/transactions/user/:userId', (req, res) => transactionController.getUserTransactions(req, res));
 
 module.exports = router;
