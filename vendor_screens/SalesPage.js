@@ -155,7 +155,7 @@ const SalesPage = ({ navigation }) => {
           <Icon name="stats-chart-outline" size={22} color="#D22B2B" />
           <Text style={[styles.navText, { color: '#D22B2B', fontWeight: 'bold' }]}>Sales</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('CreateOrderPage')}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('CreateOrder')}>
           <Icon name="add-circle-outline" size={22} color="#555" />
           <Text style={styles.navText}>Create</Text>
         </TouchableOpacity>

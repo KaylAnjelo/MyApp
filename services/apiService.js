@@ -4,7 +4,9 @@ import { Platform } from 'react-native';
 // ✅ Configure API base URL
 const API_BASE_URL =
   Platform.OS === 'android'
-    ? 'http://192.168.1.6:3000/api'
+//'http://10.0.2.2:3000/api' for emulator
+//'http://192.168.x.x:3000/api' for physical device, change as needed
+    ? 'http://10.0.2.2:3000/api' 
     : 'http://localhost:3000/api';
 
 const TOKEN_KEY = '@app_auth_token';
