@@ -340,42 +340,52 @@ class TransactionController {
       // Check if transaction already exists (prevent duplicate)
       const { data: existingTransaction } = await supabase
         .from('transactions')
-        .select('transaction_id')
+        .select('id')
         .eq('reference_number', qr_data.reference_number)
-        .single();
+        .limit(1);
 
-      if (existingTransaction) {
+      if (existingTransaction && existingTransaction.length > 0) {
         return sendError(res, 'Transaction already processed', 400);
       }
 
-      // Insert transaction
-      const { data: transaction, error: transactionError } = await supabase
+      // Insert transaction rows (one per item)
+      const transactionRows = qr_data.items.map(item => ({
+        reference_number: qr_data.reference_number,
+        transaction_date: qr_data.transaction_date,
+        user_id: customer_id,
+        Vendor_ID: qr_data.vendor_id,
+        store_id: qr_data.store_id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.price,
+        points: parseFloat((item.price * item.quantity * 0.1).toFixed(2)),
+        transaction_type: qr_data.transaction_type
+      }));
+
+      const { data: transactions, error: transactionError } = await supabase
         .from('transactions')
-        .insert({
-          reference_number: qr_data.reference_number,
-          transaction_date: qr_data.transaction_date,
-          user_id: customer_id,
-          Vendor_ID: qr_data.vendor_id,
-          store_id: qr_data.store_id,
-          transaction_type: qr_data.transaction_type,
-          total_amount: qr_data.total_amount,
-          total_points: qr_data.total_points,
-          items: qr_data.items
-        })
-        .select()
-        .single();
+        .insert(transactionRows)
+        .select();
 
       if (transactionError) {
         console.error('Transaction insert error:', transactionError);
         return sendError(res, transactionError.message, 400);
       }
 
+      // Get current user points
+      const { data: userData } = await supabase
+        .from('users')
+        .select('user_points')
+        .eq('user_id', customer_id)
+        .single();
+
+      const currentPoints = userData?.user_points || 0;
+      const newPoints = currentPoints + qr_data.total_points;
+
       // Update customer points
       const { error: pointsError } = await supabase
         .from('users')
-        .update({
-          user_points: supabase.raw(`COALESCE(user_points, 0) + ${qr_data.total_points}`)
-        })
+        .update({ user_points: newPoints })
         .eq('user_id', customer_id);
 
       if (pointsError) {
@@ -389,7 +399,12 @@ class TransactionController {
 
       return sendSuccess(res, {
         message: 'Transaction processed successfully',
-        transaction: transaction
+        transaction: {
+          reference_number: qr_data.reference_number,
+          total_amount: qr_data.total_amount,
+          total_points: qr_data.total_points,
+          items_count: transactions.length
+        }
       }, 201);
     } catch (error) {
       console.error('Error processing transaction:', error);
