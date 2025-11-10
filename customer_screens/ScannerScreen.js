@@ -1,34 +1,82 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Alert, TouchableOpacity, TextInput } from "react-native";
+import { View, Text, StyleSheet, Alert, TouchableOpacity, TextInput, ActivityIndicator } from "react-native";
 import { Camera, CameraType } from "react-native-camera-kit";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import apiService from '../services/apiService';
 
 export default function ScannerScreen({ navigation }) {
   const [showCamera, setShowCamera] = useState(true);
   const [manualCode, setManualCode] = useState("");
   const [scanned, setScanned] = useState(false);
+  const [processing, setProcessing] = useState(false);
+
+  const processQRCode = async (qrData) => {
+    if (processing) return;
+    
+    setProcessing(true);
+    
+    try {
+      // Get customer ID from AsyncStorage
+      const userDataStr = await AsyncStorage.getItem('userData');
+      if (!userDataStr) {
+        Alert.alert('Error', 'Please log in first');
+        navigation.navigate('SignIn');
+        return;
+      }
+      
+      const userData = JSON.parse(userDataStr);
+      const customerId = userData.user_id;
+
+      // Parse QR data if it's a string
+      let transactionData;
+      try {
+        transactionData = typeof qrData === 'string' ? JSON.parse(qrData) : qrData;
+      } catch (e) {
+        Alert.alert('Error', 'Invalid QR code format');
+        setProcessing(false);
+        setScanned(false);
+        return;
+      }
+
+      // Process the transaction
+      const response = await apiService.processScannedQR(customerId, transactionData);
+      
+      if (response.success) {
+        Alert.alert(
+          'Transaction Successful! 🎉',
+          `Total: ₱${response.transaction.total_amount}\n` +
+          `Points Earned: ${response.transaction.total_points}\n` +
+          `Reference: ${response.transaction.reference_number}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setScanned(false);
+                setProcessing(false);
+                navigation.goBack();
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', response.message || 'Transaction failed');
+        setScanned(false);
+        setProcessing(false);
+      }
+    } catch (error) {
+      console.error('Error processing QR:', error);
+      Alert.alert('Error', error.message || 'Failed to process transaction');
+      setScanned(false);
+      setProcessing(false);
+    }
+  };
 
   const handleBarcodeScan = (event) => {
-    if (scanned) return;
+    if (scanned || processing) return;
     
     setScanned(true);
     const code = event.nativeEvent.codeStringValue;
-    
-    Alert.alert(
-      "QR Code Scanned",
-      `Code: ${code}`,
-      [
-        {
-          text: "Scan Again",
-          onPress: () => {
-            setScanned(false);
-          }
-        },
-        {
-          text: "OK",
-          onPress: () => navigation?.goBack?.()
-        }
-      ]
-    );
+    processQRCode(code);
   };
 
   const handleManualSubmit = () => {
@@ -37,20 +85,7 @@ export default function ScannerScreen({ navigation }) {
       return;
     }
 
-    Alert.alert(
-      "Code Entered",
-      `Code: ${manualCode}`,
-      [
-        {
-          text: "Enter Another",
-          onPress: () => setManualCode("")
-        },
-        {
-          text: "OK",
-          onPress: () => navigation?.goBack?.()
-        }
-      ]
-    );
+    processQRCode(manualCode);
   };
 
   if (showCamera) {
@@ -77,9 +112,16 @@ export default function ScannerScreen({ navigation }) {
           </View>
 
           <View style={styles.centerContent}>
-            <Text style={styles.instructionText}>
-              {scanned ? "Code Scanned!" : "Point camera at QR code or barcode"}
-            </Text>
+            {processing ? (
+              <View style={styles.processingContainer}>
+                <ActivityIndicator size="large" color="#FFFFFF" />
+                <Text style={styles.processingText}>Processing transaction...</Text>
+              </View>
+            ) : (
+              <Text style={styles.instructionText}>
+                {scanned ? "Code Scanned!" : "Point camera at QR code or barcode"}
+              </Text>
+            )}
           </View>
 
           <View style={styles.bottomBar}>
@@ -183,6 +225,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
+  },
+  processingContainer: {
+    backgroundColor: "rgba(0,0,0,0.8)",
+    paddingHorizontal: 40,
+    paddingVertical: 30,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  processingText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "600",
+    marginTop: 15,
   },
   bottomBar: {
     paddingBottom: 50,

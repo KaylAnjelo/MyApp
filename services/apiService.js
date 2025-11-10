@@ -132,6 +132,13 @@ class ApiService {
     });
   }
 
+  async verifyOTPAndRegisterVendor(userData) {
+    return this.request('/auth/vendor-verify-otp', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  }
+
   async login(username, password) {
     const responseData = await this.request('/auth/login', {
       method: 'POST',
@@ -225,28 +232,32 @@ class ApiService {
 
   // 🛍️ PRODUCTS
   async getProducts() {
-    const data = await this.request('/products');
+    const response = await this.request('/products');
+    const data = response.products || response;
     if (Array.isArray(data)) {
       return data.map((p) => ({
         ...p,
         id: p.id || p.product_id || p.uid || null,
         name: p.name || p.title || p.product_name || null,
-        image_url: p.image_url || p.image || p.imageUrl || null,
+        image_url: p.image_url || p.image || p.imageUrl || p.product_image || null,
         price: p.price ?? p.amount ?? null,
+        product_type: p.product_type || p.type || null,
       }));
     }
     return data;
   }
 
   async getProductsByStore(storeId) {
-    const data = await this.request(`/stores/${storeId}/products`);
+    const response = await this.request(`/products/store/${storeId}`);
+    const data = response.products || response;
     if (Array.isArray(data)) {
       return data.map((p) => ({
         ...p,
         id: p.id || p.product_id || p.uid || null,
         name: p.name || p.title || p.product_name || null,
-        image_url: p.image_url || p.image || p.imageUrl || null,
+        image_url: p.image_url || p.image || p.imageUrl || p.product_image || null,
         price: p.price ?? p.amount ?? null,
+        product_type: p.product_type || p.type || null,
       }));
     }
     return data;
@@ -279,8 +290,34 @@ class ApiService {
   }
 
   // 💳 TRANSACTIONS
-  async getUserTransactions(userId) {
-    return this.request(`/transactions/${userId}`);
+  async getUserTransactions(userId, role) {
+    const url = role ? `/transactions/user/${userId}?role=${role}` : `/transactions/user/${userId}`;
+    return this.request(url);
+  }
+
+  async generateTransactionQR(transactionData) {
+    console.log('API: Generating transaction QR with data:', transactionData);
+    try {
+      const response = await this.request('/transactions/generate-qr', {
+        method: 'POST',
+        body: JSON.stringify(transactionData),
+      });
+      console.log('API: QR generation response:', response);
+      return response;
+    } catch (error) {
+      console.error('API: QR generation error:', error);
+      throw error;
+    }
+  }
+
+  async processScannedQR(customerId, qrData) {
+    return this.request('/transactions/process-qr', {
+      method: 'POST',
+      body: JSON.stringify({
+        qr_data: qrData,
+        customer_id: customerId
+      }),
+    });
   }
 
   async createTransaction(transactionData) {
