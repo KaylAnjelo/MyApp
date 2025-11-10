@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Image, Alert, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
@@ -21,6 +22,11 @@ export default function SignInScreen() {
   try {
     const response = await apiService.login(username, password);
     console.log('Login successful:', response);
+
+    // Save user data to AsyncStorage for profile screen
+    if (response.user) {
+      await AsyncStorage.setItem('@app_user', JSON.stringify(response.user));
+    }
 
     // Get role from response (adjust if API sends it differently)
     const userRole = response.user?.role;

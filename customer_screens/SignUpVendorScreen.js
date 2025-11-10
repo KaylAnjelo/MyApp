@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Switch, Alert, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii } from '../styles/theme';
 import apiService from '../services/apiService'; // replace with your actual API service
 
-export default function SignUpCustomerScreen() {
+export default function SignUpVendorScreen() {
   const navigation = useNavigation();
   const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
+    storeCode: '',
     firstName: '',
     lastName: '',
     phone: '',
@@ -22,8 +24,8 @@ export default function SignUpCustomerScreen() {
   };
 
   const handleSignUp = async () => {
-    if (!formData.firstName || !formData.lastName || !formData.phone || !formData.email || !formData.password) {
-      Alert.alert('Error', 'Please fill in all fields');
+    if (!formData.storeCode || !formData.firstName || !formData.lastName || !formData.phone || !formData.email || !formData.password) {
+      Alert.alert('Error', 'Please fill in all fields including store code');
       return;
     }
 
@@ -34,31 +36,42 @@ export default function SignUpCustomerScreen() {
 
     setLoading(true);
     try {
-      // Make sure these field names match your backend
+      // Vendor registration with store code verification
       const userData = {
-        username: formData.email, // Use email as username as per backend
+        store_code: formData.storeCode.trim(),
+        username: formData.email,
         password: formData.password,
         first_name: formData.firstName,
         last_name: formData.lastName,
         contact_number: formData.phone,
-        user_email: formData.email,
-        role: 'vendor',
-        store_id: null // Explicitly setting this as the backend expects it
+        user_email: formData.email
       };
 
-      const response = await apiService.register(userData);
+      const response = await apiService.registerVendorWithStoreCode(userData);
 
-      console.log('Registration successful:', response);
-      Alert.alert('Success', 'Account created successfully!', [
-        { text: 'OK', onPress: () => navigation.replace("VendorHomePage") } // make sure "HomePage" exists in your navigator
+      console.log('Vendor registration successful:', response);
+      
+      // Save user data to AsyncStorage
+      if (response.user) {
+        await AsyncStorage.setItem('@app_user', JSON.stringify(response.user));
+      }
+      
+      Alert.alert('Success', `Account created successfully! You are now registered for ${response.user?.store_name || 'the store'}.`, [
+        { text: 'OK', onPress: () => navigation.replace("VendorHomePage", { user: response.user }) }
       ]);
 
     } catch (error) {
-        if (error.message.includes("duplicate key")) {
-    Alert.alert("Registration Failed", "This email is already registered. Please use another email.");
+      if (error.message.includes("Invalid store code")) {
+        Alert.alert("Registration Failed", "The store code you entered is invalid. Please check with your store manager.");
+      } else if (error.message.includes("duplicate key") || error.message.includes("already")) {
+        Alert.alert("Registration Failed", "This email or username is already registered.");
+      } else if (error.message.includes("inactive")) {
+        Alert.alert("Registration Failed", "This store is currently inactive. Please contact support.");
       } else {
-    Alert.alert("Registration Failed", error.message || "Failed to create account");
+        Alert.alert("Registration Failed", error.message || "Failed to create account");
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -85,6 +98,17 @@ export default function SignUpCustomerScreen() {
         <Text style={styles.subtitle}>
           To initiate your journey, kindly proceed to fill-up form.
         </Text>
+
+        <Text style={styles.sectionLabel}>Store Verification</Text>
+
+        <TextInput 
+          placeholder="Store Code (provided by store manager)" 
+          style={styles.input}
+          placeholderTextColor="#888"
+          autoCapitalize="characters"
+          value={formData.storeCode}
+          onChangeText={(value) => handleInputChange('storeCode', value)}
+        />
 
         <Text style={styles.sectionLabel}>Contact Details</Text>
 
