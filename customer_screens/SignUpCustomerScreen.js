@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Switch, Alert, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii } from '../styles/theme';
@@ -9,6 +10,8 @@ export default function SignUpCustomerScreen() {
   const navigation = useNavigation();
   const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -21,7 +24,7 @@ export default function SignUpCustomerScreen() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSignUp = async () => {
+  const handleSendOTP = async () => {
     if (!formData.firstName || !formData.lastName || !formData.phone || !formData.email || !formData.password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
@@ -34,31 +37,60 @@ export default function SignUpCustomerScreen() {
 
     setLoading(true);
     try {
-      // Make sure these field names match your backend
+      await apiService.sendOTP(formData.email);
+      setOtpSent(true);
+      Alert.alert('Success', 'Verification code sent to your email!');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to send verification code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyAndSignUp = async () => {
+    if (!otp || otp.length !== 6) {
+      Alert.alert('Error', 'Please enter the 6-digit verification code');
+      return;
+    }
+
+    setLoading(true);
+    try {
       const userData = {
-        username: formData.email, // Use email as username as per backend
+        email: formData.email,
+        otp: otp,
+        username: formData.email,
         password: formData.password,
         first_name: formData.firstName,
         last_name: formData.lastName,
         contact_number: formData.phone,
-        user_email: formData.email,
         role: 'customer',
-        store_id: null // Explicitly setting this as the backend expects it
+        store_id: null
       };
 
-      const response = await apiService.register(userData);
-
+      const response = await apiService.verifyOTPAndRegister(userData);
       console.log('Registration successful:', response);
+      
+      // Store the token if provided
+      if (response.token) {
+        await apiService.saveToken(response.token);
+      }
+      
+      // Save user data to AsyncStorage for profile screen
+      if (response.user) {
+        await AsyncStorage.setItem('@app_user', JSON.stringify(response.user));
+      }
+      
       Alert.alert('Success', 'Account created successfully!', [
-        { text: 'OK', onPress: () => navigation.replace("HomePage") } // make sure "HomePage" exists in your navigator
+        { 
+          text: 'OK', 
+          onPress: () => navigation.replace("HomePage", { user: response.user }) 
+        }
       ]);
 
     } catch (error) {
-      if (error.message.includes("duplicate key")) {
-    Alert.alert("Registration Failed", "This email is already registered. Please use another email.");
-    } else {
-    Alert.alert("Registration Failed", error.message || "Failed to create account");
-     }
+      Alert.alert('Verification Failed', error.message || 'Invalid verification code');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -141,18 +173,46 @@ export default function SignUpCustomerScreen() {
           </Text>
         </View>
 
+        {/* OTP Input (shows after OTP is sent) */}
+        {otpSent && (
+          <>
+            <Text style={styles.otpLabel}>Enter Verification Code</Text>
+            <Text style={styles.otpSubtext}>
+              A 6-digit code was sent to {formData.email}
+            </Text>
+            <TextInput 
+              placeholder="Enter 6-digit code" 
+              style={[styles.input, styles.otpInput]}
+              placeholderTextColor="#888"
+              keyboardType="number-pad"
+              maxLength={6}
+              value={otp}
+              onChangeText={setOtp}
+            />
+          </>
+        )}
+
         {/* Sign Up Button */}
         <TouchableOpacity 
           style={[styles.signupButton, loading && styles.signupButtonDisabled]}
-          onPress={handleSignUp}
+          onPress={otpSent ? handleVerifyAndSignUp : handleSendOTP}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color={Colors.white} />
           ) : (
-            <Text style={styles.signupText}>Sign Up</Text>
+            <Text style={styles.signupText}>
+              {otpSent ? 'Verify & Sign Up' : 'Send Verification Code'}
+            </Text>
           )}
         </TouchableOpacity>
+
+        {/* Resend OTP */}
+        {otpSent && (
+          <TouchableOpacity onPress={handleSendOTP} disabled={loading}>
+            <Text style={styles.resendText}>Didn't receive code? Resend</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -249,6 +309,31 @@ const styles = StyleSheet.create({
   },
   signupButtonDisabled: {
     opacity: 0.6,
+  },
+  otpLabel: {
+    fontWeight: '600',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.xs,
+    fontSize: Typography.body,
+    color: Colors.primary,
+  },
+  otpSubtext: {
+    fontSize: Typography.small,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.md,
+  },
+  otpInput: {
+    textAlign: 'center',
+    fontSize: 24,
+    letterSpacing: 5,
+    fontWeight: 'bold',
+  },
+  resendText: {
+    textAlign: 'center',
+    color: Colors.primary,
+    fontSize: Typography.small,
+    fontWeight: '600',
+    marginTop: Spacing.md,
   },
   orText: {
     textAlign: 'center',

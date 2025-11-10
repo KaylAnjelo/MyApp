@@ -1,6 +1,10 @@
 const { supabase } = require('../config/supabase');
 const { sendSuccess, sendError } = require('../utils/response');
 const bcrypt = require('bcrypt'); // for password hashing
+const emailService = require('../services/emailService');
+
+// In-memory OTP storage (use Redis in production)
+const otpStore = new Map();
 
 class AuthController {
   // LOGIN
@@ -108,6 +112,248 @@ class AuthController {
 
     } catch (error) {
       console.error('Registration error:', error);
+      return sendError(res, 'Internal server error', 500);
+    }
+  }
+
+  // SEND OTP
+  async sendOTP(req, res) {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return sendError(res, 'Email is required', 400);
+      }
+
+      // Check if email already exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('user_email')
+        .eq('user_email', email)
+        .single();
+
+      if (existingUser) {
+        return sendError(res, 'Email already registered', 400);
+      }
+
+      // Generate OTP
+      const otp = emailService.generateOTP();
+      
+      // Store OTP with expiry (10 minutes)
+      otpStore.set(email, {
+        otp,
+        expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
+      });
+
+      // Send OTP email
+      await emailService.sendOTP(email, otp);
+
+      return sendSuccess(res, {
+        message: 'OTP sent to your email',
+        email
+      });
+
+    } catch (error) {
+      console.error('Send OTP error:', error);
+      return sendError(res, error.message || 'Failed to send OTP', 500);
+    }
+  }
+
+  // VERIFY OTP AND REGISTER
+  async verifyOTPAndRegister(req, res) {
+    try {
+      const {
+        email,
+        otp,
+        username,
+        password,
+        first_name,
+        last_name,
+        contact_number,
+        role = 'customer',
+        store_id = null
+      } = req.body;
+
+      if (!email || !otp) {
+        return sendError(res, 'Email and OTP are required', 400);
+      }
+
+      // Check OTP
+      const storedOTP = otpStore.get(email);
+      
+      if (!storedOTP) {
+        return sendError(res, 'OTP not found or expired', 400);
+      }
+
+      if (Date.now() > storedOTP.expiresAt) {
+        otpStore.delete(email);
+        return sendError(res, 'OTP has expired', 400);
+      }
+
+      if (storedOTP.otp !== otp) {
+        return sendError(res, 'Invalid OTP', 400);
+      }
+
+      // OTP verified, proceed with registration
+      if (!username || !password) {
+        return sendError(res, 'Username and password are required', 400);
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Insert user into users table
+      const { data, error } = await supabase
+        .from('users')
+        .insert([
+          {
+            username,
+            password: hashedPassword,
+            first_name,
+            last_name,
+            contact_number,
+            user_email: email,
+            role,
+            store_id
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        return sendError(res, error.message, 400);
+      }
+
+      // Clear OTP after successful registration
+      otpStore.delete(email);
+
+      return sendSuccess(
+        res,
+        {
+          message: 'User registered successfully',
+          user: {
+            user_id: data.user_id,
+            username: data.username,
+            role: data.role,
+            first_name: data.first_name,
+            last_name: data.last_name,
+            user_email: data.user_email
+          }
+        },
+        201
+      );
+
+    } catch (error) {
+      console.error('Verify OTP error:', error);
+      return sendError(res, 'Internal server error', 500);
+    }
+  }
+
+  // VERIFY STORE CODE AND REGISTER VENDOR
+  async verifyStoreCodeAndRegister(req, res) {
+    try {
+      const {
+        store_code,
+        username,
+        password,
+        first_name,
+        last_name,
+        contact_number,
+        user_email
+      } = req.body;
+
+      if (!store_code) {
+        return sendError(res, 'Store code is required', 400);
+      }
+
+      if (!username || !password) {
+        return sendError(res, 'Username and password are required', 400);
+      }
+
+      // Verify store code exists and get store details
+      const { data: store, error: storeError } = await supabase
+        .from('stores')
+        .select('store_id, store_name, is_active')
+        .eq('store_code', store_code)
+        .single();
+
+      if (storeError || !store) {
+        return sendError(res, 'Invalid store code', 400);
+      }
+
+      if (!store.is_active) {
+        return sendError(res, 'This store is currently inactive', 400);
+      }
+
+      // Check if username already exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('username')
+        .eq('username', username)
+        .single();
+
+      if (existingUser) {
+        return sendError(res, 'Username already exists', 400);
+      }
+
+      // Check if email already exists
+      if (user_email) {
+        const { data: existingEmail } = await supabase
+          .from('users')
+          .select('user_email')
+          .eq('user_email', user_email)
+          .single();
+
+        if (existingEmail) {
+          return sendError(res, 'Email already registered', 400);
+        }
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Insert vendor user with store_id
+      const { data, error } = await supabase
+        .from('users')
+        .insert([
+          {
+            username,
+            password: hashedPassword,
+            first_name,
+            last_name,
+            contact_number,
+            user_email,
+            role: 'vendor',
+            store_id: store.store_id
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        return sendError(res, error.message, 400);
+      }
+
+      return sendSuccess(
+        res,
+        {
+          message: 'Vendor registered successfully',
+          user: {
+            user_id: data.user_id,
+            username: data.username,
+            role: data.role,
+            first_name: data.first_name,
+            last_name: data.last_name,
+            user_email: data.user_email,
+            store_id: data.store_id,
+            store_name: store.store_name
+          }
+        },
+        201
+      );
+
+    } catch (error) {
+      console.error('Vendor registration error:', error);
       return sendError(res, 'Internal server error', 500);
     }
   }

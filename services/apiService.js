@@ -4,8 +4,9 @@ import { Platform } from 'react-native';
 // ✅ Configure API base URL
 const API_BASE_URL =
   Platform.OS === 'android'
-    ? 'http://192.168.1.6:3000/api'
+    ? 'http://10.0.2.2:3000/api'  // Android emulator uses 10.0.2.2 to access host's localhost
     : 'http://localhost:3000/api';
+
 
 const TOKEN_KEY = '@app_auth_token';
 
@@ -103,8 +104,29 @@ class ApiService {
   }
 
   // 👥 AUTHENTICATION
+  async sendOTP(email) {
+    return this.request('/auth/send-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async verifyOTPAndRegister(userData) {
+    return this.request('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  }
+
   async register(userData) {
     return this.request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async registerVendorWithStoreCode(userData) {
+    return this.request('/auth/vendor-register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
