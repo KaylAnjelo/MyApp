@@ -83,11 +83,15 @@ class TransactionController {
       // This allows manual code entry
       if (!global.pendingTransactions) {
         global.pendingTransactions = new Map();
+        console.log('Created new pendingTransactions map');
       }
       global.pendingTransactions.set(shortCode, {
         data: qrData,
         expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
       });
+      
+      console.log('Stored transaction with code:', shortCode);
+      console.log('Total pending transactions:', global.pendingTransactions.size);
 
       // Return QR data without inserting into database yet
       // The transaction will be inserted when customer scans QR or enters code
@@ -274,20 +278,28 @@ class TransactionController {
     try {
       const { short_code, customer_id } = req.body;
 
+      console.log('Processing short code:', short_code, 'for customer:', customer_id);
+
       if (!short_code || !customer_id) {
         return sendError(res, 'Short code and customer ID are required', 400);
       }
 
       // Check if pending transactions map exists
       if (!global.pendingTransactions) {
-        return sendError(res, 'Invalid or expired code', 400);
+        console.log('No pending transactions map exists');
+        return sendError(res, 'Invalid or expired code. Please generate a new code.', 400);
       }
 
+      const codeUpper = short_code.toUpperCase();
+      console.log('Looking for code:', codeUpper);
+      console.log('Available codes:', Array.from(global.pendingTransactions.keys()));
+
       // Get transaction data from cache
-      const pending = global.pendingTransactions.get(short_code.toUpperCase());
+      const pending = global.pendingTransactions.get(codeUpper);
       
       if (!pending) {
-        return sendError(res, 'Invalid or expired code', 400);
+        console.log('Code not found in cache');
+        return sendError(res, 'Invalid or expired code. Please generate a new code.', 400);
       }
 
       // Check if expired
