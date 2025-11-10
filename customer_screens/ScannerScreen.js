@@ -17,7 +17,7 @@ export default function ScannerScreen({ navigation }) {
     
     try {
       // Get customer ID from AsyncStorage
-      const userDataStr = await AsyncStorage.getItem('userData');
+      const userDataStr = await AsyncStorage.getItem('@app_user');
       if (!userDataStr) {
         Alert.alert('Error', 'Please log in first');
         navigation.navigate('SignIn');
@@ -89,18 +89,27 @@ export default function ScannerScreen({ navigation }) {
 
     try {
       // Get customer ID from AsyncStorage
-      const userDataStr = await AsyncStorage.getItem('userData');
+      const userDataStr = await AsyncStorage.getItem('@app_user');
       if (!userDataStr) {
-        Alert.alert('Error', 'Please log in first');
-        navigation.navigate('SignIn');
+        setProcessing(false);
+        Alert.alert('Error', 'Please log in first', [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('SignIn')
+          }
+        ]);
         return;
       }
       
       const userData = JSON.parse(userDataStr);
       const customerId = userData.user_id;
 
+      console.log('Processing manual code for customer:', customerId, 'Code:', manualCode.trim());
+
       // Process manual code
       const response = await apiService.processManualCode(customerId, manualCode.trim());
+      
+      console.log('Manual code response:', response);
       
       if (response.success) {
         Alert.alert(
