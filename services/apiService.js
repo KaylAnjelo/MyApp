@@ -330,6 +330,11 @@ class ApiService {
     });
   }
 
+  // 💰 POINTS
+  async getUserPointsByStore(userId) {
+    return this.request(`/user/${userId}/points-by-store`);
+  }
+
   async createTransaction(transactionData) {
     return this.request('/transactions', {
       method: 'POST',
