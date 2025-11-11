@@ -123,8 +123,6 @@ export default function SpecificStoreScreen({ route, navigation }) {
           )}
         />
 
-        {/* Explore Missions removed per design */}
-
         {/* Redeemable Rewards */}
         <Text style={styles.sectionHeading}>Redeemable Rewards</Text>
         {rewards.map((r) => {

@@ -31,7 +31,6 @@ export default function MyRewardsScreen({ navigation }) {
               <View style={styles.emptyState}>
                 <FontAwesome name="star" size={18} color={Colors.primary} style={{ marginBottom: 14 }} />
                 <Text style={styles.rewardsText}>No rewards available yet</Text>
-                <Text style={styles.rewardsSubtext}>Complete missions to earn rewards</Text>
               </View>
             ) : (
               <View>

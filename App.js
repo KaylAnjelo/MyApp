@@ -12,7 +12,6 @@ import HomePageScreen from './customer_screens/HomePageScreen';
 import StoresScreen from './customer_screens/StoresScreen';
 import SpecificStoreScreen from './customer_screens/SpecificStoreScreen';
 import MyPointsScreen from './customer_screens/MyPointsScreen';
-import FoodChasePage from './customer_screens/FoodChaseScreen';
 import MyRewardsPage from './customer_screens/MyRewardsScreen';
 import ProfilePageScreen from './customer_screens/ProfilePageScreen';
 import ActivityScreen from './customer_screens/ActivityScreen';
@@ -22,8 +21,6 @@ import VendorProfilePage from './vendor_screens/VendorProfilePage';
 import TransactionPage from './vendor_screens/TransactionPage';
 import ScannerScreen from './customer_screens/ScannerScreen';
 import CreateOrderScreen from './vendor_screens/AddMenuPage';
-
-
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -40,7 +37,6 @@ export default function App() {
         <Stack.Screen name="SignUpVendor" component={SignUpVendorScreen} />
         <Stack.Screen name="SignUpCustomer" component={SignUpCustomerScreen} />
         <Stack.Screen name="MyPoints" component={MyPointsScreen} />
-        <Stack.Screen name="FoodChase" component={FoodChasePage} />
         <Stack.Screen name="MyRewards" component={MyRewardsPage} />
         <Stack.Screen name="ProfilePage" component={ProfilePageScreen} />
   <Stack.Screen name="ActivityScreen" component={ActivityScreen} />

@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
@@ -19,6 +20,12 @@ export default function HomePageScreen({ navigation }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [highestPointsStore, setHighestPointsStore] = useState({
+    storeName: 'No points yet',
+    points: 0,
+    storeImage: null,
+    hasPoints: false,
+  });
 
   useEffect(() => {
     fetchData();
@@ -26,12 +33,57 @@ export default function HomePageScreen({ navigation }) {
 
   const fetchData = async () => {
     try {
+      // Get user ID from AsyncStorage
+      const userString = await AsyncStorage.getItem('@app_user');
+      const user = userString ? JSON.parse(userString) : null;
+      const userId = user?.user_id;
+
       const [storesData, productsData] = await Promise.all([
         apiService.getStores(),
         apiService.getProducts(),
       ]);
       setStores(storesData || []);
       setProducts(productsData || []);
+
+      // Fetch highest points by store if userId is available
+      if (userId) {
+        try {
+          const pointsByStore = await apiService.getUserPointsByStore(userId);
+          if (pointsByStore && Array.isArray(pointsByStore) && pointsByStore.length > 0) {
+            // Find the store with highest points
+            const highest = pointsByStore.reduce((max, current) =>
+              (current.available_points || 0) > (max.available_points || 0) ? current : max
+            );
+            
+            // Find the corresponding store from stores list
+            const storeData = storesData?.find(s => s.id === highest.store_id || s.store_id === highest.store_id);
+            
+            setHighestPointsStore({
+              storeName: highest.store_name || storeData?.name || 'Store',
+              points: highest.available_points || 0,
+              storeImage: storeData?.store_image || null,
+              hasPoints: true,
+            });
+          } else {
+            // No points available
+            setHighestPointsStore({
+              storeName: 'No points yet',
+              points: 0,
+              storeImage: null,
+              hasPoints: false,
+            });
+          }
+        } catch (error) {
+          console.warn('Could not fetch points by store:', error);
+          // Set no points state if API call fails
+          setHighestPointsStore({
+            storeName: 'No points yet',
+            points: 0,
+            storeImage: null,
+            hasPoints: false,
+          });
+        }
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -76,13 +128,17 @@ export default function HomePageScreen({ navigation }) {
             onPress={() => navigation.navigate('MyPoints')}
           >
             <Text style={styles.topCardTitle}>Highest Available Points</Text>
-            <View style={styles.topCardContent}>
-              <Image source={require('../assets/reward_points.png')} style={styles.topCardImage} />
-              <View style={{ marginLeft: 12 }}>
-                <Text style={styles.topCardText}>Shawarma store</Text>
-                <Text style={styles.topCardPoints}>115 points</Text>
+            {highestPointsStore.hasPoints ? (
+              <View style={styles.topCardContent}>
+                <Image source={require('../assets/reward_points.png')} style={styles.topCardImage} />
+                <View style={{ marginLeft: 12 }}>
+                  <Text style={styles.topCardText}>{highestPointsStore.storeName}</Text>
+                  <Text style={styles.topCardPoints}>{highestPointsStore.points} points</Text>
+                </View>
               </View>
-            </View>
+            ) : (
+              <Text style={styles.noPointsText}>Start earning by making a purchase.</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -117,8 +173,8 @@ export default function HomePageScreen({ navigation }) {
                     <FontAwesome name="star" size={12} color="#FFD700" />
                     <Text style={styles.storeRatingText}>{store.rating || '5.0'}</Text>
                   </View>
-                  <TouchableOpacity style={styles.collectButton} onPress={() => navigation.navigate('MyPoints')}>
-                    <Text style={styles.collectButtonText}>Collect points</Text>
+                  <TouchableOpacity style={styles.collectButton} onPress={() => navigation.navigate('ScannerScreen')}>
+                    <Text style={styles.collectButtonText}>Collect Points</Text>
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
@@ -236,6 +292,11 @@ const styles = StyleSheet.create({
     fontSize: Typography.h3,
     fontWeight: '700',
   },
+  noPointsText: {
+    color: Colors.white,
+    fontSize: Typography.body,
+    fontStyle: 'italic',
+  },
   topCardButton: {
     marginTop: Spacing.sm,
     backgroundColor: '#7D0006',
@@ -276,14 +337,14 @@ const styles = StyleSheet.create({
   storeRatingText: { marginLeft: Spacing.xs, color: Colors.textSecondary },
   collectButton: {
     position: 'absolute',
-    right: 12,
-    bottom: 12,
+    right: 8,
+    bottom: 8,
     backgroundColor: '#7D0006',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: Radii.md,
   },
-  collectButtonText: { color: '#fff', fontWeight: '700' },
+  collectButtonText: { color: '#fff', fontWeight: '700', fontSize: 10 },
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: Spacing.xxl },
   emptyText: { fontSize: Typography.h3, color: Colors.textSecondary, marginTop: Spacing.md },
   recentActivitiesCard: { height: 120, backgroundColor: '#fff', borderRadius: Radii.lg, marginBottom: Spacing.lg, ...Shadows.light },
