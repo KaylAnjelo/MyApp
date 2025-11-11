@@ -1,13 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  TouchableOpacity,
-  Image,
-  ScrollView,
-  FlatList,
+import { View, Text, StyleSheet,
+  ActivityIndicator,TouchableOpacity,
+  Image, ScrollView, FlatList, Alert,
 } from 'react-native';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
@@ -15,21 +9,47 @@ import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 export default function SpecificStoreScreen({ route, navigation }) {
-  const { storeId } = route.params || {};
+  const { storeId, storeName } = route.params || {};
   const [store, setStore] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userPoints, setUserPoints] = useState(null);
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       try {
         if (!storeId) return;
-        const s = await apiService.getStore(storeId).catch(() => null);
+        // Try multiple store endpoints (some codebases use getStoreBy)
+        let s = null;
+        if (typeof apiService.getStore === 'function') {
+          s = await apiService.getStore(storeId).catch(() => null);
+        }
+        if (!s && typeof apiService.getStoreBy === 'function') {
+          s = await apiService.getStoreBy(storeId).catch(() => null);
+        }
+
         const p = await apiService.getProductsByStore(storeId).catch(() => []);
+
+        // Attempt to get user's points for this store by querying all stores and matching id
+        let points = null;
+        try {
+          const allStores = await apiService.getStores().catch(() => []);
+          const matched = (allStores || []).find((st) => {
+            const sid = st && (st.id || st.store_id || st.storeId || st.store);
+            return String(sid) === String(storeId) || String(sid) === String(s && (s.id || s.store_id || s.storeId));
+          });
+          if (matched) {
+            points = matched.customerPoints ?? matched.customer_points ?? matched.points ?? matched.total_points ?? null;
+          }
+        } catch (e) {
+          // ignore
+        }
+
         if (mounted) {
           setStore(s);
           setProducts(p || []);
+          setUserPoints(points === null || points === undefined ? null : Number(points));
         }
       } catch (err) {
         console.warn('Failed to load store data:', err.message || err);
@@ -40,17 +60,13 @@ export default function SpecificStoreScreen({ route, navigation }) {
     load();
     return () => (mounted = false);
   }, [storeId]);
-
-  const missions = [
-    { id: 1, title: 'Large Shawarma: Buy 3, Get 1 Free', reward: 'Mission reward' },
-    { id: 2, title: 'Earn P50 discount voucher by purchasing 5 meals', reward: 'P50 voucher' },
-  ];
-
   const rewards = [
-    { id: 1, title: 'Free 1 Regular Drink', points: 50 },
-    { id: 2, title: 'Free Add ons', points: 30 },
-    { id: 3, title: '1 Large Shawarma', points: 150 },
+    { id: 1, title: 'Free 1 Regular Drink', points: 50, isRedeemed: true },
+    { id: 2, title: 'Free Add ons', points: 30, isRedeemed: false },
+    { id: 3, title: '1 Large Shawarma', points: 150, isRedeemed: false },
   ];
+
+  // userPoints will be loaded from API (null while loading)
 
   if (loading) {
     return (
@@ -64,10 +80,10 @@ export default function SpecificStoreScreen({ route, navigation }) {
     <View style={styles.screen}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('Stores')}>
-          <FontAwesome name="chevron-left" size={20} color={Colors.primary} />
+        <TouchableOpacity onPress={() => navigation.navigate('Stores')} accessibilityLabel="Back">
+          <FontAwesome name="chevron-left" size={20} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{store?.name || 'Store'}</Text>
+  <Text style={styles.headerTitle}>{storeName || store?.name || 'Store'}</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -76,8 +92,8 @@ export default function SpecificStoreScreen({ route, navigation }) {
         <View style={styles.pointsCard}>
           <Text style={styles.pointsTitle}>Available Points</Text>
           <View style={styles.pointsRow}>
-            <Text style={styles.pointsValue}>115 points</Text>
-            <TouchableOpacity style={styles.pointsButton}>
+            <Text style={styles.pointsValue}>{userPoints !== null ? `${userPoints} points` : '...'}</Text>
+            <TouchableOpacity style={styles.pointsButton} onPress={() => Alert.alert('Use points', 'Open points modal')}>
               <Text style={styles.pointsButtonText}>Use points</Text>
             </TouchableOpacity>
           </View>
@@ -93,43 +109,54 @@ export default function SpecificStoreScreen({ route, navigation }) {
           contentContainerStyle={styles.menuList}
           renderItem={({ item }) => (
             <View style={styles.menuCard}>
-              <Image
-                source={{ uri: item.image_url || 'https://via.placeholder.com/100' }}
-                style={styles.menuImage}
-              />
-              <Text style={styles.menuLabel}>{item.name || item.title}</Text>
+              <View style={styles.menuImageWrap}>
+                <Image
+                  source={{ uri: item.image_url || 'https://via.placeholder.com/150/FFD54F' }}
+                  style={styles.menuImage}
+                  resizeMode="cover"
+                />
+              </View>
+              <View style={styles.menuLabelWrap}>
+                <Text style={styles.menuLabel}>{item.name || item.title}</Text>
+              </View>
             </View>
           )}
         />
 
-        {/* Explore Missions */}
-        <Text style={styles.sectionHeading}>Explore Missions</Text>
-        {missions.map((m) => (
-          <View key={m.id} style={styles.missionRow}>
-            <View style={styles.missionTextWrap}>
-              <Text style={styles.missionTitle}>{m.title}</Text>
-            </View>
-            <TouchableOpacity style={styles.missionButton}>
-              <Text style={styles.missionButtonText}>Register</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+        {/* Explore Missions removed per design */}
 
         {/* Redeemable Rewards */}
         <Text style={styles.sectionHeading}>Redeemable Rewards</Text>
-        {rewards.map((r) => (
-          <View key={r.id} style={styles.rewardRow}>
-            <View>
-              <Text style={styles.rewardTitle}>{r.title}</Text>
+        {rewards.map((r) => {
+          const isRedeemed = !!r.isRedeemed;
+          const canRedeem = r.points <= (userPoints ?? 0) && !isRedeemed;
+          return (
+            <View key={r.id} style={styles.rewardRow}>
+              <View style={styles.rewardLeft}>
+                <Ionicons name="gift-outline" size={18} color={isRedeemed ? '#9e9e9e' : Colors.textPrimary} />
+                <Text style={styles.rewardTitle}>{r.title}</Text>
+              </View>
+              <View style={styles.rewardActions}>
+                {isRedeemed ? (
+                  <View style={styles.redeemedPill}>
+                    <Text style={styles.redeemedText}>Redeemed</Text>
+                  </View>
+                ) : canRedeem ? (
+                  <TouchableOpacity
+                    style={styles.rewardRedeem}
+                    onPress={() => Alert.alert('Redeem', `Redeeming: ${r.title}`)}
+                  >
+                    <Text style={styles.rewardRedeemText}>Redeem</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.pointsPill}>
+                    <Text style={styles.pointsPillText}>{r.points} points</Text>
+                  </View>
+                )}
+              </View>
             </View>
-            <View style={styles.rewardActions}>
-              <TouchableOpacity style={styles.rewardRedeem}>
-                <Text style={styles.rewardRedeemText}>Redeem</Text>
-              </TouchableOpacity>
-              <Text style={styles.rewardPoints}>{r.points} points</Text>
-            </View>
-          </View>
-        ))}
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -142,14 +169,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    backgroundColor: Colors.primary,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
+    paddingVertical: Spacing.md,
+    marginBottom: Spacing.md,
   },
   headerTitle: {
     fontSize: Typography.h2,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
+    fontWeight: '700',
+    color: '#fff',
   },
   headerRight: { width: 20 },
   content: { padding: Spacing.lg, paddingBottom: 120 },
@@ -178,35 +206,33 @@ const styles = StyleSheet.create({
   },
   menuList: { paddingBottom: Spacing.md },
   menuCard: {
-    width: 120,
-    backgroundColor: '#fff',
+    width: 140,
+    backgroundColor: 'transparent',
     borderRadius: Radii.md,
-    padding: 10,
     marginRight: Spacing.md,
     alignItems: 'center',
+    overflow: 'hidden',
     ...Shadows.light,
   },
-  menuImage: { width: 80, height: 80, borderRadius: Radii.md, marginBottom: Spacing.sm },
-  menuLabel: { fontSize: Typography.small, textAlign: 'center' },
-  missionRow: {
-    flexDirection: 'row',
+  menuImageWrap: {
+    width: 140,
+    height: 100,
+    backgroundColor: '#FFD54F',
+    borderTopLeftRadius: Radii.md,
+    borderTopRightRadius: Radii.md,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+  },
+  menuImage: { width: 110, height: 78, borderRadius: Radii.sm },
+  menuLabelWrap: {
+    width: 140,
     backgroundColor: '#fff',
-    padding: Spacing.md,
-    borderRadius: Radii.md,
-    marginBottom: Spacing.sm,
-    ...Shadows.light,
+    borderBottomLeftRadius: Radii.md,
+    borderBottomRightRadius: Radii.md,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
   },
-  missionTextWrap: { flex: 1, paddingRight: Spacing.sm },
-  missionTitle: { fontSize: Typography.body },
-  missionButton: {
-    backgroundColor: '#b71c1c',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: Radii.sm,
-  },
-  missionButtonText: { color: '#fff' },
+  menuLabel: { fontSize: Typography.small, textAlign: 'center' },
   rewardRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -217,7 +243,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     ...Shadows.light,
   },
-  rewardTitle: { fontSize: Typography.body },
+  rewardLeft: { flexDirection: 'row', alignItems: 'center' },
+  rewardTitle: { fontSize: Typography.body, marginLeft: Spacing.sm },
   rewardActions: { flexDirection: 'row', alignItems: 'center' },
   rewardRedeem: {
     backgroundColor: '#b71c1c',
@@ -228,4 +255,20 @@ const styles = StyleSheet.create({
   },
   rewardRedeemText: { color: '#fff' },
   rewardPoints: { color: Colors.textSecondary },
+  redeemedPill: {
+    backgroundColor: '#e0e0e0',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: Radii.sm,
+    marginRight: Spacing.sm,
+  },
+  redeemedText: { color: '#9e9e9e' },
+  pointsPill: {
+    backgroundColor: '#f5f5f5',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: Radii.sm,
+    marginRight: Spacing.sm,
+  },
+  pointsPillText: { color: '#757575' },
 });
