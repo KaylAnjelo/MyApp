@@ -166,14 +166,14 @@ export default function ProfilePageScreen({ navigation }) {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ActivityScreen')}>
-          <FontAwesome name="list-alt" size={20} color="#555" />
-          <Text style={styles.navText}>Activity</Text>
+          <FontAwesome name="list-alt" size={20} color={Colors.primary} />
+          <Text style={[styles.navText, { color: Colors.primary }]}>Transactions</Text>
         </TouchableOpacity>
 
-        <View style={styles.navItem}>
-          <FontAwesome name="user-o" size={20} color="#7D0006" />
-          <Text style={[styles.navText, { color: '#7D0006' }]}>Profile</Text>
-        </View>
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ProfilePage')}>
+          <FontAwesome name="user-o" size={20} color="#555" />
+          <Text style={styles.navText}>Profile</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );

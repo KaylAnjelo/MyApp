@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   FlatList,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 
@@ -69,24 +69,28 @@ export default function ActivityScreen({ navigation }) {
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
-        <View style={styles.navItem}>
-          <Icon name="home" size={20} color="#555" />
-          <Text style={[styles.navText, { color: '#555' }]}>Home</Text>
-        </View>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Stores')}>
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('HomePage')}>
+          <FontAwesome name="home" size={20} color="#555" />
+          <Text style={styles.navText}>Home</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('Stores')}>
           <Ionicons name="storefront-outline" size={22} color="#555" />
           <Text style={styles.navText}>Stores</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('ScannerScreen')}>
-          <Icon name="qrcode" size={20} color="#555" />
+
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ScannerScreen')}>
+          <FontAwesome name="qrcode" size={20} color="#555" />
           <Text style={styles.navText}>QR Scan</Text>
         </TouchableOpacity>
-        <View style={styles.navItem}>
-          <Icon name="list-alt" size={20} color="#7D0006" />
-          <Text style={[styles.navText, { color: '#7D0006', fontWeight: 'bold' }]}>Activity</Text>
-        </View>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('ProfilePage')}>
-          <Icon name="user-o" size={20} color="#555" />
+
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ActivityScreen')}>
+          <FontAwesome name="list-alt" size={20} color={Colors.primary} />
+          <Text style={[styles.navText, { color: Colors.primary }]}>Transactions</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ProfilePage')}>
+          <FontAwesome name="user-o" size={20} color="#555" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
       </View>

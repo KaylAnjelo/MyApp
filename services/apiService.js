@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 // ✅ Configure API base URL
 const API_BASE_URL =
   Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api'  // Android emulator uses 10.0.2.2 to access host's localhost
+    ? 'http://192.168.1.10:3000/api'  // Android emulator uses 10.0.2.2 to access host's localhost
     : 'http://localhost:3000/api';
 
 
