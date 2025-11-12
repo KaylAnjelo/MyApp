@@ -65,4 +65,65 @@ router.put('/user/profile/:userId', async (req, res) => {
   }
 });
 
+// GET /api/user/:userId/points-by-store
+router.get('/user/:userId/points-by-store', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log('[userRoutes] GET /user/:userId/points-by-store called with userId=', userId);
+
+    if (!supabase) {
+      // Dev fallback: return mock data
+      return res.json([
+        {
+          store_id: 1,
+          store_name: 'Shawarma Store',
+          available_points: 115,
+        },
+        {
+          store_id: 2,
+          store_name: 'Coffee Shop',
+          available_points: 45,
+        },
+      ]);
+    }
+
+    // Get all transactions for this user grouped by store with sum of points
+    const { data: transactions, error: transError } = await supabase
+      .from('transactions')
+      .select(`
+        store_id,
+        points,
+        stores:store_id(store_id, store_name)
+      `)
+      .eq('user_id', userId);
+
+    if (transError) {
+      console.error('[userRoutes] Error fetching transactions:', transError);
+      return res.status(400).json({ error: transError.message });
+    }
+
+    // Group by store and sum points
+    const pointsByStore = {};
+    if (transactions && Array.isArray(transactions)) {
+      transactions.forEach(transaction => {
+        const storeId = transaction.store_id;
+        if (!pointsByStore[storeId]) {
+          pointsByStore[storeId] = {
+            store_id: storeId,
+            store_name: transaction.stores?.store_name || 'Store',
+            available_points: 0,
+          };
+        }
+        pointsByStore[storeId].available_points += parseFloat(transaction.points || 0);
+      });
+    }
+
+    const result = Object.values(pointsByStore).sort((a, b) => b.available_points - a.available_points);
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching points by store:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

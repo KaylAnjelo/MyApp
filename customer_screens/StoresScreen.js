@@ -73,21 +73,16 @@ export default function StoresScreen({ navigation }) {
                 key={store && store.id ? String(store.id) : `store-${idx}`}
                 style={styles.storeCard}
                 onPress={() =>
-                  navigation.navigate('SpecificStore', { storeId: store.id })
+                  navigation.navigate('SpecificStore', { storeId: store.id, storeName: store.name })
                 }
               >
                 <View style={styles.storeImageContainer}>
                   <Image
                     source={{
-                      uri: store.image_url || 'https://via.placeholder.com/150',
+                      // prefer logoUrl if available, otherwise fall back to store_image
+                      uri: store.logoUrl || store.store_image || 'https://via.placeholder.com/150',
                     }}
                     style={styles.storeImage}
-                  />
-                  <FontAwesome
-                    name="heart"
-                    size={18}
-                    color="#7D0006"
-                    style={styles.favoriteIcon}
                   />
                 </View>
                 <View style={styles.storeInfo}>
@@ -127,10 +122,10 @@ export default function StoresScreen({ navigation }) {
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
 
-        <View style={styles.navItem}>
-          <Ionicons name="storefront-outline" size={22} color="#7D0006" />
-          <Text style={[styles.navText, { color: '#7D0006' }]}>Stores</Text>
-        </View>
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('Stores')}>
+          <Ionicons name="storefront-outline" size={22} color={Colors.primary} />
+          <Text style={[styles.navText, { color: Colors.primary }]}>Stores</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ScannerScreen')}>
           <FontAwesome name="qrcode" size={20} color="#555" />
@@ -139,7 +134,7 @@ export default function StoresScreen({ navigation }) {
 
         <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ActivityScreen')}>
           <FontAwesome name="list-alt" size={20} color="#555" />
-          <Text style={styles.navText}>Activity</Text>
+          <Text style={styles.navText}>Transactions</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ProfilePage')}>
@@ -206,11 +201,7 @@ const styles = StyleSheet.create({
     borderRadius: Radii.md,
     backgroundColor: Colors.primary,
   },
-  favoriteIcon: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-  },
+  
   storeInfo: {
     flex: 1,
   },

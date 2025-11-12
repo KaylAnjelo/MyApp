@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,22 +6,20 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
+  ActivityIndicator,
+  Alert,
+  Modal,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import QRCode from 'react-native-qrcode-svg';
+import apiService from '../services/apiService';
 
 // --- Constants ---
 const PRIMARY_RED = '#8B0000'; // Dark Red
-const MENU_ITEMS = [
-  {id: '1', name: 'Bistek (Half Order)', price: '25.00'},
-  {id: '2', name: 'Chicken Pork Adob...', price: '25.00'},
-  {id: '3', name: 'Chicharong Bulaklak (H...', price: '25.00'},
-  {id: '4', name: 'Binagoongan', price: '25.00'},
-  {id: '5', name: 'Ginataang kalabasa...', price: '15.00'},
-  {id: '6', name: 'Half Rice', price: '5.00'},
-];
 
 // --- Custom Component for each Menu Item Row ---
-const MenuItemTile = ({itemName, price}) => (
+const MenuItemTile = ({itemName, price, onAdd}) => (
   <>
     <View style={styles.menuItemRow}>
       {/* Item Name */}
@@ -31,7 +29,7 @@ const MenuItemTile = ({itemName, price}) => (
       {/* Price */}
       <Text style={styles.itemPrice}>₱ {price}</Text>
       {/* Add Button */}
-      <TouchableOpacity style={styles.addButton} onPress={() => console.log(`Added ${itemName}`)}>
+      <TouchableOpacity style={styles.addButton} onPress={onAdd}>
         <MaterialIcons name="add" size={20} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
@@ -41,8 +39,162 @@ const MenuItemTile = ({itemName, price}) => (
 
 // --- Main Screen Component ---
 const CreateOrderScreen = ({ navigation }) => {
-  const cartItemCount = 4;
-  const cartTotal = '265.00';
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [storeId, setStoreId] = useState(null);
+  const [vendorId, setVendorId] = useState(null);
+  const [cart, setCart] = useState([]);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrData, setQrData] = useState(null);
+  const [shortCode, setShortCode] = useState(null);
+  const [generatingQR, setGeneratingQR] = useState(false);
+
+  useEffect(() => {
+    loadVendorProducts();
+  }, []);
+
+  const loadVendorProducts = async () => {
+    try {
+      // Get vendor's store_id from AsyncStorage
+      const userStr = await AsyncStorage.getItem('@app_user');
+      if (!userStr) {
+        Alert.alert('Error', 'User data not found. Please login again.');
+        navigation.replace('SignIn');
+        return;
+      }
+
+      const user = JSON.parse(userStr);
+      const vendorStoreId = user.store_id || user._raw?.store_id;
+      const vendorUserId = user.user_id || user._raw?.user_id;
+
+      if (!vendorStoreId) {
+        Alert.alert('Error', 'No store assigned to your account. Please contact support.');
+        setLoading(false);
+        return;
+      }
+
+      setStoreId(vendorStoreId);
+      setVendorId(vendorUserId);
+
+      // Fetch products for this store
+      const productsData = await apiService.getProductsByStore(vendorStoreId);
+      setProducts(productsData || []);
+    } catch (error) {
+      console.error('Error loading products:', error);
+      Alert.alert('Error', 'Failed to load products. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addToCart = (product) => {
+    setCart(prevCart => {
+      const existingItem = prevCart.find(item => item.id === product.id);
+      if (existingItem) {
+        return prevCart.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...prevCart, { ...product, quantity: 1 }];
+    });
+  };
+
+  const removeFromCart = (productId) => {
+    setCart(prevCart => {
+      const existingItem = prevCart.find(item => item.id === productId);
+      if (existingItem && existingItem.quantity > 1) {
+        return prevCart.map(item =>
+          item.id === productId
+            ? { ...item, quantity: item.quantity - 1 }
+            : item
+        );
+      }
+      return prevCart.filter(item => item.id !== productId);
+    });
+  };
+
+  const getCartTotal = () => {
+    return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2);
+  };
+
+  const getCartItemCount = () => {
+    return cart.reduce((sum, item) => sum + item.quantity, 0);
+  };
+
+  const generateQRCode = async () => {
+    if (cart.length === 0) {
+      Alert.alert('Empty Cart', 'Please add items to cart before generating QR code');
+      return;
+    }
+
+    if (!vendorId || !storeId) {
+      Alert.alert('Error', 'Vendor or store information is missing. Please reload the page.');
+      console.error('Missing vendorId or storeId:', { vendorId, storeId });
+      return;
+    }
+
+    setGeneratingQR(true);
+    try {
+      console.log('Cart items:', cart);
+      console.log('Vendor ID:', vendorId, 'Store ID:', storeId);
+
+      const items = cart.map(item => ({
+        product_id: item.id,
+        product_name: item.name || item.product_name,
+        quantity: item.quantity,
+        price: parseFloat(item.price)
+      }));
+
+      console.log('Generating QR with items:', items);
+
+      const response = await apiService.generateTransactionQR({
+        vendor_id: vendorId,
+        store_id: storeId,
+        items: items
+      });
+
+      console.log('QR Response:', response);
+
+      if (response && response.qr_string && response.short_code) {
+        setQrData(response.qr_string);
+        setShortCode(response.short_code);
+        setShowQRModal(true);
+      } else {
+        Alert.alert('Error', 'Invalid response from server');
+        console.error('Invalid response:', response);
+      }
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      Alert.alert('Error', `Failed to generate QR code: ${error.message || 'Unknown error'}`);
+    } finally {
+      setGeneratingQR(false);
+    }
+  };
+
+  const closeQRModal = () => {
+    setShowQRModal(false);
+    setQrData(null);
+    setShortCode(null);
+    setCart([]); // Clear cart after QR is shown
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <View style={{width: 24}} />
+          <Text style={styles.headerTitle}>Create Order</Text>
+          <View style={{width: 24}} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={PRIMARY_RED} />
+          <Text style={styles.loadingText}>Loading products...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -55,32 +207,98 @@ const CreateOrderScreen = ({ navigation }) => {
 
       {/* --- Body (Scrollable Menu List) --- */}
       <ScrollView style={styles.body}>
-        {MENU_ITEMS.map(item => (
-          <MenuItemTile key={item.id} itemName={item.name} price={item.price} />
-        ))}
+        {products.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <MaterialIcons name="inventory-2" size={60} color="#ccc" />
+            <Text style={styles.emptyText}>No products available</Text>
+            <Text style={styles.emptySubtext}>Add products to your store menu</Text>
+          </View>
+        ) : (
+          products.map(item => (
+            <MenuItemTile 
+              key={item.id} 
+              itemName={item.name || item.product_name} 
+              price={item.price ? parseFloat(item.price).toFixed(2) : '0.00'}
+              onAdd={() => addToCart(item)} 
+            />
+          ))
+        )}
         {/* Add padding at the bottom to ensure the last item is not hidden by the cart bar */}
         <View style={{height: 10}} />
       </ScrollView>
 
       {/* --- Bottom Cart Summary Bar --- */}
-      <View style={styles.bottomBar}>
-        {/* Left Side: Cart Icon and View Cart Text */}
+      <TouchableOpacity 
+        style={styles.bottomBar}
+        onPress={generateQRCode}
+        disabled={generatingQR || cart.length === 0}
+      >
+        {/* Left Side: Cart Icon and Cart Info */}
         <View style={styles.cartInfoContainer}>
           <View>
             {/* Cart Icon */}
             <MaterialIcons name="shopping-cart" size={28} color="#FFFFFF" />
             
             {/* Cart Count Badge */}
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{cartItemCount}</Text>
-            </View>
+            {getCartItemCount() > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{getCartItemCount()}</Text>
+              </View>
+            )}
           </View>
-          <Text style={styles.viewCartText}>View Cart</Text>
+          <Text style={styles.viewCartText}>
+            {generatingQR ? 'Generating...' : 'Generate QR Code'}
+          </Text>
         </View>
 
         {/* Right Side: Total Price */}
-        <Text style={styles.totalPriceText}>₱ {cartTotal}</Text>
-      </View>
+        <Text style={styles.totalPriceText}>₱ {getCartTotal()}</Text>
+      </TouchableOpacity>
+
+      {/* QR Code Modal */}
+      <Modal
+        visible={showQRModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeQRModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Transaction Code</Text>
+            <Text style={styles.modalSubtext}>Customer can scan QR or enter code manually</Text>
+            
+            {/* Manual Entry Code */}
+            {shortCode && (
+              <View style={styles.codeContainer}>
+                <Text style={styles.codeLabel}>Manual Entry Code:</Text>
+                <Text style={styles.codeText}>{shortCode}</Text>
+                <Text style={styles.codeExpiry}>Valid for 10 minutes</Text>
+              </View>
+            )}
+
+            {/* QR Code */}
+            {qrData && (
+              <View style={styles.qrContainer}>
+                <QRCode
+                  value={qrData}
+                  size={200}
+                  backgroundColor="white"
+                />
+              </View>
+            )}
+
+            <Text style={styles.modalInfo}>Total: ₱{getCartTotal()}</Text>
+            <Text style={styles.modalInfo}>Items: {getCartItemCount()}</Text>
+
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={closeQRModal}
+            >
+              <Text style={styles.closeButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
@@ -204,6 +422,122 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 18,
+  },
+  // QR Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    width: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 8,
+  },
+  modalSubtext: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  codeContainer: {
+    backgroundColor: '#F5F5F5',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+    width: '100%',
+    borderWidth: 2,
+    borderColor: '#FF6F61',
+  },
+  codeLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  codeText: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#FF6F61',
+    letterSpacing: 4,
+    marginVertical: 5,
+  },
+  codeExpiry: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 5,
+    fontStyle: 'italic',
+  },
+  qrContainer: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderRadius: 15,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+  },
+  modalInfo: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
+    marginVertical: 4,
+  },
+  closeButton: {
+    marginTop: 20,
+    backgroundColor: '#FF6F61',
+    paddingVertical: 12,
+    paddingHorizontal: 40,
+    borderRadius: 25,
+  },
+  closeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  // Loading State
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 65,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  // Empty State
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#666',
+    marginTop: 15,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 5,
   },
   // Bottom Navigation Bar Styles
   bottomNav: {

@@ -249,7 +249,126 @@ class AuthController {
     }
   }
 
-  // VERIFY STORE CODE AND REGISTER VENDOR
+  // VERIFY OTP AND REGISTER VENDOR WITH STORE CODE
+  async verifyOTPAndRegisterVendor(req, res) {
+    try {
+      const {
+        email,
+        otp,
+        store_code,
+        username,
+        password,
+        first_name,
+        last_name,
+        contact_number
+      } = req.body;
+
+      if (!email || !otp) {
+        return sendError(res, 'Email and OTP are required', 400);
+      }
+
+      if (!store_code) {
+        return sendError(res, 'Store code is required', 400);
+      }
+
+      if (!username || !password) {
+        return sendError(res, 'Username and password are required', 400);
+      }
+
+      // Verify OTP
+      const storedData = otpStore.get(email);
+      if (!storedData) {
+        return sendError(res, 'Invalid or expired verification code', 400);
+      }
+
+      if (Date.now() > storedData.expiresAt) {
+        otpStore.delete(email);
+        return sendError(res, 'Verification code has expired', 400);
+      }
+
+      if (storedData.otp !== otp) {
+        return sendError(res, 'Invalid verification code', 400);
+      }
+
+      // Verify store code exists and get store details
+      const { data: store, error: storeError } = await supabase
+        .from('stores')
+        .select('store_id, store_name, is_active')
+        .eq('store_code', store_code)
+        .single();
+
+      if (storeError || !store) {
+        return sendError(res, 'Invalid store code', 400);
+      }
+
+      if (!store.is_active) {
+        return sendError(res, 'This store is currently inactive', 400);
+      }
+
+      // Check if username already exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('username')
+        .eq('username', username)
+        .single();
+
+      if (existingUser) {
+        return sendError(res, 'Username already exists', 400);
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Insert vendor user with store_id
+      const { data, error } = await supabase
+        .from('users')
+        .insert([
+          {
+            username,
+            password: hashedPassword,
+            first_name,
+            last_name,
+            contact_number,
+            user_email: email,
+            role: 'vendor',
+            store_id: store.store_id
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        return sendError(res, error.message, 400);
+      }
+
+      // Clear OTP after successful registration
+      otpStore.delete(email);
+
+      return sendSuccess(
+        res,
+        {
+          message: 'Vendor registered successfully',
+          user: {
+            user_id: data.user_id,
+            username: data.username,
+            role: data.role,
+            first_name: data.first_name,
+            last_name: data.last_name,
+            user_email: data.user_email,
+            store_id: data.store_id,
+            store_name: store.store_name
+          }
+        },
+        201
+      );
+
+    } catch (error) {
+      console.error('Vendor registration error:', error);
+      return sendError(res, 'Internal server error', 500);
+    }
+  }
+
+  // VERIFY STORE CODE AND REGISTER VENDOR (without OTP - kept for compatibility)
   async verifyStoreCodeAndRegister(req, res) {
     try {
       const {
