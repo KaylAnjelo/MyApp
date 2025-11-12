@@ -10,6 +10,8 @@ export default function SignUpVendorScreen() {
   const navigation = useNavigation();
   const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
   const [formData, setFormData] = useState({
     storeCode: '',
     firstName: '',
@@ -23,7 +25,7 @@ export default function SignUpVendorScreen() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSignUp = async () => {
+  const handleSendOTP = async () => {
     if (!formData.storeCode || !formData.firstName || !formData.lastName || !formData.phone || !formData.email || !formData.password) {
       Alert.alert('Error', 'Please fill in all fields including store code');
       return;
@@ -36,18 +38,37 @@ export default function SignUpVendorScreen() {
 
     setLoading(true);
     try {
-      // Vendor registration with store code verification
+      await apiService.sendOTP(formData.email);
+      setOtpSent(true);
+      Alert.alert('Success', 'Verification code sent to your email!');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to send verification code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyAndSignUp = async () => {
+    if (!otp || otp.length !== 6) {
+      Alert.alert('Error', 'Please enter the 6-digit verification code');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Vendor registration with store code verification and OTP
       const userData = {
+        email: formData.email,
+        otp: otp,
         store_code: formData.storeCode.trim(),
         username: formData.email,
         password: formData.password,
         first_name: formData.firstName,
         last_name: formData.lastName,
-        contact_number: formData.phone,
-        user_email: formData.email
+        contact_number: formData.phone
       };
 
-      const response = await apiService.registerVendorWithStoreCode(userData);
+      const response = await apiService.verifyOTPAndRegisterVendor(userData);
 
       console.log('Vendor registration successful:', response);
       
@@ -63,6 +84,8 @@ export default function SignUpVendorScreen() {
     } catch (error) {
       if (error.message.includes("Invalid store code")) {
         Alert.alert("Registration Failed", "The store code you entered is invalid. Please check with your store manager.");
+      } else if (error.message.includes("Invalid verification code") || error.message.includes("OTP")) {
+        Alert.alert("Verification Failed", "Invalid or expired verification code. Please try again.");
       } else if (error.message.includes("duplicate key") || error.message.includes("already")) {
         Alert.alert("Registration Failed", "This email or username is already registered.");
       } else if (error.message.includes("inactive")) {
@@ -165,16 +188,40 @@ export default function SignUpVendorScreen() {
           </Text>
         </View>
 
+        {/* OTP Input Field (shown after OTP is sent) */}
+        {otpSent && (
+          <>
+            <Text style={styles.otpLabel}>Verification Code</Text>
+            <Text style={styles.otpSubtext}>
+              Enter the 6-digit code sent to {formData.email}
+            </Text>
+            <TextInput 
+              placeholder="000000" 
+              style={[styles.input, styles.otpInput]}
+              placeholderTextColor="#888"
+              keyboardType="number-pad"
+              maxLength={6}
+              value={otp}
+              onChangeText={setOtp}
+            />
+            <TouchableOpacity onPress={handleSendOTP}>
+              <Text style={styles.resendText}>Resend Code</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
         {/* Sign Up Button */}
         <TouchableOpacity 
           style={[styles.signupButton, loading && styles.signupButtonDisabled]}
-          onPress={handleSignUp}
+          onPress={otpSent ? handleVerifyAndSignUp : handleSendOTP}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color={Colors.white} />
           ) : (
-            <Text style={styles.signupText}>Sign Up</Text>
+            <Text style={styles.signupText}>
+              {otpSent ? 'Verify & Sign Up' : 'Send Verification Code'}
+            </Text>
           )}
         </TouchableOpacity>
       </View>
@@ -270,6 +317,31 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: 'bold',
     fontSize: Typography.body,
+  },
+  otpLabel: {
+    fontWeight: '600',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.xs,
+    fontSize: Typography.body,
+    color: Colors.primary,
+  },
+  otpSubtext: {
+    fontSize: Typography.small,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.md,
+  },
+  otpInput: {
+    textAlign: 'center',
+    fontSize: 24,
+    letterSpacing: 5,
+    fontWeight: 'bold',
+  },
+  resendText: {
+    textAlign: 'center',
+    color: Colors.primary,
+    fontSize: Typography.small,
+    fontWeight: '600',
+    marginTop: Spacing.md,
   },
   signupButtonDisabled: {
     opacity: 0.6,
