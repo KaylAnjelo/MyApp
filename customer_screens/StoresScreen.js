@@ -26,6 +26,13 @@ export default function StoresScreen({ navigation }) {
   const fetchStores = async () => {
     try {
       const storesData = await apiService.getStores();
+      console.log('=== STORES DATA DEBUG ===');
+      console.log('Fetched stores:', storesData);
+      if (storesData && storesData.length > 0) {
+        console.log('First store structure:', storesData[0]);
+        console.log('First store ID:', storesData[0].id);
+        console.log('First store name:', storesData[0].name);
+      }
       setStores(storesData);
     } catch (error) {
       console.error('Error fetching stores:', error);
@@ -72,9 +79,14 @@ export default function StoresScreen({ navigation }) {
               <TouchableOpacity
                 key={store && store.id ? String(store.id) : `store-${idx}`}
                 style={styles.storeCard}
-                onPress={() =>
-                  navigation.navigate('SpecificStore', { storeId: store.id, storeName: store.name })
-                }
+                onPress={() => {
+                  console.log('=== NAVIGATION DEBUG ===');
+                  console.log('Store object:', store);
+                  console.log('Store ID:', store.id);
+                  console.log('Store Name:', store.name);
+                  console.log('Navigating with params:', { storeId: store.id, storeName: store.name });
+                  navigation.navigate('SpecificStore', { storeId: store.id, storeName: store.name });
+                }}
               >
                 <View style={styles.storeImageContainer}>
                   <Image
