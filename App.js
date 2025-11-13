@@ -21,6 +21,8 @@ import VendorProfilePage from './vendor_screens/VendorProfilePage';
 import TransactionPage from './vendor_screens/TransactionPage';
 import ScannerScreen from './customer_screens/ScannerScreen';
 import CreateOrderScreen from './vendor_screens/AddMenuPage';
+import PointsHistoryScreen from './customer_screens/PointsHistoryScreen';
+import TransactionDetailsScreen from './customer_screens/TransactionDetailsScreen';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -46,6 +48,8 @@ export default function App() {
         <Stack.Screen name="TransactionPage" component={TransactionPage} />
         <Stack.Screen name="ScannerScreen" component={ScannerScreen} />
         <Stack.Screen name="CreateOrder" component={CreateOrderScreen} />
+        <Stack.Screen name="PointsHistory" component={PointsHistoryScreen} />
+        <Stack.Screen name="TransactionDetails" component={TransactionDetailsScreen} />
 
       </Stack.Navigator>
     </NavigationContainer>

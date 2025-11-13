@@ -20,6 +20,7 @@ export default function HomePageScreen({ navigation }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [recentActivities, setRecentActivities] = useState([]);
   const [highestPointsStore, setHighestPointsStore] = useState({
     storeName: 'No points yet',
     points: 0,
@@ -45,10 +46,15 @@ export default function HomePageScreen({ navigation }) {
       setStores(storesData || []);
       setProducts(productsData || []);
 
-      // Fetch highest points by store if userId is available
+      // Fetch highest points by store and recent activities if userId is available
       if (userId) {
         try {
-          const pointsByStore = await apiService.getUserPointsByStore(userId);
+          const [pointsByStore, transactionsData] = await Promise.all([
+            apiService.getUserPointsByStore(userId),
+            apiService.getUserTransactions(userId, 'customer')
+          ]);
+          
+          // Handle points by store
           if (pointsByStore && Array.isArray(pointsByStore) && pointsByStore.length > 0) {
             // Find the store with highest points
             const highest = pointsByStore.reduce((max, current) =>
@@ -73,8 +79,45 @@ export default function HomePageScreen({ navigation }) {
               hasPoints: false,
             });
           }
+          
+          // Handle recent activities
+          if (transactionsData?.transactions) {
+            // Group by reference_number and take most recent 5
+            const grouped = {};
+            transactionsData.transactions.forEach(txn => {
+              const refNum = txn.reference_number;
+              if (!grouped[refNum]) {
+                grouped[refNum] = {
+                  id: refNum,
+                  reference_number: refNum,
+                  store: txn.stores?.store_name || 'Unknown Store',
+                  date: new Date(txn.transaction_date),
+                  total: 0,
+                  points: 0,
+                  type: txn.transaction_type || 'Purchase'
+                };
+              }
+              
+              const itemTotal = txn.total != null ? parseFloat(txn.total) : (parseFloat(txn.price || 0) * parseFloat(txn.quantity || 0));
+              grouped[refNum].total += isNaN(itemTotal) ? 0 : itemTotal;
+              grouped[refNum].points += parseFloat(txn.points || 0);
+            });
+            
+            // Sort by date (most recent first) and take top 5
+            const recent = Object.values(grouped)
+              .sort((a, b) => b.date - a.date)
+              .slice(0, 5)
+              .map(activity => ({
+                ...activity,
+                formattedDate: activity.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                amount: `₱${activity.total.toFixed(2)}`,
+                pointsEarned: `+${activity.points} pts`
+              }));
+            
+            setRecentActivities(recent);
+          }
         } catch (error) {
-          console.warn('Could not fetch points by store:', error);
+          console.warn('Could not fetch user data:', error);
           // Set no points state if API call fails
           setHighestPointsStore({
             storeName: 'No points yet',
@@ -82,6 +125,7 @@ export default function HomePageScreen({ navigation }) {
             storeImage: null,
             hasPoints: false,
           });
+          setRecentActivities([]);
         }
       }
     } catch (error) {
@@ -173,9 +217,6 @@ export default function HomePageScreen({ navigation }) {
                     <FontAwesome name="star" size={12} color="#FFD700" />
                     <Text style={styles.storeRatingText}>{store.rating || '5.0'}</Text>
                   </View>
-                  <TouchableOpacity style={styles.collectButton} onPress={() => navigation.navigate('ScannerScreen')}>
-                    <Text style={styles.collectButtonText}>Collect Points</Text>
-                  </TouchableOpacity>
                 </View>
               </TouchableOpacity>
             ))
@@ -189,7 +230,36 @@ export default function HomePageScreen({ navigation }) {
         {/* Recent Activities */}
         <Text style={styles.sectionTitle}>Recent Activities</Text>
         <View style={styles.recentActivitiesCard}>
-          <Text style={{ color: '#999', textAlign: 'center', marginTop: 60 }}>No recent activities yet</Text>
+          {recentActivities.length === 0 ? (
+            <Text style={{ color: '#999', textAlign: 'center', marginTop: 60 }}>No recent activities yet</Text>
+          ) : (
+            recentActivities.map((activity, index) => (
+              <TouchableOpacity
+                key={activity.id}
+                style={styles.activityItem}
+                onPress={() => navigation.navigate('TransactionDetails', {
+                  referenceNumber: activity.reference_number,
+                  initial: {
+                    store: activity.store,
+                    reference_number: activity.reference_number,
+                    date: activity.formattedDate,
+                    amount: activity.amount,
+                    pointsEarned: activity.pointsEarned,
+                    type: activity.type
+                  }
+                })}
+              >
+                <View style={styles.activityInfo}>
+                  <Text style={styles.activityStore}>{activity.store}</Text>
+                  <Text style={styles.activityDate}>{activity.formattedDate}</Text>
+                </View>
+                <View style={styles.activityAmount}>
+                  <Text style={styles.activityTotal}>{activity.amount}</Text>
+                  <Text style={styles.activityPoints}>{activity.pointsEarned}</Text>
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
         </View>
       </ScrollView>
 
@@ -322,7 +392,11 @@ const styles = StyleSheet.create({
     borderRadius: Radii.lg,
     marginRight: Spacing.lg,
     overflow: 'hidden',
-    ...Shadows.medium,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
   popularImageArea: {
     height: 140,
@@ -347,7 +421,48 @@ const styles = StyleSheet.create({
   collectButtonText: { color: '#fff', fontWeight: '700', fontSize: 10 },
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: Spacing.xxl },
   emptyText: { fontSize: Typography.h3, color: Colors.textSecondary, marginTop: Spacing.md },
-  recentActivitiesCard: { height: 120, backgroundColor: '#fff', borderRadius: Radii.lg, marginBottom: Spacing.lg, ...Shadows.light },
+  recentActivitiesCard: { 
+    minHeight: 120, 
+    backgroundColor: '#fff', 
+    borderRadius: Radii.lg, 
+    marginBottom: Spacing.lg, 
+    padding: Spacing.md,
+    ...Shadows.light 
+  },
+  activityItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  activityInfo: {
+    flex: 1,
+  },
+  activityStore: {
+    fontSize: Typography.body,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 2,
+  },
+  activityDate: {
+    fontSize: Typography.small,
+    color: Colors.textSecondary,
+  },
+  activityAmount: {
+    alignItems: 'flex-end',
+  },
+  activityTotal: {
+    fontSize: Typography.body,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  activityPoints: {
+    fontSize: Typography.small,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
   // bottom nav
   bottomNav: {
     flexDirection: 'row',
