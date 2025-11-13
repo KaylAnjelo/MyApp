@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, SafeAreaView } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { LineChart, BarChart } from 'react-native-chart-kit';
+import { Colors } from '../styles/theme';
 
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
 
@@ -152,8 +153,8 @@ const SalesPage = ({ navigation }) => {
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('SalesPage')}>
-          <Icon name="stats-chart-outline" size={22} color="#D22B2B" />
-          <Text style={[styles.navText, { color: '#D22B2B', fontWeight: 'bold' }]}>Sales</Text>
+          <Icon name="stats-chart-outline" size={22} color={Colors.primary} />
+          <Text style={[styles.navText, { color: Colors.primary, fontWeight: 'bold' }]}>Sales</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('CreateOrder')}>
           <Icon name="add-circle-outline" size={22} color="#555" />
@@ -178,7 +179,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   headerBar: {
-    backgroundColor: '#D22B2B',
+    backgroundColor: Colors.primary,
     paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   summaryCard: {
-    backgroundColor: '#D22B2B',
+    backgroundColor: Colors.primary,
     borderRadius: 15,
     padding: 20,
     width: '48%',
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   activeMonthTab: {
-    backgroundColor: '#D22B2B',
+    backgroundColor: Colors.primary,
   },
   monthTabText: {
     color: '#333',
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: 16,
-    backgroundColor: '#D22B2B',
+    backgroundColor: Colors.primary,
     borderRadius: 8,
   },
   progressText: {

@@ -206,6 +206,33 @@ class ApiService {
     });
   }
 
+  async removeProfileImage(userId) {
+    console.log('🔍 API removeProfileImage called with userId:', userId);
+    const payload = { userId };
+    console.log('🔍 API sending payload:', payload);
+    return this.request('/user/upload-profile-image', {
+      method: 'POST',
+      body: JSON.stringify(payload), // No imageBase64, so server will handle as removal
+    });
+  }
+
+  async updateProfile(updates) {
+    try {
+      const userData = await AsyncStorage.getItem('@app_user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        const userId = user.id || user.user_id || user.userId;
+        if (userId) {
+          return this.updateUserProfile(userId, updates);
+        }
+      }
+      throw new Error('User ID not found in storage');
+    } catch (error) {
+      console.error('updateProfile error:', error);
+      throw error;
+    }
+  }
+
   // 🏪 STORES
   async getStores() {
     const data = await this.request('/stores');

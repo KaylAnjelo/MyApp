@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { supabase } = require('../supabaseClient');
+const { supabase } = require('../config/supabase');
 
 // GET /api/user/profile/:userId
 router.get('/user/profile/:userId', async (req, res) => {
@@ -44,21 +44,29 @@ router.put('/user/profile/:userId', async (req, res) => {
     const { userId } = req.params;
     const updates = req.body;
 
+    console.log('[userRoutes] PUT /user/profile/:userId called with userId=', userId);
+    console.log('[userRoutes] Updates:', updates);
+
     if (!supabase) {
       // Dev fallback: echo back updates with id
-      return res.json({ user_id: userId, ...updates });
+      return res.json({ success: true, user_id: userId, ...updates });
     }
 
     const { data, error } = await supabase
-      .from('profiles')
+      .from('users')
       .update(updates)
       .eq('user_id', userId)
       .select()
       .single();
 
-    if (error) return res.status(400).json({ error: error.message });
+    console.log('[userRoutes] Update result:', { data, error });
 
-    res.json({ message: 'Profile updated successfully', user: data });
+    if (error) {
+      console.error('[userRoutes] Update error:', error);
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({ success: true, message: 'Profile updated successfully', user: data });
   } catch (err) {
     console.error('Error updating profile:', err);
     res.status(500).json({ error: err.message });
@@ -68,11 +76,41 @@ router.put('/user/profile/:userId', async (req, res) => {
 // POST /api/user/upload-profile-image
 router.post('/user/upload-profile-image', async (req, res) => {
   try {
+    console.log('🔍 Upload/Remove request received:', req.body);
     const { userId, imageBase64, fileName } = req.body;
 
-    if (!userId || !imageBase64 || !fileName) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!userId) {
+      console.log('❌ Missing userId');
+      return res.status(400).json({ error: 'User ID is required' });
     }
+
+    // If no imageBase64 provided, this is a removal request
+    if (!imageBase64) {
+      console.log('🗑️ Processing image removal for userId:', userId);
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ profile_image: null })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        console.error('Error removing profile image from database:', updateError);
+        return res.status(500).json({ error: updateError.message });
+      }
+
+      console.log('✅ Image removed successfully for userId:', userId);
+      return res.json({
+        success: true,
+        message: 'Profile image removed successfully',
+        imageUrl: null
+      });
+    }
+
+    if (!fileName) {
+      console.log('❌ Missing fileName for upload');
+      return res.status(400).json({ error: 'File name is required for upload' });
+    }
+
+    console.log('📸 Processing image upload for userId:', userId);
 
     if (!supabase) {
       return res.status(500).json({ error: 'Supabase not configured' });
@@ -131,6 +169,36 @@ router.post('/user/upload-profile-image', async (req, res) => {
     });
   } catch (err) {
     console.error('Error uploading profile image:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/user/remove-profile-image
+router.delete('/user/remove-profile-image', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Update user profile to remove image URL
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ profile_image: null })
+      .eq('user_id', userId);
+
+    if (updateError) {
+      console.error('Error removing profile image from database:', updateError);
+      return res.status(500).json({ error: updateError.message });
+    }
+
+    res.json({
+      success: true,
+      message: 'Profile image removed successfully'
+    });
+  } catch (err) {
+    console.error('Error removing profile image:', err);
     res.status(500).json({ error: err.message });
   }
 });
