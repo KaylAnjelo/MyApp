@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 // ✅ Configure API base URL
 const API_BASE_URL =
   Platform.OS === 'android'
-    ? 'http://192.168.1.10:3000/api'  // Android emulator uses 10.0.2.2 to access host's localhost
+    ? 'http://10.0.2.2:3000/api'  // Android emulator uses 10.0.2.2 to access host's localhost
     : 'http://localhost:3000/api';
 
 
@@ -271,13 +271,20 @@ class ApiService {
   }
 
   // 📊 DASHBOARD ANALYTICS
-  async getStoreSalesSummary(storeId) {
+  async getStoreSalesSummary(storeId, month, year) {
     if (!storeId) throw new Error('Missing storeId');
-    const data = await this.request(`/stores/${storeId}/sales-summary`);
+    const params = new URLSearchParams();
+    if (month !== undefined) params.append('month', month);
+    if (year !== undefined) params.append('year', year);
+    const url = `/stores/${storeId}/sales-summary${params.toString() ? '?' + params.toString() : ''}`;
+    const data = await this.request(url);
+    console.log('API Response salesByType:', data.salesByType); // Debug log
     return {
       todayRevenue: parseFloat(data.todayRevenue || data.total_revenue || 0),
       todayOrders: parseInt(data.todayOrders || data.total_orders || 0),
-      dailySales: data.dailySales || data.sales_trend || [0, 0, 0, 0, 0, 0, 0],
+      monthlySales: data.monthlySales || data.dailySales || data.sales_trend || [],
+      salesByType: data.salesByType || {}, // Add salesByType field
+      daysInMonth: data.daysInMonth || 30,
     };
   }
 
@@ -294,6 +301,15 @@ class ApiService {
       }));
     }
     return [];
+  }
+
+  async getSalesAnalytics(storeId, month, year) {
+    if (!storeId) throw new Error('Missing storeId');
+    const params = new URLSearchParams();
+    if (month !== undefined) params.append('month', month);
+    if (year !== undefined) params.append('year', year);
+    const url = `/stores/${storeId}/sales-analytics${params.toString() ? '?' + params.toString() : ''}`;
+    return this.request(url);
   }
 
   // 💳 TRANSACTIONS
