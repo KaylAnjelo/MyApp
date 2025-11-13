@@ -54,8 +54,8 @@ export default function ProfilePageScreen({ navigation }) {
           }
           return;
         }
-        const data = await apiService.getCurrentUserProfile();
-        setProfile(data);
+        // No stored user found; show error instead of calling a non-existent API
+        setProfileError('User not found. Please sign in again.');
       } catch (error) {
         const msg = error?.message || 'Failed to fetch profile';
         setProfileError(msg);
@@ -87,6 +87,10 @@ export default function ProfilePageScreen({ navigation }) {
 
       if (result.assets && result.assets[0]) {
         const asset = result.assets[0];
+        if (!asset.base64) {
+          Alert.alert('Image Error', 'Could not read image data. Please try again.');
+          return;
+        }
         await handleUploadImage(asset);
       }
     } catch (error) {
@@ -105,20 +109,24 @@ export default function ProfilePageScreen({ navigation }) {
         return;
       }
 
-      const imageBase64 = `data:${asset.type};base64,${asset.base64}`;
-      const fileName = asset.fileName || `profile_${Date.now()}.jpg`;
+      const mime = asset.type || 'image/jpeg';
+      const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+      const imageBase64 = `data:${mime};base64,${asset.base64}`;
+      const baseName = asset.fileName ? asset.fileName.replace(/\.[^.]+$/, '') : `profile_${Date.now()}`;
+      const fileName = `${baseName}.${ext}`;
 
       const response = await apiService.uploadProfileImage(userId, imageBase64, fileName);
 
       if (response.imageUrl) {
         // Update local profile state
-        setProfile(prev => ({ ...prev, profile_image: response.imageUrl }));
+        const bust = `${response.imageUrl}${response.imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+        setProfile(prev => ({ ...prev, profile_image: bust }));
         
         // Update AsyncStorage
         const stored = await AsyncStorage.getItem('@app_user');
         if (stored) {
           const userData = JSON.parse(stored);
-          userData.profile_image = response.imageUrl;
+          userData.profile_image = bust;
           await AsyncStorage.setItem('@app_user', JSON.stringify(userData));
         }
 
@@ -250,13 +258,13 @@ export default function ProfilePageScreen({ navigation }) {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ActivityScreen')}>
-          <FontAwesome name="list-alt" size={20} color={Colors.primary} />
-          <Text style={[styles.navText, { color: Colors.primary }]}>Transactions</Text>
+          <FontAwesome name="list-alt" size={20} color="#555" />
+          <Text style={styles.navText}>Transactions</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ProfilePage')}>
-          <FontAwesome name="user-o" size={20} color="#555" />
-          <Text style={styles.navText}>Profile</Text>
+          <FontAwesome name="user-o" size={20} color={Colors.primary} />
+          <Text style={[styles.navText, { color: Colors.primary }]}>Profile</Text>
         </TouchableOpacity>
       </View>
     </View>

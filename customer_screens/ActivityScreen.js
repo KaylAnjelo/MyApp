@@ -57,10 +57,10 @@ export default function ActivityScreen({ navigation }) {
   };
 
   const formatTransactions = (txnData) => {
-    // Group transactions by reference_number
+    // Group transactions by reference_number to match TransactionDetailsScreen behavior
     const grouped = {};
     
-    txnData.forEach(txn => {
+    (txnData || []).forEach(txn => {
       const refNum = txn.reference_number;
       if (!grouped[refNum]) {
         grouped[refNum] = {
@@ -68,30 +68,26 @@ export default function ActivityScreen({ navigation }) {
           reference_number: refNum,
           store: txn.stores?.store_name || 'Unknown Store',
           date: formatDate(txn.transaction_date),
-          amount: 0,
+          total: 0,
           points: 0,
           type: txn.transaction_type || 'Purchase',
-          items: []
+          itemCount: 0
         };
       }
       
-      // Add item to transaction
-      grouped[refNum].items.push({
-        product_name: txn.products?.product_name || 'Unknown Product',
-        quantity: txn.quantity,
-        price: txn.price
-      });
-      
-      // Sum up amount and points
-      grouped[refNum].amount += parseFloat(txn.price) * parseInt(txn.quantity);
+      // Sum up total, points, and item quantities for this reference
+      const itemTotal = txn.total != null ? parseFloat(txn.total) : (parseFloat(txn.price || 0) * parseFloat(txn.quantity || 0));
+      grouped[refNum].total += isNaN(itemTotal) ? 0 : itemTotal;
       grouped[refNum].points += parseFloat(txn.points || 0);
+      grouped[refNum].itemCount += parseInt(txn.quantity || 0);
     });
 
-    // Convert to array and format amounts
+    // Convert to array and format
     return Object.values(grouped).map(txn => ({
       ...txn,
-      amount: `₱${txn.amount.toFixed(2)}`,
-      pointsEarned: `+${txn.points.toFixed(0)} pts`
+      amount: `₱${txn.total.toFixed(2)}`,
+      pointsEarned: `+${txn.points} pts`,
+      items: [{ quantity: txn.itemCount }] // Keep for compatibility
     }));
   };
 
@@ -115,17 +111,27 @@ export default function ActivityScreen({ navigation }) {
   });
 
   const renderTransaction = ({ item }) => (
-    <View style={styles.row}>
-      <View style={styles.left}>
-        <Text style={styles.storeName}>{item.store}</Text>
-        <Text style={styles.dateText}>{item.date}</Text>
-        <Text style={styles.itemsText}>{item.items.length} item(s)</Text>
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={() =>
+        navigation.navigate('TransactionDetails', {
+          referenceNumber: item.reference_number,
+          initial: item,
+        })
+      }
+    >
+      <View style={styles.row}>
+        <View style={styles.left}>
+          <Text style={styles.storeName}>{item.store}</Text>
+          <Text style={styles.dateText}>{item.date}</Text>
+          <Text style={styles.itemsText}>{item.itemCount} item(s)</Text>
+        </View>
+        <View style={styles.right}>
+          <Text style={styles.amount}>{item.amount}</Text>
+          <Text style={styles.pointsText}>{item.pointsEarned}</Text>
+        </View>
       </View>
-      <View style={styles.right}>
-        <Text style={styles.amount}>{item.amount}</Text>
-        <Text style={styles.pointsText}>{item.pointsEarned}</Text>
-      </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -167,8 +173,8 @@ export default function ActivityScreen({ navigation }) {
           ListEmptyComponent={() => (
             <View style={styles.empty}>
               <FontAwesome name="inbox" size={50} color="#ccc" />
-              <Text style={styles.emptyText}>No transactions yet</Text>
-              <Text style={styles.emptySubtext}>Your purchases will appear here</Text>
+              <Text style={styles.emptyText}>No redemptions yet</Text>
+              <Text style={styles.emptySubtext}>Your redemptions will appear here</Text>
             </View>
           )}
         />
