@@ -11,6 +11,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiService from '../services/apiService'; // ✅ adjust path if needed
+import { Colors } from '../styles/theme';
 
 const filters = ['All', 'Points', 'Cash'];
 
@@ -106,7 +107,7 @@ const TransactionPage = ({ navigation }) => {
 
       {/* Transaction List */}
       {loading ? (
-        <ActivityIndicator size="large" color="#D22B2B" style={{ marginTop: 50 }} />
+        <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 50 }} />
       ) : (
         <FlatList
           data={filteredTransactions}
@@ -152,9 +153,9 @@ const TransactionPage = ({ navigation }) => {
           style={styles.navItem}
           onPress={() => navigation.navigate('TransactionPage')}
         >
-          <Icon name="receipt-outline" size={22} color="#D22B2B" />
-          <Text style={[styles.navText, { color: '#D22B2B', fontWeight: 'bold' }]}>
-            Transactions
+          <Icon name="receipt-outline" size={22} color={Colors.primary} />
+          <Text style={[styles.navText, { color: Colors.primary, fontWeight: 'bold' }]}>
+            Transaction
           </Text>
         </TouchableOpacity>
 
@@ -176,7 +177,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   headerBar: {
-    backgroundColor: '#D22B2B',
+    backgroundColor: Colors.primary,
     paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
@@ -200,11 +201,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   activeFilterBtn: {
-    backgroundColor: '#D22B2B',
+    backgroundColor: Colors.primary,
   },
   outlinedFilterBtn: {
     borderWidth: 1,
-    borderColor: '#D22B2B',
+    borderColor: Colors.primary,
     backgroundColor: '#fff',
   },
   filterText: {
@@ -215,7 +216,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   outlinedFilterText: {
-    color: '#D22B2B',
+    color: Colors.primary,
   },
   listContent: {
     paddingHorizontal: 20,
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
   transactionAmount: {
     fontSize: 15,
     fontWeight: 'bold',
-    color: '#D22B2B',
+    color: Colors.primary,
     marginLeft: 10,
   },
   divider: {
