@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { launchImageLibrary } from 'react-native-image-picker';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
@@ -9,6 +10,7 @@ import apiService from '../services/apiService';
 export default function ProfilePageScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [profileError, setProfileError] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const displayName =
     (profile &&
@@ -62,6 +64,74 @@ export default function ProfilePageScreen({ navigation }) {
     fetchProfile();
   }, []);
 
+  const handleSelectImage = async () => {
+    const options = {
+      mediaType: 'photo',
+      quality: 0.5, // Reduced quality to decrease file size
+      maxWidth: 500, // Smaller dimensions
+      maxHeight: 500,
+      includeBase64: true,
+    };
+
+    try {
+      const result = await launchImageLibrary(options);
+      
+      if (result.didCancel) {
+        return;
+      }
+
+      if (result.errorCode) {
+        Alert.alert('Error', result.errorMessage || 'Failed to select image');
+        return;
+      }
+
+      if (result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        await handleUploadImage(asset);
+      }
+    } catch (error) {
+      console.error('Image selection error:', error);
+      Alert.alert('Error', 'Failed to select image');
+    }
+  };
+
+  const handleUploadImage = async (asset) => {
+    try {
+      setUploading(true);
+
+      const userId = profile?.user_id || profile?.userId;
+      if (!userId) {
+        Alert.alert('Error', 'User ID not found');
+        return;
+      }
+
+      const imageBase64 = `data:${asset.type};base64,${asset.base64}`;
+      const fileName = asset.fileName || `profile_${Date.now()}.jpg`;
+
+      const response = await apiService.uploadProfileImage(userId, imageBase64, fileName);
+
+      if (response.imageUrl) {
+        // Update local profile state
+        setProfile(prev => ({ ...prev, profile_image: response.imageUrl }));
+        
+        // Update AsyncStorage
+        const stored = await AsyncStorage.getItem('@app_user');
+        if (stored) {
+          const userData = JSON.parse(stored);
+          userData.profile_image = response.imageUrl;
+          await AsyncStorage.setItem('@app_user', JSON.stringify(userData));
+        }
+
+        Alert.alert('Success', 'Profile image updated successfully!');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert('Error', 'Failed to upload image. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleLogout = async () => {
     Alert.alert(
       'Logout',
@@ -101,8 +171,22 @@ export default function ProfilePageScreen({ navigation }) {
           <Text style={styles.sectionHeader}>Profile Settings</Text>
 
           <View style={styles.avatarWrapper}>
-            <Image source={{ uri: 'https://via.placeholder.com/120' }} style={styles.avatarLarge} />
-            <TouchableOpacity style={styles.editBadge}>
+            <Image 
+              source={{ 
+                uri: profile?.profile_image || 'https://via.placeholder.com/120?text=No+Image' 
+              }} 
+              style={styles.avatarLarge} 
+            />
+            {uploading && (
+              <View style={styles.uploadingOverlay}>
+                <ActivityIndicator size="large" color={Colors.white} />
+              </View>
+            )}
+            <TouchableOpacity 
+              style={styles.editBadge}
+              onPress={handleSelectImage}
+              disabled={uploading}
+            >
               <FontAwesome name="camera" size={12} color={Colors.white} />
             </TouchableOpacity>
           </View>
@@ -210,8 +294,19 @@ const styles = StyleSheet.create({
   },
   bodyContent: { padding: Spacing.xl, paddingBottom: Spacing.quad * 2 },
   sectionHeader: { fontSize: Typography.h3, fontWeight: '600', color: Colors.textPrimary, marginBottom: Spacing.lg },
-  avatarWrapper: { alignSelf: 'center', position: 'relative' },
-  avatarLarge: { width: 120, height: 120, borderRadius: 60 },
+  avatarWrapper: { alignSelf: 'center', position: 'relative', marginBottom: Spacing.lg },
+  avatarLarge: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#f0f0f0' },
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   editBadge: {
     position: 'absolute',
     right: 6,
