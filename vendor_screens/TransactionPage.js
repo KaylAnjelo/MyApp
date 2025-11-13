@@ -1,18 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  SafeAreaView,
-  ActivityIndicator,
-} from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { View, Text, StyleSheet,
+  TouchableOpacity, FlatList, SafeAreaView,
+  ActivityIndicator, Alert, } from 'react-native';
+import FontAwesome from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiService from '../services/apiService'; // ✅ adjust path if needed
+import { Colors } from '../styles/theme';
 
-const filters = ['All', 'Points', 'Cash'];
+const filters = ['All', 'Purchase', 'Redemption']; // Corrected filter names to match backend 'transaction_type'
 
 const TransactionPage = ({ navigation }) => {
   const [transactions, setTransactions] = useState([]);
@@ -23,7 +18,104 @@ const TransactionPage = ({ navigation }) => {
     fetchTransactions();
   }, []);
 
-  // ✅ Fetch transactions for the logged-in user
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const options = { month: 'short', day: 'numeric', year: 'numeric' };
+    return date.toLocaleDateString('en-US', options);
+  };
+
+  const getCustomerDisplayData = (txn) => {
+    // Extract customer data from different possible sources
+    const customer = txn.users || txn.customer || {};
+    const firstName = customer.first_name || customer.firstName || '';
+    const lastName = customer.last_name || customer.lastName || '';
+    const username = customer.username || '';
+    
+    // Generate display name ONLY from first_name and last_name from database
+    let displayName = '';
+    
+    // Extract first_name and last_name from database
+    const dbFirstName = (customer.first_name || '').trim();
+    const dbLastName = (customer.last_name || '').trim();
+    
+    // Combine ONLY first_name and last_name - no username fallback
+    if (dbFirstName && dbLastName) {
+      displayName = `${dbFirstName} ${dbLastName}`;
+    } else if (dbFirstName) {
+      displayName = dbFirstName;
+    } else if (dbLastName) {
+      displayName = dbLastName;
+    } else {
+      // Show generic customer when no first/last name in database
+      displayName = `Customer (ID: ${txn.user_id})`;
+    }
+    
+    // Generate initials ONLY from first_name and last_name
+    let initials = '';
+    if (dbFirstName && dbLastName) {
+      initials = (dbFirstName.charAt(0) + dbLastName.charAt(0)).toUpperCase();
+    } else if (dbFirstName) {
+      initials = dbFirstName.charAt(0).toUpperCase();
+    } else if (dbLastName) {
+      initials = dbLastName.charAt(0).toUpperCase();
+    } else {
+      // Default when no first/last name in database
+      initials = 'C';
+    }
+    
+    return { displayName, initials };
+  };
+
+  const formatAndGroupTransactions = (txnData) => {
+    // 1. Group transactions by reference_number and normalize timestamp
+    const grouped = {};
+
+    (txnData || []).forEach(txn => {
+      const refNum = txn.reference_number;
+      const transactionDate = new Date(txn.transaction_date);
+      const customerData = getCustomerDisplayData(txn);
+      
+      // Create a unique key combining reference number and date (to handle same ref on different days)
+      const groupKey = `${refNum}_${transactionDate.toDateString()}`;
+      
+      if (!grouped[groupKey]) {
+        grouped[groupKey] = {
+          id: refNum,
+          reference_number: refNum,
+          customer_name: customerData.displayName,
+          customer_initials: customerData.initials,
+          transaction_date: txn.transaction_date,
+          transaction_timestamp: transactionDate.getTime(), // For sorting
+          total: 0,
+          type: txn.transaction_type || 'Purchase',
+          items: [], // Track individual items
+        };
+      }
+      
+      // Add item details
+      grouped[groupKey].items.push({
+        product_name: txn.products?.product_name || txn.product_name || 'Unknown Product',
+        quantity: txn.quantity || 1,
+        price: parseFloat(txn.price || 0),
+        item_total: parseFloat(txn.price || 0) * parseFloat(txn.quantity || 1)
+      });
+      
+      // Calculate total amount for the group
+      const itemTotal = parseFloat(txn.price || 0) * parseFloat(txn.quantity || 1);
+      grouped[groupKey].total += isNaN(itemTotal) ? 0 : itemTotal;
+    });
+
+    // 2. Convert to array, sort by timestamp (newest first), and finalize formatting
+    return Object.values(grouped)
+      .sort((a, b) => b.transaction_timestamp - a.transaction_timestamp) // Sort by timestamp descending
+      .map(txn => ({
+        ...txn,
+        transaction_date: formatDate(txn.transaction_date),
+        total: txn.total.toFixed(2), // Format total for display
+        items_count: txn.items.length, // Add count for display
+      }));
+  };
+
   const fetchTransactions = async () => {
     try {
       setLoading(true);
@@ -31,24 +123,29 @@ const TransactionPage = ({ navigation }) => {
       const userData = await AsyncStorage.getItem('@app_user');
       const parsedUser = JSON.parse(userData);
 
-      if (!parsedUser?.user_id) {
-        console.warn('No user_id found in AsyncStorage');
+      if (!parsedUser || parsedUser.role !== 'vendor' || !parsedUser.store_id) {
+        Alert.alert('Error', 'Vendor or Store ID not found. Please relog.');
         setLoading(false);
         return;
       }
 
-      const data = await apiService.getUserTransactions(parsedUser.user_id);
-
-      // ✅ Keep only the columns you want (user_id, transaction_date, total)
-      const cleanedData = data.map((t) => ({
-        user_id: t.user_id,
-        transaction_date: t.transaction_date,
-        total: t.total,
-      }));
-
-      setTransactions(cleanedData);
+      // Temporary workaround: Use a mock response until server restart
+      // TODO: Replace with apiService.getStoreTransactions(parsedUser.store_id) after server restart
+      try {
+        const response = await apiService.getStoreTransactions(parsedUser.store_id);
+        if (!response || !response.transactions) {
+          throw new Error('Invalid response structure from API.');
+        }
+        const cleanedAndGroupedData = formatAndGroupTransactions(response.transactions);
+        setTransactions(cleanedAndGroupedData);
+      } catch (error) {
+        console.log('Store transactions endpoint not available, using empty data');
+        // Temporary: Set empty transactions until endpoint is fixed
+        setTransactions([]);
+      }
     } catch (error) {
       console.error('Error fetching transactions:', error.message);
+      Alert.alert('Error', 'Failed to load store transactions. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -60,14 +157,29 @@ const TransactionPage = ({ navigation }) => {
       : transactions.filter((t) => t.type === activeFilter);
 
   const renderTransaction = ({ item }) => (
-    <View style={styles.transactionRow}>
-      <View style={styles.avatarPlaceholder} />
+    <TouchableOpacity 
+      style={styles.transactionRow}
+      onPress={() => navigation.navigate('VTransactionDetail', {
+        referenceNumber: item.reference_number,
+        transaction: item
+      })}
+      activeOpacity={0.7}
+    >
       <View style={styles.transactionInfo}>
-        <Text style={styles.customerName}>User ID: {item.user_id}</Text>
+        <Text style={styles.customerName}>{item.customer_name}</Text>
         <Text style={styles.transactionDate}>On {item.transaction_date}</Text>
+        <Text style={styles.transactionRef}>Ref: {item.reference_number}</Text>
+        {item.items_count > 1 && (
+          <Text style={styles.itemsCount}>{item.items_count} items</Text>
+        )}
       </View>
-      <Text style={styles.transactionAmount}>₱{item.total}</Text>
-    </View>
+      <View style={{alignItems: 'flex-end'}}>
+        <Text style={styles.transactionAmount}>₱{item.total}</Text>
+        <Text style={[styles.transactionType, {color: item.type === 'Purchase' ? '#00A000' : '#D22B2B'}]}>
+          {item.type}
+        </Text>
+      </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -84,18 +196,14 @@ const TransactionPage = ({ navigation }) => {
             key={filter}
             style={[
               styles.filterBtn,
-              activeFilter === filter
-                ? styles.activeFilterBtn
-                : styles.outlinedFilterBtn,
+              activeFilter === filter ? styles.activeFilterBtn : styles.outlinedFilterBtn,
             ]}
             onPress={() => setActiveFilter(filter)}
           >
             <Text
               style={[
                 styles.filterText,
-                activeFilter === filter
-                  ? styles.activeFilterText
-                  : styles.outlinedFilterText,
+                activeFilter === filter ? styles.activeFilterText : styles.outlinedFilterText,
               ]}
             >
               {filter}
@@ -106,17 +214,17 @@ const TransactionPage = ({ navigation }) => {
 
       {/* Transaction List */}
       {loading ? (
-        <ActivityIndicator size="large" color="#D22B2B" style={{ marginTop: 50 }} />
+        <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 50 }} />
       ) : (
         <FlatList
           data={filteredTransactions}
           renderItem={renderTransaction}
-          keyExtractor={(item, index) => item.user_id + index}
+          keyExtractor={(item) => item.id} // Use the grouped reference_number as the key
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={styles.divider} />}
           ListEmptyComponent={() => (
             <Text style={{ textAlign: 'center', marginTop: 50, color: '#999' }}>
-              No transactions found.
+              No transactions found for this store.
             </Text>
           )}
         />
@@ -128,7 +236,7 @@ const TransactionPage = ({ navigation }) => {
           style={styles.navItem}
           onPress={() => navigation.navigate('VendorHomePage')}
         >
-          <Icon name="home" size={22} color="#555" />
+          <FontAwesome name="home" size={22} color="#555" />
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
 
@@ -136,7 +244,7 @@ const TransactionPage = ({ navigation }) => {
           style={styles.navItem}
           onPress={() => navigation.navigate('SalesPage')}
         >
-          <Icon name="stats-chart-outline" size={22} color="#555" />
+          <FontAwesome name="stats-chart-outline" size={22} color="#555" />
           <Text style={styles.navText}>Sales</Text>
         </TouchableOpacity>
 
@@ -144,7 +252,7 @@ const TransactionPage = ({ navigation }) => {
           style={styles.navItem}
           onPress={() => navigation.navigate('CreateOrder')}
         >
-          <Icon name="add-circle-outline" size={22} color="#555" />
+          <FontAwesome name="add-circle-outline" size={22} color="#555" />
           <Text style={styles.navText}>Create</Text>
         </TouchableOpacity>
 
@@ -152,9 +260,9 @@ const TransactionPage = ({ navigation }) => {
           style={styles.navItem}
           onPress={() => navigation.navigate('TransactionPage')}
         >
-          <Icon name="receipt-outline" size={22} color="#D22B2B" />
-          <Text style={[styles.navText, { color: '#D22B2B', fontWeight: 'bold' }]}>
-            Transactions
+          <FontAwesome name="receipt-outline" size={22} color={Colors.primary} />
+          <Text style={[styles.navText, { color: Colors.primary, fontWeight: 'bold' }]}>
+            Transaction
           </Text>
         </TouchableOpacity>
 
@@ -162,7 +270,7 @@ const TransactionPage = ({ navigation }) => {
           style={styles.navItem}
           onPress={() => navigation.navigate('VendorProfilePage')}
         >
-          <Icon name="person-outline" size={22} color="#555" />
+          <FontAwesome name="person-outline" size={22} color="#555" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
       </View>
@@ -176,7 +284,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   headerBar: {
-    backgroundColor: '#D22B2B',
+    backgroundColor: Colors.primary,
     paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
@@ -200,11 +308,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   activeFilterBtn: {
-    backgroundColor: '#D22B2B',
+    backgroundColor: Colors.primary,
   },
   outlinedFilterBtn: {
     borderWidth: 1,
-    borderColor: '#D22B2B',
+    borderColor: Colors.primary,
     backgroundColor: '#fff',
   },
   filterText: {
@@ -215,7 +323,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   outlinedFilterText: {
-    color: '#D22B2B',
+    color: Colors.primary,
   },
   listContent: {
     paddingHorizontal: 20,
@@ -224,15 +332,22 @@ const styles = StyleSheet.create({
   transactionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    backgroundColor: '#fff',
+    paddingVertical: 15,
+    justifyContent: 'space-between',
   },
   avatarPlaceholder: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#eee',
-    marginRight: 14,
+    backgroundColor: Colors.primary,
+    marginRight: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   transactionInfo: {
     flex: 1,
@@ -247,10 +362,26 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 2,
   },
+  transactionRef: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 2,
+  },
+  itemsCount: {
+    fontSize: 11,
+    color: '#000000ff',
+    marginTop: 2,
+    fontWeight: '400',
+  },
+  transactionType: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginTop: 2,
+  },
   transactionAmount: {
     fontSize: 15,
     fontWeight: 'bold',
-    color: '#D22B2B',
+    color: Colors.primary,
     marginLeft: 10,
   },
   divider: {
@@ -270,7 +401,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    zIndex: 10,
+    paddingBottom: 5,
   },
   navItem: {
     alignItems: 'center',
