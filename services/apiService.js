@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 // ✅ Configure API base URL
 const API_BASE_URL =
   Platform.OS === 'android'
-    ? 'http://192.168.1.10:3000/api'  // For physical device on same network. Use 10.0.2.2 for android emulator
+    ? 'http://10.0.2.2:3000/api'  // For physical device on same network. Use 10.0.2.2 for android emulator
     : 'http://localhost:3000/api';
 
 const TOKEN_KEY = '@app_auth_token';
@@ -382,6 +382,35 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(transactionData),
     });
+  }
+
+  // Generate QR code for vendor transaction
+  async generateTransactionQR(transactionData) {
+    return this.request('/transactions/generate-qr', {
+      method: 'POST',
+      body: JSON.stringify(transactionData),
+    });
+  }
+
+  // Process scanned QR code
+  async processScannedQR(customerId, qrData) {
+    return this.request('/transactions/process-qr', {
+      method: 'POST',
+      body: JSON.stringify({ qr_data: qrData, customer_id: customerId }),
+    });
+  }
+
+  // Process manual code entry
+  async processShortCode(customerId, shortCode) {
+    return this.request('/transactions/process-code', {
+      method: 'POST',
+      body: JSON.stringify({ short_code: shortCode, customer_id: customerId }),
+    });
+  }
+
+  // Alias for processShortCode for backward compatibility
+  async processManualCode(customerId, code) {
+    return this.processShortCode(customerId, code);
   }
 }
 

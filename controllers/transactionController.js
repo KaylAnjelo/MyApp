@@ -2,66 +2,77 @@ const { supabase } = require('../config/supabase');
 const { sendSuccess, sendError } = require('../utils/response');
 const crypto = require('crypto');
 
-class TransactionController {
-  // Generate unique reference number
-  generateReferenceNumber() {
-    const timestamp = Date.now();
-    const random = crypto.randomBytes(4).toString('hex').toUpperCase();
-    return `TXN-${timestamp}-${random}`;
-  }
+// Helper functions moved outside class
+function generateReferenceNumber() {
+  const timestamp = Date.now();
+  const random = crypto.randomBytes(4).toString('hex').toUpperCase();
+  return `TXN-${timestamp}-${random}`;
+}
 
-  // Generate 6-character alphanumeric code
-  generateShortCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-  }
+function generateShortCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
 
-  // CREATE transaction and generate QR data
-  async createTransaction(req, res) {
-    try {
-      const {
-        vendor_id,
-        store_id,
-        items // Array of {product_id, product_name, quantity, price}
-      } = req.body;
+class TransactionController {  // CREATE transaction and generate QR data
+  async createTransaction(req, res) {
+    try {
+      const {
+        vendor_id,
+        store_id,
+        items // Array of {product_id, product_name, quantity, price}
+      } = req.body;
 
-      if (!vendor_id || !store_id || !items || items.length === 0) {
-        return sendError(res, 'Vendor ID, Store ID, and items are required', 400);
-      }
+      console.log('Generate QR Request:', { vendor_id, store_id, itemCount: items?.length });
 
-      // Verify vendor belongs to the store
-      const { data: vendor, error: vendorError } = await supabase
-        .from('users')
-        .select('store_id, role')
-        .eq('user_id', vendor_id)
-        .single();
+      if (!vendor_id || !store_id || !items || items.length === 0) {
+        console.error('Missing required fields:', { vendor_id, store_id, items: items?.length });
+        return sendError(res, 'Vendor ID, Store ID, and items are required', 400);
+      }
 
-      if (vendorError || !vendor) {
-        return sendError(res, 'Vendor not found', 404);
-      }
+      // Verify vendor belongs to the store
+      const { data: vendor, error: vendorError } = await supabase
+        .from('users')
+        .select('store_id, role')
+        .eq('user_id', vendor_id)
+        .single();
 
-      if (vendor.role !== 'vendor') {
-        return sendError(res, 'User is not a vendor', 403);
-      }
+      console.log('Vendor lookup result:', { vendor, vendorError });
 
-      if (vendor.store_id !== store_id) {
-        return sendError(res, 'Vendor does not belong to this store', 403);
-      }
+      if (vendorError || !vendor) {
+        console.error('Vendor not found:', vendorError);
+        return sendError(res, 'Vendor not found', 404);
+      }
 
-      // Calculate totals
+      if (vendor.role !== 'vendor') {
+        console.error('User is not a vendor:', vendor.role);
+        return sendError(res, 'User is not a vendor', 403);
+      }
+
+      // Convert both to numbers for comparison (in case one is string)
+      const vendorStoreId = parseInt(vendor.store_id);
+      const requestedStoreId = parseInt(store_id);
+
+      if (vendorStoreId !== requestedStoreId) {
+        console.error('Store mismatch:', { 
+          vendor_store_id: vendorStoreId, 
+          requested_store_id: requestedStoreId,
+          vendor_store_id_type: typeof vendor.store_id,
+          requested_store_id_type: typeof store_id
+        });
+        return sendError(res, `Vendor does not belong to this store. Vendor belongs to store ${vendorStoreId}, but requested store ${requestedStoreId}`, 403);
+      }      // Calculate totals
       const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const totalPoints = parseFloat((totalAmount * 0.1).toFixed(2)); // 10% of total as points
+      const totalPoints = parseFloat((totalAmount * 0.1).toFixed(2)); // 10% of total as points
 
-      // Generate reference number and short code
-      const referenceNumber = this.generateReferenceNumber();
-      const shortCode = this.generateShortCode();
-      const transactionDate = new Date().toISOString();
-
-      // Prepare transaction data
+      // Generate reference number and short code
+      const referenceNumber = generateReferenceNumber();
+      const shortCode = generateShortCode();
+      const transactionDate = new Date().toISOString();      // Prepare transaction data
       const qrData = {
         reference_number: referenceNumber,
         short_code: shortCode,
@@ -95,20 +106,21 @@ class TransactionController {
 
       // Return QR data without inserting into database yet
       // The transaction will be inserted when customer scans QR or enters code
-      return sendSuccess(res, {
-        message: 'Transaction code generated successfully',
-        qr_data: qrData,
-        qr_string: JSON.stringify(qrData),
-        short_code: shortCode
-      }, 201);
+      console.log('Transaction code generated:', { shortCode, referenceNumber });
 
-    } catch (error) {
-      console.error('Error creating transaction:', error);
-      return sendError(res, 'Internal server error', 500);
-    }
-  }
+      return sendSuccess(res, {
+        message: 'Transaction code generated successfully',
+        qr_data: qrData,
+        qr_string: JSON.stringify(qrData),
+        short_code: shortCode
+      }, 201);
 
-  // Process scanned QR code and create transaction
+    } catch (error) {
+      console.error('Error creating transaction:', error);
+      console.error('Error stack:', error.stack);
+      return sendError(res, `Internal server error: ${error.message}`, 500);
+    }
+  }  // Process scanned QR code and create transaction
   async processScannedQR(req, res) {
     try {
       const { qr_data, customer_id } = req.body;
@@ -351,33 +363,37 @@ class TransactionController {
       // Process the transaction using the cached data
       const qrData = pending.data;
       
-      // Use the processScannedQR logic
-      return this.processScannedQRInternal(req, res, customer_id, qrData);
-    } catch (error) {
-      console.error('Error processing short code:', error);
-      return sendError(res, 'Internal server error', 500);
-    }
-  }
+      // Use the processScannedQR logic
+      console.log('Calling processScannedQRInternal...');
+      return this.processScannedQRInternal(req, res, customer_id, qrData);
+    } catch (error) {
+      console.error('Error in processShortCode:', error);
+      console.error('Error stack:', error.stack);
+      return sendError(res, `Short code error: ${error.message}`, 500);
+    }
+  }  // Internal method to process QR data (shared by QR scan and manual code)
+  async processScannedQRInternal(req, res, customer_id, qr_data) {
+    try {
+      console.log('processScannedQRInternal called with:', { customer_id, qr_data });
 
-  // Internal method to process QR data (shared by QR scan and manual code)
-  async processScannedQRInternal(req, res, customer_id, qr_data) {
-    try {
-      // Validate customer exists
-      const { data: customer, error: customerError } = await supabase
-        .from('users')
-        .select('user_id, role')
-        .eq('user_id', customer_id)
-        .single();
+      // Validate customer exists
+      const { data: customer, error: customerError } = await supabase
+        .from('users')
+        .select('user_id, role')
+        .eq('user_id', customer_id)
+        .single();
 
-      if (customerError || !customer) {
-        return sendError(res, 'Customer not found', 404);
-      }
+      console.log('Customer lookup:', { customer, customerError });
 
-      if (customer.role !== 'customer') {
-        return sendError(res, 'User is not a customer', 403);
-      }
+      if (customerError || !customer) {
+        console.error('Customer not found:', customerError);
+        return sendError(res, 'Customer not found', 404);
+      }
 
-      // Check if transaction already exists (prevent duplicate)
+      if (customer.role !== 'customer') {
+        console.error('User is not a customer:', customer.role);
+        return sendError(res, 'User is not a customer', 403);
+      }      // Check if transaction already exists (prevent duplicate)
       const { data: existingTransaction } = await supabase
         .from('transactions')
         .select('id')
@@ -443,14 +459,13 @@ class TransactionController {
           reference_number: qr_data.reference_number,
           total_amount: qr_data.total_amount,
           total_points: qr_data.total_points,
-          items_count: transactions.length
-        }
-      }, 201);
-    } catch (error) {
-      console.error('Error processing transaction:', error);
-      return sendError(res, 'Internal server error', 500);
-    }
-  }
-}
-
-module.exports = new TransactionController();
+          items_count: transactions.length
+        }
+      }, 201);
+    } catch (error) {
+      console.error('Error in processScannedQRInternal:', error);
+      console.error('Error stack:', error.stack);
+      return sendError(res, `Internal server error: ${error.message}`, 500);
+    }
+  }
+}module.exports = new TransactionController();
