@@ -105,6 +105,16 @@ export default function ScannerScreen({ navigation }) {
       const customerId = userData.user_id;
 
       console.log('Processing manual code for customer:', customerId, 'Code:', manualCode.trim());
+      console.log('apiService.processManualCode type:', typeof apiService.processManualCode);
+
+      // Check if method exists
+      if (typeof apiService.processManualCode !== 'function') {
+        console.error('processManualCode is not a function!');
+        console.log('Available apiService methods:', Object.keys(apiService));
+        Alert.alert('Error', 'Method not available. Please restart the app.');
+        setProcessing(false);
+        return;
+      }
 
       // Process manual code
       const response = await apiService.processManualCode(customerId, manualCode.trim());
@@ -196,13 +206,16 @@ export default function ScannerScreen({ navigation }) {
       </View>
 
       <View style={styles.manualEntry}>
+        <Text style={styles.inputLabel}>Enter 6-Digit Code</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter QR code or barcode"
-          placeholderTextColor="#999"
+          placeholder="XXXXXX"
+          placeholderTextColor="#CCC"
           value={manualCode}
           onChangeText={setManualCode}
-          autoCapitalize="none"
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={6}
           autoFocus
         />
         <TouchableOpacity 
@@ -327,6 +340,13 @@ const styles = StyleSheet.create({
     color: "#666",
     textAlign: "center",
   },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 10,
+    textAlign: "center",
+  },
   manualEntry: {
     backgroundColor: "#FFF",
     padding: 20,
@@ -339,13 +359,17 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   input: {
-    borderWidth: 1,
-    borderColor: "#DDD",
+    borderWidth: 2,
+    borderColor: "#7D0006",
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    padding: 16,
+    fontSize: 24,
+    fontWeight: "bold",
     marginBottom: 15,
-    backgroundColor: "#F9F9F9",
+    backgroundColor: "#FFF",
+    textAlign: "center",
+    letterSpacing: 4,
+    color: "#000",
   },
   scanButton: {
     backgroundColor: "#7D0006",
