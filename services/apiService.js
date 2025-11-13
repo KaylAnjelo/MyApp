@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 // ✅ Configure API base URL
 const API_BASE_URL =
   Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api'  // Android emulator uses 10.0.2.2 to access host's localhost
+    ? 'http://192.168.1.10:3000/api'  // Android emulator uses 10.0.2.2 to access host's localhost
     : 'http://localhost:3000/api';
 
 const TOKEN_KEY = '@app_auth_token';
@@ -276,9 +276,11 @@ class ApiService {
   }
 
   async getProductsByStore(storeId) {
-    const data = await this.request(`/stores/${storeId}/products`);
-    if (Array.isArray(data)) {
-      return data.map((p) => ({
+    const data = await this.request(`/products/store/${storeId}`);
+    // Handle response structure: {success: true, products: [...]}
+    const products = data?.products || data;
+    if (Array.isArray(products)) {
+      return products.map((p) => ({
         ...p,
         id: p.id || p.product_id || p.uid || null,
         name: p.name || p.title || p.product_name || null,
@@ -286,7 +288,7 @@ class ApiService {
         price: p.price ?? p.amount ?? null,
       }));
     }
-    return data;
+    return products || [];
   }
 
   // 📊 DASHBOARD ANALYTICS
@@ -333,9 +335,18 @@ class ApiService {
   }
 
   // 💳 TRANSACTIONS
-  async getUserTransactions(userId) {
-    return this.request(`/transactions/user/${userId}`);
-}
+  async getUserTransactions(userId, userType = null) {
+    const endpoint = userType 
+      ? `/transactions/user/${userId}?userType=${userType}`
+      : `/transactions/user/${userId}`;
+    return this.request(endpoint);
+  }
+
+  // 🎯 USER POINTS
+  async getUserPointsByStore(userId) {
+    if (!userId) throw new Error('Missing userId');
+    return this.request(`/user/${userId}/points-by-store`);
+  }
 
   // ✅ NEW METHOD: Get all transactions for a specific store
   async getStoreTransactions(storeId) {

@@ -271,50 +271,49 @@ class TransactionController {
       console.error('Error fetching transactions:', error);
       return sendError(res, 'Internal server error', 500);
     }
-  }
+  }
 
-  // GET transactions by store (*** NEWLY ADDED FUNCTION ***)
-async getStoreTransactions(req, res) {
+  // GET transactions by store
+  async getStoreTransactions(req, res) {
     try {
-        const { storeId } = req.params;
+      const { storeId } = req.params;
 
-        if (!storeId) {
-            return sendError(res, 'Store ID is required', 400);
-        }
+      if (!storeId) {
+        return sendError(res, 'Store ID is required', 400);
+      }
 
-        // REMOVE all inline comments from the select string
-        let query = supabase
-            .from('transactions')
-            .select(`
-                *,
-                products (
-                    product_name,
-                    product_image
-                ),
-                customer:user_id ( 
-                    username,
-                    user_email
-                )
-            `)
-            .eq('store_id', storeId) // Filter all transactions by the store_id
-            .order('transaction_date', { ascending: false });
+      // REMOVE all inline comments from the select string
+      let query = supabase
+        .from('transactions')
+        .select(`
+          *,
+          products (
+            product_name,
+            product_image
+          ),
+          customer:user_id ( 
+            first_name,
+            last_name,
+            username,
+            user_email
+          )
+        `)
+        .eq('store_id', storeId) // Filter all transactions by the store_id
+        .order('transaction_date', { ascending: false });
 
-        const { data, error } = await query;
+      const { data, error } = await query;
 
-        if (error) {
-            // Include the error in the response for debugging if needed
-            return sendError(res, error.message, 400); 
-        }
+      if (error) {
+        // Include the error in the response for debugging if needed
+        return sendError(res, error.message, 400); 
+      }
 
-        return sendSuccess(res, { transactions: data });
+      return sendSuccess(res, { transactions: data });
     } catch (error) {
-        console.error('Error fetching store transactions:', error);
-        return sendError(res, 'Internal server error', 500);
+      console.error('Error fetching store transactions:', error);
+      return sendError(res, 'Internal server error', 500);
     }
-}
-// End of NEWLY ADDED FUNCTION
-
-  // Process transaction by short code (manual entry)
+  }  // Process transaction by short code (manual entry)
   async processShortCode(req, res) {
     try {
       const { short_code, customer_id } = req.body;

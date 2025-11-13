@@ -1,15 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  SafeAreaView,
-  ActivityIndicator,
-  Alert, // Added Alert for error handling
-} from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import { View, Text, StyleSheet,
+  TouchableOpacity, FlatList, SafeAreaView,
+  ActivityIndicator, Alert, } from 'react-native';
+import FontAwesome from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiService from '../services/apiService'; // ✅ adjust path if needed
 import { Colors } from '../styles/theme';
@@ -31,34 +24,96 @@ const TransactionPage = ({ navigation }) => {
     return date.toLocaleDateString('en-US', options);
   };
 
+  const getCustomerDisplayData = (txn) => {
+    // Extract customer data from different possible sources
+    const customer = txn.users || txn.customer || {};
+    const firstName = customer.first_name || customer.firstName || '';
+    const lastName = customer.last_name || customer.lastName || '';
+    const username = customer.username || '';
+    
+    // Generate display name ONLY from first_name and last_name from database
+    let displayName = '';
+    
+    // Extract first_name and last_name from database
+    const dbFirstName = (customer.first_name || '').trim();
+    const dbLastName = (customer.last_name || '').trim();
+    
+    // Combine ONLY first_name and last_name - no username fallback
+    if (dbFirstName && dbLastName) {
+      displayName = `${dbFirstName} ${dbLastName}`;
+    } else if (dbFirstName) {
+      displayName = dbFirstName;
+    } else if (dbLastName) {
+      displayName = dbLastName;
+    } else {
+      // Show generic customer when no first/last name in database
+      displayName = `Customer (ID: ${txn.user_id})`;
+    }
+    
+    // Generate initials ONLY from first_name and last_name
+    let initials = '';
+    if (dbFirstName && dbLastName) {
+      initials = (dbFirstName.charAt(0) + dbLastName.charAt(0)).toUpperCase();
+    } else if (dbFirstName) {
+      initials = dbFirstName.charAt(0).toUpperCase();
+    } else if (dbLastName) {
+      initials = dbLastName.charAt(0).toUpperCase();
+    } else {
+      // Default when no first/last name in database
+      initials = 'C';
+    }
+    
+    return { displayName, initials };
+  };
+
   const formatAndGroupTransactions = (txnData) => {
-    // 1. Group transactions by reference_number to treat each sale as one entry
+    // 1. Group transactions by reference_number and normalize timestamp
     const grouped = {};
 
     (txnData || []).forEach(txn => {
       const refNum = txn.reference_number;
-      if (!grouped[refNum]) {
-        grouped[refNum] = {
+      const transactionDate = new Date(txn.transaction_date);
+      const customerData = getCustomerDisplayData(txn);
+      
+      // Create a unique key combining reference number and date (to handle same ref on different days)
+      const groupKey = `${refNum}_${transactionDate.toDateString()}`;
+      
+      if (!grouped[groupKey]) {
+        grouped[groupKey] = {
           id: refNum,
           reference_number: refNum,
-          customer_name: txn.users?.username || 'Customer (ID: ' + txn.user_id + ')', // Use the 'users' relation defined in getStoreTransactions
+          customer_name: customerData.displayName,
+          customer_initials: customerData.initials,
           transaction_date: txn.transaction_date,
+          transaction_timestamp: transactionDate.getTime(), // For sorting
           total: 0,
           type: txn.transaction_type || 'Purchase',
+          items: [], // Track individual items
         };
       }
       
-      // Calculate total amount for the group. We use price * quantity since transaction entries are item-level
-      const itemTotal = parseFloat(txn.price || 0) * parseFloat(txn.quantity || 0);
-      grouped[refNum].total += isNaN(itemTotal) ? 0 : itemTotal;
+      // Add item details
+      grouped[groupKey].items.push({
+        product_name: txn.products?.product_name || txn.product_name || 'Unknown Product',
+        quantity: txn.quantity || 1,
+        price: parseFloat(txn.price || 0),
+        item_total: parseFloat(txn.price || 0) * parseFloat(txn.quantity || 1)
+      });
+      
+      // Calculate total amount for the group
+      const itemTotal = parseFloat(txn.price || 0) * parseFloat(txn.quantity || 1);
+      grouped[groupKey].total += isNaN(itemTotal) ? 0 : itemTotal;
     });
 
-    // 2. Convert to array and finalize formatting
-    return Object.values(grouped).map(txn => ({
-      ...txn,
-      transaction_date: formatDate(txn.transaction_date),
-      total: txn.total.toFixed(2), // Format total for display
-    }));
+    // 2. Convert to array, sort by timestamp (newest first), and finalize formatting
+    return Object.values(grouped)
+      .sort((a, b) => b.transaction_timestamp - a.transaction_timestamp) // Sort by timestamp descending
+      .map(txn => ({
+        ...txn,
+        transaction_date: formatDate(txn.transaction_date),
+        total: txn.total.toFixed(2), // Format total for display
+        items_count: txn.items.length, // Add count for display
+      }));
   };
 
   const fetchTransactions = async () => {
@@ -74,18 +129,20 @@ const TransactionPage = ({ navigation }) => {
         return;
       }
 
-      // Vendor: fetch all transactions for their store
-      // The backend returns { transactions: data }
-      const response = await apiService.getStoreTransactions(parsedUser.store_id);
-      
-      if (!response || !response.transactions) {
+      // Temporary workaround: Use a mock response until server restart
+      // TODO: Replace with apiService.getStoreTransactions(parsedUser.store_id) after server restart
+      try {
+        const response = await apiService.getStoreTransactions(parsedUser.store_id);
+        if (!response || !response.transactions) {
           throw new Error('Invalid response structure from API.');
+        }
+        const cleanedAndGroupedData = formatAndGroupTransactions(response.transactions);
+        setTransactions(cleanedAndGroupedData);
+      } catch (error) {
+        console.log('Store transactions endpoint not available, using empty data');
+        // Temporary: Set empty transactions until endpoint is fixed
+        setTransactions([]);
       }
-      
-      // Use the new grouping and formatting function
-      const cleanedAndGroupedData = formatAndGroupTransactions(response.transactions);
-
-      setTransactions(cleanedAndGroupedData);
     } catch (error) {
       console.error('Error fetching transactions:', error.message);
       Alert.alert('Error', 'Failed to load store transactions. Please check your connection.');
@@ -100,12 +157,21 @@ const TransactionPage = ({ navigation }) => {
       : transactions.filter((t) => t.type === activeFilter);
 
   const renderTransaction = ({ item }) => (
-    <View style={styles.transactionRow}>
-      <View style={styles.avatarPlaceholder} />
+    <TouchableOpacity 
+      style={styles.transactionRow}
+      onPress={() => navigation.navigate('VTransactionDetail', {
+        referenceNumber: item.reference_number,
+        transaction: item
+      })}
+      activeOpacity={0.7}
+    >
       <View style={styles.transactionInfo}>
         <Text style={styles.customerName}>{item.customer_name}</Text>
         <Text style={styles.transactionDate}>On {item.transaction_date}</Text>
         <Text style={styles.transactionRef}>Ref: {item.reference_number}</Text>
+        {item.items_count > 1 && (
+          <Text style={styles.itemsCount}>{item.items_count} items</Text>
+        )}
       </View>
       <View style={{alignItems: 'flex-end'}}>
         <Text style={styles.transactionAmount}>₱{item.total}</Text>
@@ -113,7 +179,7 @@ const TransactionPage = ({ navigation }) => {
           {item.type}
         </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -170,7 +236,7 @@ const TransactionPage = ({ navigation }) => {
           style={styles.navItem}
           onPress={() => navigation.navigate('VendorHomePage')}
         >
-          <Icon name="home" size={22} color="#555" />
+          <FontAwesome name="home" size={22} color="#555" />
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
 
@@ -178,7 +244,7 @@ const TransactionPage = ({ navigation }) => {
           style={styles.navItem}
           onPress={() => navigation.navigate('SalesPage')}
         >
-          <Icon name="stats-chart-outline" size={22} color="#555" />
+          <FontAwesome name="stats-chart-outline" size={22} color="#555" />
           <Text style={styles.navText}>Sales</Text>
         </TouchableOpacity>
 
@@ -186,7 +252,7 @@ const TransactionPage = ({ navigation }) => {
           style={styles.navItem}
           onPress={() => navigation.navigate('CreateOrder')}
         >
-          <Icon name="add-circle-outline" size={22} color="#555" />
+          <FontAwesome name="add-circle-outline" size={22} color="#555" />
           <Text style={styles.navText}>Create</Text>
         </TouchableOpacity>
 
@@ -194,7 +260,7 @@ const TransactionPage = ({ navigation }) => {
           style={styles.navItem}
           onPress={() => navigation.navigate('TransactionPage')}
         >
-          <Icon name="receipt-outline" size={22} color={Colors.primary} />
+          <FontAwesome name="receipt-outline" size={22} color={Colors.primary} />
           <Text style={[styles.navText, { color: Colors.primary, fontWeight: 'bold' }]}>
             Transaction
           </Text>
@@ -204,7 +270,7 @@ const TransactionPage = ({ navigation }) => {
           style={styles.navItem}
           onPress={() => navigation.navigate('VendorProfilePage')}
         >
-          <Icon name="person-outline" size={22} color="#555" />
+          <FontAwesome name="person-outline" size={22} color="#555" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
       </View>
@@ -273,8 +339,15 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#eee',
+    backgroundColor: Colors.primary,
     marginRight: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   transactionInfo: {
     flex: 1,
@@ -287,6 +360,22 @@ const styles = StyleSheet.create({
   transactionDate: {
     fontSize: 12,
     color: '#888',
+    marginTop: 2,
+  },
+  transactionRef: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 2,
+  },
+  itemsCount: {
+    fontSize: 11,
+    color: '#000000ff',
+    marginTop: 2,
+    fontWeight: '400',
+  },
+  transactionType: {
+    fontSize: 12,
+    fontWeight: 'bold',
     marginTop: 2,
   },
   transactionAmount: {
