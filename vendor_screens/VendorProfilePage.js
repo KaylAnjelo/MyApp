@@ -167,7 +167,9 @@ export default function VendorProfilePage({ navigation }) {
 
   // 🛠 Placeholder actions
   const handleEditProfile = () => Alert.alert('Edit Profile', 'Profile editing will be implemented');
-  const handleChangePassword = () => Alert.alert('Change Password', 'Password change will be implemented');
+  const handleChangePassword = () => {
+    navigation.navigate('ChangePassword', { email: displayEmail });
+  };
 
   // 🕑 Loading state
   if (loading) {

@@ -12,5 +12,8 @@ router.post('/auth/vendor-verify-otp', (req, res) => authController.verifyOTPAnd
 router.post('/auth/login', (req, res) => authController.login(req, res));
 router.post('/auth/logout', (req, res) => authController.logout(req, res));
 router.get('/auth/profile', (req, res) => authController.getProfile(req, res));
+router.post('/auth/send-password-reset-otp', (req, res) => authController.sendPasswordResetOTP(req, res));
+router.post('/auth/verify-password-reset-otp', (req, res) => authController.verifyPasswordResetOTP(req, res));
+router.post('/auth/change-password', (req, res) => authController.changePassword(req, res));
 
 module.exports = router;
