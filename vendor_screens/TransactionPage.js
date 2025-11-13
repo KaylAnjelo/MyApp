@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import apiService from '../services/apiService';
+import apiService from '../services/apiService'; // ✅ adjust path if needed
+import { Colors } from '../styles/theme';
 
 const filters = ['All', 'Purchase', 'Redemption']; // Corrected filter names to match backend 'transaction_type'
 
@@ -147,11 +148,7 @@ const TransactionPage = ({ navigation }) => {
 
       {/* Transaction List */}
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color="#D22B2B"
-          style={{ marginTop: 50 }}
-        />
+        <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 50 }} />
       ) : (
         <FlatList
           data={filteredTransactions}
@@ -197,9 +194,9 @@ const TransactionPage = ({ navigation }) => {
           style={styles.navItem}
           onPress={() => navigation.navigate('TransactionPage')}
         >
-          <Icon name="receipt-outline" size={22} color="#D22B2B" />
-          <Text style={[styles.navText, { color: '#D22B2B', fontWeight: 'bold' }]}>
-            Transactions
+          <Icon name="receipt-outline" size={22} color={Colors.primary} />
+          <Text style={[styles.navText, { color: Colors.primary, fontWeight: 'bold' }]}>
+            Transaction
           </Text>
         </TouchableOpacity>
 
@@ -216,17 +213,56 @@ const TransactionPage = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: '#fff' },
-  headerBar: { backgroundColor: '#D22B2B', paddingVertical: 18, alignItems: 'center' },
-  headerTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold', letterSpacing: 1 },
-  filterRow: { flexDirection: 'row', justifyContent: 'center', marginVertical: 16, gap: 10 },
-  filterBtn: { borderRadius: 20, paddingVertical: 8, paddingHorizontal: 22, marginHorizontal: 4 },
-  activeFilterBtn: { backgroundColor: '#D22B2B' },
-  outlinedFilterBtn: { borderWidth: 1, borderColor: '#D22B2B', backgroundColor: '#fff' },
-  filterText: { fontWeight: 'bold', fontSize: 14 },
-  activeFilterText: { color: '#fff' },
-  outlinedFilterText: { color: '#D22B2B' }, // Replaced the incomplete style
-  listContent: { paddingHorizontal: 16, paddingBottom: 100 },
+  wrapper: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  headerBar: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginVertical: 16,
+    gap: 10,
+  },
+  filterBtn: {
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 22,
+    marginHorizontal: 4,
+  },
+  activeFilterBtn: {
+    backgroundColor: Colors.primary,
+  },
+  outlinedFilterBtn: {
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: '#fff',
+  },
+  filterText: {
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  activeFilterText: {
+    color: '#fff',
+  },
+  outlinedFilterText: {
+    color: Colors.primary,
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 80,
+  },
   transactionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -240,13 +276,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#eee',
     marginRight: 15,
   },
-  transactionInfo: { flex: 1 },
-  customerName: { fontSize: 16, fontWeight: '600' },
-  transactionDate: { fontSize: 12, color: '#888', marginTop: 2 },
-  transactionRef: { fontSize: 11, color: '#ccc', marginTop: 2 },
-  transactionAmount: { fontSize: 16, fontWeight: 'bold' },
-  transactionType: { fontSize: 12, fontWeight: '600', marginTop: 2 },
-  divider: { height: 1, backgroundColor: '#f5f5f5', marginLeft: 55 },
+  transactionInfo: {
+    flex: 1,
+  },
+  customerName: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#222',
+  },
+  transactionDate: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
+  },
+  transactionAmount: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginLeft: 10,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#eee',
+    marginLeft: 54,
+  },
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
