@@ -11,6 +11,7 @@ import SignUpCustomerScreen from './customer_screens/SignUpCustomerScreen';
 import HomePageScreen from './customer_screens/HomePageScreen';
 import StoresScreen from './customer_screens/StoresScreen';
 import SpecificStoreScreen from './customer_screens/SpecificStoreScreen';
+import AllProductsScreen from './customer_screens/AllProductsScreen';
 import MyPointsScreen from './customer_screens/MyPointsScreen';
 import MyRewardsPage from './customer_screens/MyRewardsScreen';
 import ProfilePageScreen from './customer_screens/ProfilePageScreen';
@@ -24,6 +25,7 @@ import CreateOrderScreen from './vendor_screens/AddMenuPage';
 import PointsHistoryScreen from './customer_screens/PointsHistoryScreen';
 import TransactionDetailsScreen from './customer_screens/TransactionDetailsScreen';
 import ChangePasswordScreen from './customer_screens/ChangePasswordScreen';
+import VendorTransactionDetail from './vendor_screens/VendorTransactionDetailScreen';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -35,14 +37,15 @@ export default function App() {
         <Stack.Screen name="SignUp" component={SignUpUserTypeScreen} />
         <Stack.Screen name="SignIn" component={SignInScreen} />
         <Stack.Screen name="HomePage" component={HomePageScreen} />   
-  <Stack.Screen name="Stores" component={StoresScreen} />
-  <Stack.Screen name="SpecificStore" component={SpecificStoreScreen} />
+        <Stack.Screen name="Stores" component={StoresScreen} />
+        <Stack.Screen name="SpecificStore" component={SpecificStoreScreen} />
+        <Stack.Screen name="AllProducts" component={AllProductsScreen} />
         <Stack.Screen name="SignUpVendor" component={SignUpVendorScreen} />
         <Stack.Screen name="SignUpCustomer" component={SignUpCustomerScreen} />
         <Stack.Screen name="MyPoints" component={MyPointsScreen} />
         <Stack.Screen name="MyRewards" component={MyRewardsPage} />
         <Stack.Screen name="ProfilePage" component={ProfilePageScreen} />
-  <Stack.Screen name="ActivityScreen" component={ActivityScreen} />
+        <Stack.Screen name="ActivityScreen" component={ActivityScreen} />
         <Stack.Screen name="VendorHomePage" component={VendorHomePage} />
         <Stack.Screen name="SalesPage" component={SalesPage} />
         <Stack.Screen name="VendorProfilePage" component={VendorProfilePage} />
@@ -51,7 +54,6 @@ export default function App() {
         <Stack.Screen name="CreateOrder" component={CreateOrderScreen} />
         <Stack.Screen name="PointsHistory" component={PointsHistoryScreen} />
         <Stack.Screen name="TransactionDetails" component={TransactionDetailsScreen} />
-        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
 
       </Stack.Navigator>
     </NavigationContainer>

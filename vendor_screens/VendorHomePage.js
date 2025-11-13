@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, FlatL
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { LineChart } from 'react-native-chart-kit';
+import { Colors } from '../styles/theme';
 import apiService from '../services/apiService';
 
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -295,8 +296,8 @@ const VendorHomePage = ({ navigation }) => { // <-- Add navigation prop
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('VendorHomePage')}>
-          <Icon name="home" size={22} color="#D22B2B" />
-          <Text style={[styles.navText, { color: '#D22B2B', fontWeight: 'bold' }]}>Home</Text>
+          <Icon name="home" size={22} color={Colors.primary} />
+          <Text style={[styles.navText, { color: Colors.primary, fontWeight: 'bold' }]}>Home</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('SalesPage')}>
           <Icon name="stats-chart-outline" size={22} color="#555" />
@@ -347,7 +348,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   statCard: {
-    backgroundColor: '#D22B2B',
+    backgroundColor: Colors.primary,
     borderRadius: 15,
     padding: 20,
     width: '48%',
@@ -502,7 +503,7 @@ const styles = StyleSheet.create({
   productPrice: {
     fontWeight: 'bold',
     fontSize: 16,
-    color: '#D22B2B',
+    color: Colors.primary,
     marginTop: 5,
   },
   bottomNav: {
