@@ -1,30 +1,60 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from "react-native";
 import FontAwesome from "react-native-vector-icons/FontAwesome";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Radii, Shadows } from "../styles/theme";
 import apiService from "../services/apiService";
 
 const MyPointsScreen = ({ navigation }) => {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
-    const fetchStores = async () => {
+    const fetchData = async () => {
       try {
-        const data = await apiService.getStores();
-        setStores(data);
+        // Get user ID from AsyncStorage
+        const userStr = await AsyncStorage.getItem('@app_user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          const currentUserId = user.user_id;
+          setUserId(currentUserId);
+
+          // Fetch stores and user points in parallel
+          const [storesData, pointsData] = await Promise.all([
+            apiService.getStores(),
+            apiService.getUserPointsByStore(currentUserId)
+          ]);
+
+          // Create a map of store_id to points
+          const pointsMap = {};
+          if (Array.isArray(pointsData)) {
+            pointsData.forEach(pointData => {
+              pointsMap[pointData.store_id] = pointData.available_points || 0;
+            });
+          }
+
+          // Merge stores with user points
+          const storesWithPoints = storesData.map(store => ({
+            ...store,
+            customerPoints: pointsMap[store.store_id] || pointsMap[store.id] || 0,
+            claimThreshold: store.claim_threshold || store.claimThreshold || 100 // Default threshold
+          }));
+
+          setStores(storesWithPoints);
+        }
       } catch (error) {
-        console.error("Failed to fetch stores:", error);
+        console.error("Failed to fetch data:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchStores();
+    fetchData();
   }, []);
 
   // Calculate the highest points available from all stores
   const highestPoints = stores.reduce(
-    (max, store) => Math.max(max, store.customerPoints || 0), // Use 0 if customerPoints is undefined
+    (max, store) => Math.max(max, store.customerPoints || 0),
     0
   );
 
@@ -62,28 +92,33 @@ const MyPointsScreen = ({ navigation }) => {
                   return (
                     <View key={store && store.id ? String(store.id) : `store-${idx}`} style={styles.storeCard}>
                       <View style={styles.logoCircle}>
-                        <Image source={{ uri: store.logoUrl }} style={styles.logoImage} />
+                        <Image 
+                          source={{ uri: store.logoUrl || store.store_image || 'https://via.placeholder.com/64' }} 
+                          style={styles.logoImage} 
+                        />
                       </View>
                       <View style={styles.cardInfo}>
-                        {/* 🌟 FIX/ENHANCEMENT: Use optional chaining and fallback text */}
                         <Text style={styles.storeName}>
-                          {store.name || "Store Name Missing"} 
+                          {store.name || store.store_name || "Store Name Missing"} 
                         </Text>
                         <Text style={styles.storePoints}>
-                          <Text style={{ fontWeight: "700" }}>{store.customerPoints} points</Text>
+                          <Text style={{ fontWeight: "700" }}>{store.customerPoints || 0} points</Text>
                         </Text>
-                        {!canClaim && (
-                          <Text style={styles.storeNote}>Insufficient points.</Text>
-                        )}
                       </View>
-                      <TouchableOpacity 
-                        style={[styles.cardButton, canClaim ? styles.useButton : styles.collectButton]} 
-                        activeOpacity={0.9}
-                      >
-                        <Text style={[styles.cardButtonText, canClaim ? { color: Colors.white } : null]}>
-                          {canClaim ? "Use points" : "Collect points"}
-                        </Text>
-                      </TouchableOpacity>
+                      {canClaim && (
+                        <TouchableOpacity 
+                          style={[styles.cardButton, styles.useButton]} 
+                          activeOpacity={0.9}
+                          onPress={() => {
+                            // Navigate to rewards screen or handle redemption
+                            console.log('Redeem points for store:', store.name);
+                          }}
+                        >
+                          <Text style={[styles.cardButtonText, { color: Colors.white }]}>
+                            Use points
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   );
                 })
@@ -91,7 +126,11 @@ const MyPointsScreen = ({ navigation }) => {
             </View>
 
             {/* Points History CTA */}
-            <TouchableOpacity style={styles.pointsHistoryButton} activeOpacity={0.9}>
+            <TouchableOpacity 
+              style={styles.pointsHistoryButton} 
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate('PointsHistory')}
+            >
               <Text style={styles.pointsHistoryText}>Points History</Text>
             </TouchableOpacity>
           </View>
@@ -104,7 +143,6 @@ const MyPointsScreen = ({ navigation }) => {
 export default MyPointsScreen;
 
 const styles = StyleSheet.create({
-  // ... (Your existing styles are here)
   container: {
     flex: 1,
     backgroundColor: Colors.background,

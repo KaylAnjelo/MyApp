@@ -1,23 +1,21 @@
-// backend/routes/TransactionRoutes.js
+// backend/routes/transactionRoutes.js
 const express = require('express');
 const transactionController = require('../controllers/transactionController');
-
 const router = express.Router();
 
 // POST - Generate QR code data for transaction
-router.post('/transactions/generate-qr', (req, res) => transactionController.createTransaction(req, res));
+router.post('/generate-qr', transactionController.createTransaction);
 
 // POST - Process scanned QR code
-router.post('/transactions/process-qr', (req, res) => transactionController.processScannedQR(req, res));
+router.post('/process-qr', transactionController.processScannedQR);
 
 // POST - Process manual code entry
-router.post('/transactions/process-code', (req, res) => transactionController.processShortCode(req, res));
+router.post('/process-code', transactionController.processShortCode);
 
 // GET - Get transactions by user
-router.get('/transactions/user/:userId', (req, res) => transactionController.getUserTransactions(req, res));
+router.get('/user/:userId', transactionController.getUserTransactions);
 
 // GET - Get transactions by store
-router.get('/transactions/store/:storeId', (req, res) => transactionController.getStoreTransactions(req, res));
-
+router.get('/store/:storeId', transactionController.getStoreTransactions);
 
 module.exports = router;
