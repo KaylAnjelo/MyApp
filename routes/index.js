@@ -4,6 +4,7 @@ const { sendSuccess, sendError } = require('../utils/response');
 
 // Import route modules
 const authRoutes = require('./authRoutes');
+const userRoutes = require('./userRoutes');
 
 const router = express.Router();
 
@@ -31,5 +32,6 @@ router.get('/health', async (req, res) => {
 
 // Mount route modules
 router.use('/auth', authRoutes);
+router.use('/', userRoutes);
 
 module.exports = router;
