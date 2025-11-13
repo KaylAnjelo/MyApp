@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 // ✅ Configure API base URL
 const API_BASE_URL =
   Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api' // Android emulator uses 10.0.2.2 to access host's localhost
+    ? 'http://10.0.2.2:3000/api'  // Android emulator uses 10.0.2.2 to access host's localhost
     : 'http://localhost:3000/api';
 
 const TOKEN_KEY = '@app_auth_token';
@@ -188,6 +188,13 @@ class ApiService {
     return this.request(`/user/profile/${userId}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
+    });
+  }
+
+  async uploadProfileImage(userId, imageBase64, fileName) {
+    return this.request('/user/upload-profile-image', {
+      method: 'POST',
+      body: JSON.stringify({ userId, imageBase64, fileName }),
     });
   }
 

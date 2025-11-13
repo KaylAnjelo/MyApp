@@ -65,6 +65,76 @@ router.put('/user/profile/:userId', async (req, res) => {
   }
 });
 
+// POST /api/user/upload-profile-image
+router.post('/user/upload-profile-image', async (req, res) => {
+  try {
+    const { userId, imageBase64, fileName } = req.body;
+
+    if (!userId || !imageBase64 || !fileName) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (!supabase) {
+      return res.status(500).json({ error: 'Supabase not configured' });
+    }
+
+    // Convert base64 to buffer
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Create a simple file path
+    const timestamp = Date.now();
+    const fileExtension = fileName.split('.').pop() || 'jpg';
+    const filePath = `${userId}_${timestamp}.${fileExtension}`;
+
+    // Upload to Supabase Storage with public access
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('profile-images')
+      .upload(filePath, buffer, {
+        contentType: 'image/jpeg',
+        upsert: true,
+        cacheControl: '3600'
+      });
+
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      // Try to provide helpful error message
+      if (uploadError.message.includes('row-level security')) {
+        return res.status(500).json({ 
+          error: 'Storage bucket requires configuration. Please make the profile-images bucket public in Supabase Dashboard.' 
+        });
+      }
+      return res.status(500).json({ error: uploadError.message });
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('profile-images')
+      .getPublicUrl(filePath);
+
+    const imageUrl = urlData.publicUrl;
+
+    // Update user profile with image URL
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ profile_image: imageUrl })
+      .eq('user_id', userId);
+
+    if (updateError) {
+      console.error('Database update error:', updateError);
+      return res.status(500).json({ error: updateError.message });
+    }
+
+    res.json({ 
+      message: 'Profile image uploaded successfully', 
+      imageUrl 
+    });
+  } catch (err) {
+    console.error('Error uploading profile image:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/user/:userId/points-by-store
 router.get('/user/:userId/points-by-store', async (req, res) => {
   try {
