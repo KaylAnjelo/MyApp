@@ -7,13 +7,14 @@ import {
   FlatList,
   SafeAreaView,
   ActivityIndicator,
+  Alert, // Added Alert for error handling
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiService from '../services/apiService'; // ✅ adjust path if needed
 import { Colors } from '../styles/theme';
 
-const filters = ['All', 'Points', 'Cash'];
+const filters = ['All', 'Purchase', 'Redemption']; // Corrected filter names to match backend 'transaction_type'
 
 const TransactionPage = ({ navigation }) => {
   const [transactions, setTransactions] = useState([]);
@@ -24,7 +25,42 @@ const TransactionPage = ({ navigation }) => {
     fetchTransactions();
   }, []);
 
-  // ✅ Fetch transactions for the logged-in user
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const options = { month: 'short', day: 'numeric', year: 'numeric' };
+    return date.toLocaleDateString('en-US', options);
+  };
+
+  const formatAndGroupTransactions = (txnData) => {
+    // 1. Group transactions by reference_number to treat each sale as one entry
+    const grouped = {};
+
+    (txnData || []).forEach(txn => {
+      const refNum = txn.reference_number;
+      if (!grouped[refNum]) {
+        grouped[refNum] = {
+          id: refNum,
+          reference_number: refNum,
+          customer_name: txn.users?.username || 'Customer (ID: ' + txn.user_id + ')', // Use the 'users' relation defined in getStoreTransactions
+          transaction_date: txn.transaction_date,
+          total: 0,
+          type: txn.transaction_type || 'Purchase',
+        };
+      }
+      
+      // Calculate total amount for the group. We use price * quantity since transaction entries are item-level
+      const itemTotal = parseFloat(txn.price || 0) * parseFloat(txn.quantity || 0);
+      grouped[refNum].total += isNaN(itemTotal) ? 0 : itemTotal;
+    });
+
+    // 2. Convert to array and finalize formatting
+    return Object.values(grouped).map(txn => ({
+      ...txn,
+      transaction_date: formatDate(txn.transaction_date),
+      total: txn.total.toFixed(2), // Format total for display
+    }));
+  };
+
   const fetchTransactions = async () => {
     try {
       setLoading(true);
@@ -32,24 +68,27 @@ const TransactionPage = ({ navigation }) => {
       const userData = await AsyncStorage.getItem('@app_user');
       const parsedUser = JSON.parse(userData);
 
-      if (!parsedUser?.user_id) {
-        console.warn('No user_id found in AsyncStorage');
+      if (!parsedUser || parsedUser.role !== 'vendor' || !parsedUser.store_id) {
+        Alert.alert('Error', 'Vendor or Store ID not found. Please relog.');
         setLoading(false);
         return;
       }
 
-      const data = await apiService.getUserTransactions(parsedUser.user_id);
+      // Vendor: fetch all transactions for their store
+      // The backend returns { transactions: data }
+      const response = await apiService.getStoreTransactions(parsedUser.store_id);
+      
+      if (!response || !response.transactions) {
+          throw new Error('Invalid response structure from API.');
+      }
+      
+      // Use the new grouping and formatting function
+      const cleanedAndGroupedData = formatAndGroupTransactions(response.transactions);
 
-      // ✅ Keep only the columns you want (user_id, transaction_date, total)
-      const cleanedData = data.map((t) => ({
-        user_id: t.user_id,
-        transaction_date: t.transaction_date,
-        total: t.total,
-      }));
-
-      setTransactions(cleanedData);
+      setTransactions(cleanedAndGroupedData);
     } catch (error) {
       console.error('Error fetching transactions:', error.message);
+      Alert.alert('Error', 'Failed to load store transactions. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -64,10 +103,16 @@ const TransactionPage = ({ navigation }) => {
     <View style={styles.transactionRow}>
       <View style={styles.avatarPlaceholder} />
       <View style={styles.transactionInfo}>
-        <Text style={styles.customerName}>User ID: {item.user_id}</Text>
+        <Text style={styles.customerName}>{item.customer_name}</Text>
         <Text style={styles.transactionDate}>On {item.transaction_date}</Text>
+        <Text style={styles.transactionRef}>Ref: {item.reference_number}</Text>
       </View>
-      <Text style={styles.transactionAmount}>₱{item.total}</Text>
+      <View style={{alignItems: 'flex-end'}}>
+        <Text style={styles.transactionAmount}>₱{item.total}</Text>
+        <Text style={[styles.transactionType, {color: item.type === 'Purchase' ? '#00A000' : '#D22B2B'}]}>
+          {item.type}
+        </Text>
+      </View>
     </View>
   );
 
@@ -85,18 +130,14 @@ const TransactionPage = ({ navigation }) => {
             key={filter}
             style={[
               styles.filterBtn,
-              activeFilter === filter
-                ? styles.activeFilterBtn
-                : styles.outlinedFilterBtn,
+              activeFilter === filter ? styles.activeFilterBtn : styles.outlinedFilterBtn,
             ]}
             onPress={() => setActiveFilter(filter)}
           >
             <Text
               style={[
                 styles.filterText,
-                activeFilter === filter
-                  ? styles.activeFilterText
-                  : styles.outlinedFilterText,
+                activeFilter === filter ? styles.activeFilterText : styles.outlinedFilterText,
               ]}
             >
               {filter}
@@ -112,12 +153,12 @@ const TransactionPage = ({ navigation }) => {
         <FlatList
           data={filteredTransactions}
           renderItem={renderTransaction}
-          keyExtractor={(item, index) => item.user_id + index}
+          keyExtractor={(item) => item.id} // Use the grouped reference_number as the key
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={styles.divider} />}
           ListEmptyComponent={() => (
             <Text style={{ textAlign: 'center', marginTop: 50, color: '#999' }}>
-              No transactions found.
+              No transactions found for this store.
             </Text>
           )}
         />
@@ -225,15 +266,15 @@ const styles = StyleSheet.create({
   transactionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    backgroundColor: '#fff',
+    paddingVertical: 15,
+    justifyContent: 'space-between',
   },
   avatarPlaceholder: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: '#eee',
-    marginRight: 14,
+    marginRight: 15,
   },
   transactionInfo: {
     flex: 1,
@@ -271,7 +312,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    zIndex: 10,
+    paddingBottom: 5,
   },
   navItem: {
     alignItems: 'center',
