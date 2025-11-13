@@ -1,53 +1,145 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { Colors } from '../styles/theme';
+import apiService from '../services/apiService';
 
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const lineChartData = {
-  labels: ['Mon', 'Tues', 'Wed'],
-  datasets: [
-    {
-      data: [22600, 0, 0],
-      color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`, // Blue
-      strokeWidth: 3,
-    },
-    {
-      data: [0, 23500, 0],
-      color: (opacity = 1) => `rgba(244, 67, 54, ${opacity})`, // Red
-      strokeWidth: 3,
-    },
-    {
-      data: [0, 0, 9100],
-      color: (opacity = 1) => `rgba(255, 214, 0, ${opacity})`, // Yellow
-      strokeWidth: 3,
-    },
-  ],
-};
-
-const barChartData = {
-  labels: ['Pares', 'Lugaw', 'Canton'],
-  datasets: [
-    {
-      data: [15000, 17000, 8000],
-      colors: [
-        (opacity = 1) => `rgba(0, 191, 165, ${opacity})`, // Teal blue
-        (opacity = 1) => `rgba(244, 67, 54, ${opacity})`, // Red
-        (opacity = 1) => `rgba(255, 214, 0, ${opacity})`, // Yellow
-      ],
-    },
-  ],
+// Color palette for product types
+const productTypeColors = {
+  'Meal': '#D22B2B',
+  'Beverage': '#FF6B6B',
+  'Sides': '#FFA500',
+  'Dessert': '#FFD700',
+  'Merchandise': '#8B4513',
+  'Other': '#696969'
 };
 
 const SalesPage = ({ navigation }) => {
-  const [activeMonth, setActiveMonth] = useState(0);
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const [activeMonth, setActiveMonth] = useState(currentMonth);
+  const [loading, setLoading] = useState(true);
+  const [storeId, setStoreId] = useState(null);
+  const [analyticsData, setAnalyticsData] = useState({
+    todayRevenue: 0,
+    todayOrders: 0,
+    weeklyPerformance: [],
+    topProducts: [],
+    salesByType: {},
+    transactionProgress: { current: 0, target: 0 }
+  });
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    if (storeId) {
+      loadAnalyticsData();
+    }
+  }, [activeMonth, storeId]);
+
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      const userDataStr = await AsyncStorage.getItem('@app_user');
+      if (!userDataStr) {
+        Alert.alert('Error', 'User not found. Please login again.');
+        navigation.replace('SignIn');
+        return;
+      }
+
+      const userData = JSON.parse(userDataStr);
+      const vendorStoreId = userData.store_id;
+
+      if (!vendorStoreId) {
+        Alert.alert('Error', 'Store not assigned to this vendor.');
+        return;
+      }
+
+      setStoreId(vendorStoreId);
+      const data = await apiService.getSalesAnalytics(vendorStoreId, activeMonth, currentYear);
+      setAnalyticsData(data);
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+      Alert.alert('Error', 'Failed to load analytics data.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAnalyticsData = async () => {
+    if (!storeId) return;
+    
+    try {
+      const data = await apiService.getSalesAnalytics(storeId, activeMonth, currentYear);
+      setAnalyticsData(data);
+    } catch (error) {
+      console.error('Error loading analytics data:', error);
+    }
+  };
+
+  // Prepare line chart data for weekly performance by product type
+  const lineChartDatasets = [];
+  const legendItems = [];
+  const salesByType = analyticsData.salesByType || {};
+
+  Object.keys(salesByType).forEach(productType => {
+    const color = productTypeColors[productType] || productTypeColors['Other'];
+    lineChartDatasets.push({
+      data: salesByType[productType],
+      color: (opacity = 1) => color,
+      strokeWidth: 2.5
+    });
+    legendItems.push({ label: productType, color });
+  });
+
+  // Fallback if no product types
+  if (lineChartDatasets.length === 0) {
+    const weeklyRevenue = (analyticsData.weeklyPerformance || []).map(w => w.revenue || 0);
+    lineChartDatasets.push({
+      data: weeklyRevenue.length > 0 ? weeklyRevenue : [0, 0, 0, 0],
+      color: (opacity = 1) => `rgba(0, 191, 165, ${opacity})`,
+      strokeWidth: 3
+    });
+  }
+
+  const lineChartData = {
+    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+    datasets: lineChartDatasets
+  };
+
+  // Prepare bar chart data for top products
+  const topProducts = analyticsData.topProducts || [];
+  const barChartData = {
+    labels: topProducts.slice(0, 5).map(p => p.name.substring(0, 8)),
+    datasets: [{
+      data: topProducts.slice(0, 5).map(p => p.revenue || 0)
+    }]
+  };
 
   // Progress bar values
-  const progressValue = 580;
-  const progressMax = 820;
+  const progressValue = analyticsData.transactionProgress?.current || 0;
+  const progressMax = analyticsData.transactionProgress?.target || 1;
   const progressPercent = Math.round((progressValue / progressMax) * 100);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.wrapper}>
+        <View style={styles.headerBar}>
+          <Text style={styles.headerTitle}>My Sales</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#D22B2B" />
+          <Text style={styles.loadingText}>Loading analytics...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.wrapper}>
@@ -58,30 +150,32 @@ const SalesPage = ({ navigation }) => {
         {/* Summary Cards */}
         <View style={styles.summaryCards}>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>₱1,750.00</Text>
+            <Text style={styles.summaryValue}>₱{analyticsData.todayRevenue.toFixed(2)}</Text>
             <Text style={styles.summaryLabel}>Today's Revenue</Text>
           </View>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>22</Text>
+            <Text style={styles.summaryValue}>{analyticsData.todayOrders}</Text>
             <Text style={styles.summaryLabel}>Today's Orders</Text>
           </View>
         </View>
 
         {/* Month Filter */}
-        <View style={styles.monthTabs}>
-          {months.map((month, idx) => (
-            <TouchableOpacity
-              key={month}
-              style={[styles.monthTab, activeMonth === idx && styles.activeMonthTab]}
-              onPress={() => setActiveMonth(idx)}
-            >
-              <Text style={[styles.monthTabText, activeMonth === idx && styles.activeMonthTabText]}>{month}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.monthTabsScroll}>
+          <View style={styles.monthTabs}>
+            {months.map((month, idx) => (
+              <TouchableOpacity
+                key={month}
+                style={[styles.monthTab, activeMonth === idx && styles.activeMonthTab]}
+                onPress={() => setActiveMonth(idx)}
+              >
+                <Text style={[styles.monthTabText, activeMonth === idx && styles.activeMonthTabText]}>{month}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
 
         {/* Sales Performance Chart */}
-        <Text style={styles.sectionTitle}>Sales Performance</Text>
+        <Text style={styles.sectionTitle}>Sales Performance by Product Type</Text>
         <LineChart
           data={lineChartData}
           width={Dimensions.get('window').width - 40}
@@ -93,57 +187,59 @@ const SalesPage = ({ navigation }) => {
             color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
             labelColor: (opacity = 1) => `rgba(0,0,0,${opacity})`,
             propsForDots: {
-              r: "6",
+              r: "4",
               strokeWidth: "2",
               stroke: "#fff"
-            },
-            yAxisInterval: 5000,
+            }
           }}
           bezier
-          fromZero
-          yLabelsOffset={10}
-          segments={5}
-          yAxisSuffix=""
-          yAxisInterval={5000}
-          style={{ borderRadius: 15, marginBottom: 20 }}
-          withShadow={false}
-          withInnerLines={true}
-          withOuterLines={true}
-          yAxisMax={25000}
+          style={{ borderRadius: 15, marginBottom: 10 }}
         />
+        
+        {/* Legend */}
+        {legendItems.length > 0 && (
+          <View style={styles.legendContainer}>
+            {legendItems.map((item, index) => (
+              <View key={index} style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                <Text style={styles.legendText}>{item.label}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Transactions Progress Bar */}
-        <Text style={styles.sectionTitle}>Transactions</Text>
+        <Text style={styles.sectionTitle}>Monthly Orders Progress</Text>
         <View style={styles.progressBarContainer}>
           <View style={styles.progressBarBackground}>
-            <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+            <View style={[styles.progressBarFill, { width: `${Math.min(progressPercent, 100)}%` }]} />
           </View>
-          <Text style={styles.progressText}>₱{progressValue} / ₱{progressMax} ({progressPercent}%)</Text>
+          <Text style={styles.progressText}>{progressValue} / {progressMax} orders ({progressPercent}%)</Text>
         </View>
 
         {/* Top Selling Products Bar Chart */}
-        <Text style={styles.sectionTitle}>Top Selling Products</Text>
-        <BarChart
-          data={barChartData}
-          width={Dimensions.get('window').width - 40}
-          height={220}
-          chartConfig={{
-            backgroundGradientFrom: "#fff",
-            backgroundGradientTo: "#fff",
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
-            labelColor: (opacity = 1) => `rgba(0,0,0,${opacity})`,
-            barPercentage: 0.5,
-          }}
-          fromZero
-          showValuesOnTopOfBars
-          style={{ borderRadius: 15, marginBottom: 80 }}
-          yAxisSuffix=""
-          yLabelsOffset={10}
-          segments={5}
-          yAxisInterval={5000}
-          yAxisMax={25000}
-        />
+        <Text style={styles.sectionTitle}>Top Selling Products (Revenue)</Text>
+        {topProducts.length > 0 ? (
+          <BarChart
+            data={barChartData}
+            width={Dimensions.get('window').width - 40}
+            height={220}
+            chartConfig={{
+              backgroundGradientFrom: "#fff",
+              backgroundGradientTo: "#fff",
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(210, 43, 43, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(0,0,0,${opacity})`,
+              barPercentage: 0.6,
+            }}
+            fromZero
+            showValuesOnTopOfBars
+            style={{ borderRadius: 15, marginBottom: 80 }}
+            yAxisLabel="₱"
+          />
+        ) : (
+          <Text style={styles.noDataText}>No product sales data yet</Text>
+        )}
       </ScrollView>
 
       {/* Bottom Navigation Bar */}
@@ -219,10 +315,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     opacity: 0.8,
   },
+  monthTabsScroll: {
+    marginBottom: 18,
+  },
   monthTabs: {
     flexDirection: 'row',
-    marginBottom: 18,
-    justifyContent: 'center',
+    paddingHorizontal: 5,
   },
   monthTab: {
     backgroundColor: '#eee',
@@ -288,6 +386,50 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
     color: '#555',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#888',
+    fontSize: 14,
+  },
+  legendContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+    paddingHorizontal: 10,
+    backgroundColor: '#f9f9f9',
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 15,
+    marginBottom: 5,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 6,
+  },
+  legendText: {
+    fontSize: 13,
+    color: '#333',
+    fontWeight: '500',
+  },
+  noDataText: {
+    color: '#888',
+    fontSize: 14,
+    textAlign: 'center',
+    marginVertical: 20,
   },
 });
 
