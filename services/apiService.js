@@ -239,6 +239,7 @@ class ApiService {
     if (Array.isArray(data)) {
       return data.map((s) => ({
         ...s,
+        id: s.id || s.store_id || s.storeId || null, // Map store_id to id
         name: s.name || s.store_name || s.storeName || s.store || null,
         address: s.address || s.location || s.city || null,
         image_url: s.image_url || s.logoUrl || s.logo_url || s.image || null,
