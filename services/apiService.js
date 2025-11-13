@@ -4,9 +4,8 @@ import { Platform } from 'react-native';
 // ✅ Configure API base URL
 const API_BASE_URL =
   Platform.OS === 'android'
-    ? 'http://192.168.1.10:3000/api'  // Android emulator uses 10.0.2.2 to access host's localhost
+    ? 'http://10.0.2.2:3000/api'  // Android emulator uses 10.0.2.2 to access host's localhost
     : 'http://localhost:3000/api';
-
 
 const TOKEN_KEY = '@app_auth_token';
 
@@ -132,13 +131,6 @@ class ApiService {
     });
   }
 
-  async verifyOTPAndRegisterVendor(userData) {
-    return this.request('/auth/vendor-verify-otp', {
-      method: 'POST',
-      body: JSON.stringify(userData),
-    });
-  }
-
   async login(username, password) {
     const responseData = await this.request('/auth/login', {
       method: 'POST',
@@ -255,10 +247,13 @@ class ApiService {
     if (data && typeof data === 'object') {
       return {
         ...data,
-        name: data.name || data.store_name || data.storeName || data.store || null,
+        name:
+          data.name || data.store_name || data.storeName || data.store || null,
         address: data.address || data.location || data.city || null,
-        image_url: data.image_url || data.logoUrl || data.logo_url || data.image || null,
-        logoUrl: data.logoUrl || data.image_url || data.logo_url || data.image || null,
+        image_url:
+          data.image_url || data.logoUrl || data.logo_url || data.image || null,
+        logoUrl:
+          data.logoUrl || data.image_url || data.logo_url || data.image || null,
         rating: data.rating ?? data.store_rating ?? data.avg_rating ?? 5.0,
       };
     }
@@ -267,32 +262,28 @@ class ApiService {
 
   // 🛍️ PRODUCTS
   async getProducts() {
-    const response = await this.request('/products');
-    const data = response.products || response;
+    const data = await this.request('/products');
     if (Array.isArray(data)) {
       return data.map((p) => ({
         ...p,
         id: p.id || p.product_id || p.uid || null,
         name: p.name || p.title || p.product_name || null,
-        image_url: p.image_url || p.image || p.imageUrl || p.product_image || null,
+        image_url: p.image_url || p.image || p.imageUrl || null,
         price: p.price ?? p.amount ?? null,
-        product_type: p.product_type || p.type || null,
       }));
     }
     return data;
   }
 
   async getProductsByStore(storeId) {
-    const response = await this.request(`/products/store/${storeId}`);
-    const data = response.products || response;
+    const data = await this.request(`/stores/${storeId}/products`);
     if (Array.isArray(data)) {
       return data.map((p) => ({
         ...p,
         id: p.id || p.product_id || p.uid || null,
         name: p.name || p.title || p.product_name || null,
-        image_url: p.image_url || p.image || p.imageUrl || p.product_image || null,
+        image_url: p.image_url || p.image || p.imageUrl || null,
         price: p.price ?? p.amount ?? null,
-        product_type: p.product_type || p.type || null,
       }));
     }
     return data;
@@ -323,7 +314,8 @@ class ApiService {
       return data.map((p) => ({
         id: p.id || p.product_id || p.uid || null,
         name: p.name || p.product_name || p.title || 'Unnamed Product',
-        image_url: p.image_url || p.image || p.imageUrl || 'https://via.placeholder.com/150',
+        image_url:
+          p.image_url || p.image || p.imageUrl || 'https://via.placeholder.com/150',
         total_sold: p.total_sold || p.quantity_sold || 0,
         price: p.price ?? p.amount ?? 0,
       }));
@@ -341,61 +333,22 @@ class ApiService {
   }
 
   // 💳 TRANSACTIONS
-  async getUserTransactions(userId, role) {
-    const url = role ? `/transactions/user/${userId}?role=${role}` : `/transactions/user/${userId}`;
-    return this.request(url);
+  async getUserTransactions(userId) {
+    return this.request(`/transactions/user/${userId}`);
+}
+
+  // ✅ NEW METHOD: Get all transactions for a specific store
+  async getStoreTransactions(storeId) {
+    if (!storeId) throw new Error('Missing storeId');
+    return this.request(`/transactions/store/${storeId}`);
   }
 
-  async generateTransactionQR(transactionData) {
-    console.log('API: Generating transaction QR with data:', transactionData);
-    try {
-      const response = await this.request('/transactions/generate-qr', {
-        method: 'POST',
-        body: JSON.stringify(transactionData),
-      });
-      console.log('API: QR generation response:', response);
-      return response;
-    } catch (error) {
-      console.error('API: QR generation error:', error);
-      throw error;
-    }
-  }
-
-  async processScannedQR(customerId, qrData) {
-    return this.request('/transactions/process-qr', {
-      method: 'POST',
-      body: JSON.stringify({
-        qr_data: qrData,
-        customer_id: customerId
-      }),
-    });
-  }
-
-  async processManualCode(customerId, shortCode) {
-    return this.request('/transactions/process-code', {
-      method: 'POST',
-      body: JSON.stringify({
-        short_code: shortCode,
-        customer_id: customerId
-      }),
-    });
-  }
-
-  // 💰 POINTS
-  async getUserPointsByStore(userId) {
-    return this.request(`/user/${userId}/points-by-store`);
-  }
-
+  // Create a new transaction
   async createTransaction(transactionData) {
     return this.request('/transactions', {
       method: 'POST',
       body: JSON.stringify(transactionData),
     });
-  }
-
-  // 🧠 HEALTH CHECK
-  async healthCheck() {
-    return this.request('/health');
   }
 }
 
