@@ -187,6 +187,28 @@ class ApiService {
     await this.removeToken();
   }
 
+  // 🔐 PASSWORD RESET
+  async sendPasswordResetOTP(email) {
+    return this.request('/auth/send-password-reset-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async verifyPasswordResetOTP(email, otp) {
+    return this.request('/auth/verify-password-reset-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    });
+  }
+
+  async changePassword(email, resetToken, newPassword) {
+    return this.request('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, resetToken, newPassword }),
+    });
+  }
+
   // 👤 USER PROFILE
   async getUserProfile(userId) {
     return this.request(`/user/profile/${userId}`);

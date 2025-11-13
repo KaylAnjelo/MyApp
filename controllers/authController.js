@@ -484,6 +484,159 @@ class AuthController {
   async getProfile(req, res) {
     return sendSuccess(res, { message: 'Profile endpoint' });
   }
+
+  // SEND PASSWORD RESET OTP
+  async sendPasswordResetOTP(req, res) {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return sendError(res, 'Email is required', 400);
+      }
+
+      // Check if user exists
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('user_id, username, user_email, first_name')
+        .eq('user_email', email)
+        .single();
+
+      if (error || !user) {
+        return sendError(res, 'No account found with this email', 404);
+      }
+
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Store OTP with 10-minute expiration
+      otpStore.set(email, {
+        code: otp,
+        expiresAt: Date.now() + 10 * 60 * 1000,
+        userId: user.user_id,
+        purpose: 'password-reset'
+      });
+
+      // Send OTP email
+      await emailService.sendOTP(email, otp, user.first_name || user.username);
+
+      return sendSuccess(res, {
+        message: 'Password reset OTP sent to your email',
+        email: email
+      });
+
+    } catch (error) {
+      console.error('Send password reset OTP error:', error);
+      return sendError(res, 'Failed to send OTP', 500);
+    }
+  }
+
+  // VERIFY PASSWORD RESET OTP
+  async verifyPasswordResetOTP(req, res) {
+    try {
+      const { email, otp } = req.body;
+
+      if (!email || !otp) {
+        return sendError(res, 'Email and OTP are required', 400);
+      }
+
+      const stored = otpStore.get(email);
+
+      if (!stored) {
+        return sendError(res, 'No OTP request found for this email', 400);
+      }
+
+      if (stored.purpose !== 'password-reset') {
+        return sendError(res, 'Invalid OTP purpose', 400);
+      }
+
+      if (Date.now() > stored.expiresAt) {
+        otpStore.delete(email);
+        return sendError(res, 'OTP has expired', 400);
+      }
+
+      if (stored.code !== otp) {
+        return sendError(res, 'Invalid OTP', 400);
+      }
+
+      // Generate a temporary token for password change
+      const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      
+      // Store reset token (expires in 15 minutes)
+      otpStore.set(`reset_${email}`, {
+        token: resetToken,
+        userId: stored.userId,
+        expiresAt: Date.now() + 15 * 60 * 1000
+      });
+
+      // Clear OTP
+      otpStore.delete(email);
+
+      return sendSuccess(res, {
+        message: 'OTP verified successfully',
+        resetToken: resetToken,
+        userId: stored.userId
+      });
+
+    } catch (error) {
+      console.error('Verify password reset OTP error:', error);
+      return sendError(res, 'Failed to verify OTP', 500);
+    }
+  }
+
+  // CHANGE PASSWORD
+  async changePassword(req, res) {
+    try {
+      const { email, resetToken, newPassword } = req.body;
+
+      if (!email || !resetToken || !newPassword) {
+        return sendError(res, 'Email, reset token, and new password are required', 400);
+      }
+
+      if (newPassword.length < 6) {
+        return sendError(res, 'Password must be at least 6 characters long', 400);
+      }
+
+      // Verify reset token
+      const stored = otpStore.get(`reset_${email}`);
+
+      if (!stored) {
+        return sendError(res, 'Invalid or expired reset token', 400);
+      }
+
+      if (stored.token !== resetToken) {
+        return sendError(res, 'Invalid reset token', 400);
+      }
+
+      if (Date.now() > stored.expiresAt) {
+        otpStore.delete(`reset_${email}`);
+        return sendError(res, 'Reset token has expired', 400);
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password in database
+      const { error } = await supabase
+        .from('users')
+        .update({ password: hashedPassword })
+        .eq('user_id', stored.userId);
+
+      if (error) {
+        return sendError(res, 'Failed to update password', 500);
+      }
+
+      // Clear reset token
+      otpStore.delete(`reset_${email}`);
+
+      return sendSuccess(res, {
+        message: 'Password changed successfully'
+      });
+
+    } catch (error) {
+      console.error('Change password error:', error);
+      return sendError(res, 'Failed to change password', 500);
+    }
+  }
 }
 
 module.exports = new AuthController();

@@ -221,7 +221,11 @@ export default function ProfilePageScreen({ navigation }) {
           </View>
 
           <Text style={styles.blockTitle}>Security</Text>
-          <TouchableOpacity style={styles.settingsRow} activeOpacity={0.8}>
+          <TouchableOpacity 
+            style={styles.settingsRow} 
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('ChangePassword', { email: displayEmail })}
+          >
             <Text style={styles.settingsText}>Change Password</Text>
             <FontAwesome name="chevron-right" size={14} color={Colors.textSecondary} />
           </TouchableOpacity>
