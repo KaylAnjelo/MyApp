@@ -24,6 +24,7 @@ import ScannerScreen from './customer_screens/ScannerScreen';
 import CreateOrderScreen from './vendor_screens/AddMenuPage';
 import PointsHistoryScreen from './customer_screens/PointsHistoryScreen';
 import TransactionDetailsScreen from './customer_screens/TransactionDetailsScreen';
+import VendorTransactionDetail from './vendor_screens/VendorTransactionDetailScreen';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -35,15 +36,15 @@ export default function App() {
         <Stack.Screen name="SignUp" component={SignUpUserTypeScreen} />
         <Stack.Screen name="SignIn" component={SignInScreen} />
         <Stack.Screen name="HomePage" component={HomePageScreen} />   
-  <Stack.Screen name="Stores" component={StoresScreen} />
-  <Stack.Screen name="SpecificStore" component={SpecificStoreScreen} />
+        <Stack.Screen name="Stores" component={StoresScreen} />
+        <Stack.Screen name="SpecificStore" component={SpecificStoreScreen} />
         <Stack.Screen name="AllProducts" component={AllProductsScreen} />
         <Stack.Screen name="SignUpVendor" component={SignUpVendorScreen} />
         <Stack.Screen name="SignUpCustomer" component={SignUpCustomerScreen} />
         <Stack.Screen name="MyPoints" component={MyPointsScreen} />
         <Stack.Screen name="MyRewards" component={MyRewardsPage} />
         <Stack.Screen name="ProfilePage" component={ProfilePageScreen} />
-  <Stack.Screen name="ActivityScreen" component={ActivityScreen} />
+        <Stack.Screen name="ActivityScreen" component={ActivityScreen} />
         <Stack.Screen name="VendorHomePage" component={VendorHomePage} />
         <Stack.Screen name="SalesPage" component={SalesPage} />
         <Stack.Screen name="VendorProfilePage" component={VendorProfilePage} />
@@ -52,6 +53,7 @@ export default function App() {
         <Stack.Screen name="CreateOrder" component={CreateOrderScreen} />
         <Stack.Screen name="PointsHistory" component={PointsHistoryScreen} />
         <Stack.Screen name="TransactionDetails" component={TransactionDetailsScreen} />
+        <Stack.Screen name="VTransactionDetail" component={VendorTransactionDetail} />
 
       </Stack.Navigator>
     </NavigationContainer>
