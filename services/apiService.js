@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 // ✅ Configure API base URL
 const API_BASE_URL =
   Platform.OS === 'android'
-    ? 'http://192.168.1.10:3000/api'  // Android emulator uses 10.0.2.2 to access host's localhost
+    ? 'http://192.168.1.10:3000/api'  // For physical device on same network. Use 10.0.2.2 for android emulator
     : 'http://localhost:3000/api';
 
 const TOKEN_KEY = '@app_auth_token';
@@ -177,6 +177,28 @@ class ApiService {
 
   async logout() {
     await this.removeToken();
+  }
+
+  // 🔐 PASSWORD RESET
+  async sendPasswordResetOTP(email) {
+    return this.request('/auth/send-password-reset-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async verifyPasswordResetOTP(email, otp) {
+    return this.request('/auth/verify-password-reset-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    });
+  }
+
+  async changePassword(email, resetToken, newPassword) {
+    return this.request('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, resetToken, newPassword }),
+    });
   }
 
   // 👤 USER PROFILE
