@@ -336,39 +336,7 @@ export default function VendorProfilePage({ navigation }) {
   };
 
   const handleEditProfile = () => Alert.alert('Edit Profile', 'Profile editing will be implemented');
-  // 🔐 Password change handler
-  const handleChangePassword = async () => {
-    if (!profile?.email && !profile?.user_email) {
-      Alert.alert('Error', 'No email found in your profile. Please contact support.');
-      return;
-    }
-
-    Alert.alert(
-      'Change Password',
-      'We will send a verification code to your email before you can change your password. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Continue',
-          onPress: async () => {
-            try {
-              const response = await apiService.requestPasswordChangeVerification();
-              if (response.success) {
-                navigation.navigate('PasswordVerificationScreen', {
-                  email: response.email
-                });
-              } else {
-                Alert.alert('Error', response.message || 'Failed to send verification code');
-              }
-            } catch (error) {
-              console.error('Password change request error:', error);
-              Alert.alert('Error', 'Failed to request password change. Please try again.');
-            }
-          }
-        }
-      ]
-    );
-  };
+  const handleChangePassword = () => Alert.alert('Change Password', 'Password change will be implemented');
 
   // 📝 Name editing functions
   const handleEditName = () => {

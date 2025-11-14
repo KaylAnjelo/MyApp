@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { launchImageLibrary } from 'react-native-image-picker';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
@@ -11,10 +11,6 @@ export default function ProfilePageScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [profileError, setProfileError] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [tempFirstName, setTempFirstName] = useState('');
-  const [tempLastName, setTempLastName] = useState('');
-  const [updatingName, setUpdatingName] = useState(false);
 
   const displayName =
     (profile &&
@@ -261,91 +257,6 @@ export default function ProfilePageScreen({ navigation }) {
     );
   };
 
-  // 📝 Name editing functions
-  const handleEditName = () => {
-    setTempFirstName(profile?.first_name || '');
-    setTempLastName(profile?.last_name || '');
-    setIsEditingName(true);
-  };
-
-  const handleCancelEditName = () => {
-    setIsEditingName(false);
-    setTempFirstName('');
-    setTempLastName('');
-  };
-
-  const handleSaveName = async () => {
-    if (!tempFirstName.trim() || !tempLastName.trim()) {
-      Alert.alert('Error', 'Both first name and last name are required');
-      return;
-    }
-
-    setUpdatingName(true);
-    try {
-      const response = await apiService.updateProfile({
-        first_name: tempFirstName.trim(),
-        last_name: tempLastName.trim()
-      });
-
-      if (response.success || response.user || response.message) {
-        const updatedProfile = {
-          ...profile,
-          first_name: tempFirstName.trim(),
-          last_name: tempLastName.trim()
-        };
-        
-        setProfile(updatedProfile);
-        setIsEditingName(false);
-        
-        // Update AsyncStorage to keep local data in sync
-        await AsyncStorage.setItem('@app_user', JSON.stringify(updatedProfile));
-        
-        Alert.alert('Success', 'Name updated successfully');
-      } else {
-        Alert.alert('Error', response.message || 'Failed to update name');
-      }
-    } catch (error) {
-      console.error('Update name error:', error);
-      Alert.alert('Error', 'Failed to update name. Please try again.');
-    } finally {
-      setUpdatingName(false);
-    }
-  };
-
-  // 🔐 Password change handler
-  const handleChangePassword = async () => {
-    if (!profile?.email && !profile?.user_email) {
-      Alert.alert('Error', 'No email found in your profile. Please contact support.');
-      return;
-    }
-
-    Alert.alert(
-      'Change Password',
-      'We will send a verification code to your email before you can change your password. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Continue',
-          onPress: async () => {
-            try {
-              const response = await apiService.requestPasswordChangeVerification();
-              if (response.success) {
-                navigation.navigate('PasswordVerificationScreen', {
-                  email: response.email
-                });
-              } else {
-                Alert.alert('Error', response.message || 'Failed to send verification code');
-              }
-            } catch (error) {
-              console.error('Password change request error:', error);
-              Alert.alert('Error', 'Failed to request password change. Please try again.');
-            }
-          }
-        }
-      ]
-    );
-  };
-
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.pageContent}>
@@ -404,55 +315,9 @@ export default function ProfilePageScreen({ navigation }) {
 
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Name</Text>
-            {isEditingName ? (
-              <View style={styles.editNameContainer}>
-                <TextInput
-                  style={styles.nameInput}
-                  value={tempFirstName}
-                  onChangeText={setTempFirstName}
-                  placeholder="First Name"
-                  placeholderTextColor={Colors.textSecondary}
-                />
-                <TextInput
-                  style={styles.nameInput}
-                  value={tempLastName}
-                  onChangeText={setTempLastName}
-                  placeholder="Last Name"
-                  placeholderTextColor={Colors.textSecondary}
-                />
-                <View style={styles.editButtonsRow}>
-                  <TouchableOpacity 
-                    style={styles.cancelButton}
-                    onPress={handleCancelEditName}
-                    disabled={updatingName}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.saveButton, updatingName && styles.saveButtonDisabled]}
-                    onPress={handleSaveName}
-                    disabled={updatingName}
-                  >
-                    {updatingName ? (
-                      <ActivityIndicator size="small" color={Colors.white} />
-                    ) : (
-                      <Text style={styles.saveButtonText}>Save</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.infoValueBox}>
-                <Text style={styles.infoValue}>{displayName}</Text>
-                <TouchableOpacity 
-                  style={styles.editTextButton}
-                  onPress={handleEditName}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.editButtonText}>Edit</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            <View style={styles.infoValueBox}>
+              <Text style={styles.infoValue}>{displayName}</Text>
+            </View>
           </View>
 
           <View style={styles.infoRow}>
@@ -463,11 +328,7 @@ export default function ProfilePageScreen({ navigation }) {
           </View>
 
           <Text style={styles.blockTitle}>Security</Text>
-          <TouchableOpacity 
-            style={styles.settingsRow} 
-            activeOpacity={0.8}
-            onPress={handleChangePassword}
-          >
+          <TouchableOpacity style={styles.settingsRow} activeOpacity={0.8}>
             <Text style={styles.settingsText}>Change Password</Text>
             <FontAwesome name="chevron-right" size={14} color={Colors.textSecondary} />
           </TouchableOpacity>
@@ -641,69 +502,8 @@ const styles = StyleSheet.create({
     borderRadius: Radii.md,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xl,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
-  infoValue: { fontSize: Typography.body, color: Colors.textSecondary, flex: 1 },
-  editTextButton: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-  },
-  editButtonText: {
-    fontSize: Typography.small,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  editNameContainer: {
-    flex: 1,
-  },
-  nameInput: {
-    backgroundColor: '#fff',
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    fontSize: Typography.body,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
-  },
-  editButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-  cancelButton: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radii.sm,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    backgroundColor: '#fff',
-  },
-  cancelButtonText: {
-    color: '#666',
-    fontSize: Typography.small,
-    fontWeight: '500',
-  },
-  saveButton: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radii.sm,
-    backgroundColor: Colors.primary,
-    minWidth: 60,
-    alignItems: 'center',
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  saveButtonText: {
-    color: Colors.white,
-    fontSize: Typography.small,
-    fontWeight: '600',
-  },
+  infoValue: { fontSize: Typography.body, color: Colors.textSecondary, textAlign: 'right' },
   errorBanner: {
     backgroundColor: '#ffe6e6',
     borderRadius: Radii.md,

@@ -95,7 +95,7 @@ export default function TransactionDetailsScreen({ route, navigation }) {
         <View style={{ width: 22 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content}>
         {loading ? (
           <Text style={styles.muted}>Loading...</Text>
         ) : error ? (
@@ -166,7 +166,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: { color: Colors.white, fontSize: Typography.h3, fontWeight: 'bold' },
-  content: { padding: Spacing.lg, paddingBottom: Spacing.quad },
+  content: { 
+    flexGrow: 1,
+    padding: Spacing.lg, 
+    paddingBottom: Spacing.sm 
+  },
   muted: { color: Colors.textSecondary },
   error: { color: 'red' },
   card: { backgroundColor: Colors.white, borderRadius: Radii.md, ...Shadows.light },
