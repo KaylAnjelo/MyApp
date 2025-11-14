@@ -153,7 +153,7 @@ export default function VendorTransactionDetailScreen({ route, navigation }) {
             </View>
 
             {/* Transaction Type Section */}
-            <View style={styles.section}>
+            <View style={styles.typeSection}>
               <View style={[styles.typeContainer, {
                 backgroundColor: grouped.type === 'Purchase' ? '#E8F5E8' : '#FFEBEE'
               }]}>
@@ -274,10 +274,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
+  typeSection: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
   typeContainer: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
   },
   itemsSection: {

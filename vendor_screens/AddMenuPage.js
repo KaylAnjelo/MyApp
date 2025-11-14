@@ -11,7 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Icon from 'react-native-vector-icons/Ionicons';
 import QRCode from 'react-native-qrcode-svg';
 import apiService from '../services/apiService';
 
@@ -30,7 +30,7 @@ const MenuItemTile = ({itemName, price, onAdd}) => (
       <Text style={styles.itemPrice}>₱ {price}</Text>
       {/* Add Button */}
       <TouchableOpacity style={styles.addButton} onPress={onAdd}>
-        <MaterialIcons name="add" size={20} color="#FFFFFF" />
+        <Icon name="add" size={20} color="#FFFFFF" />
       </TouchableOpacity>
     </View>
     <View style={styles.divider} />
@@ -209,7 +209,7 @@ const CreateOrderScreen = ({ navigation }) => {
       <ScrollView style={styles.body}>
         {products.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="inventory-2" size={60} color="#ccc" />
+            <Icon name="cube-outline" size={60} color="#ccc" />
             <Text style={styles.emptyText}>No products available</Text>
             <Text style={styles.emptySubtext}>Add products to your store menu</Text>
           </View>
@@ -237,7 +237,7 @@ const CreateOrderScreen = ({ navigation }) => {
         <View style={styles.cartInfoContainer}>
           <View>
             {/* Cart Icon */}
-            <MaterialIcons name="shopping-cart" size={28} color="#FFFFFF" />
+            <Icon name="cart" size={28} color="#FFFFFF" />
             
             {/* Cart Count Badge */}
             {getCartItemCount() > 0 && (
@@ -303,23 +303,23 @@ const CreateOrderScreen = ({ navigation }) => {
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('VendorHomePage')}>
-          <MaterialIcons name="home" size={22} color="#555" />
+          <Icon name="home" size={22} color="#555" />
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('SalesPage')}>
-          <MaterialIcons name="bar-chart" size={22} color="#555" />
+          <Icon name="stats-chart-outline" size={22} color="#555" />
           <Text style={styles.navText}>Sales</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem}>
-          <MaterialIcons name="add-circle-outline" size={22} color="#7D0006" />
-          <Text style={[styles.navText, { color: '#7D0006', fontWeight: 'bold' }]}>Create</Text>
+          <Icon name="add-circle-outline" size={22} color="#8B0000" />
+          <Text style={[styles.navText, { color: '#8B0000', fontWeight: 'bold' }]}>Create</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('TransactionPage')}>
-          <MaterialIcons name="receipt" size={22} color="#555" />
+          <Icon name="receipt-outline" size={22} color="#555" />
           <Text style={styles.navText}>Transactions</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('VendorProfilePage')}>
-          <MaterialIcons name="person-outline" size={22} color="#555" />
+          <Icon name="person-outline" size={22} color="#555" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
       </View>

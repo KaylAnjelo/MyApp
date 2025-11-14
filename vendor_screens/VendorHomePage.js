@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ordersCard: {
-    backgroundColor: '#991A1A',
+    backgroundColor: Colors.primary,
   },
   statValue: {
     fontSize: 24,
