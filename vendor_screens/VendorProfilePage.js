@@ -335,7 +335,6 @@ export default function VendorProfilePage({ navigation }) {
     }
   };
 
-  const handleEditProfile = () => Alert.alert('Edit Profile', 'Profile editing will be implemented');
   const handleChangePassword = () => Alert.alert('Change Password', 'Password change will be implemented');
 
   // 📝 Name editing functions
