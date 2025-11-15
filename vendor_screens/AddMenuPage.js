@@ -184,9 +184,11 @@ const CreateOrderScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <View style={{width: 24}} />
+          {/* Removed inline comment: was "Left spacer for centering" */}
+          <View style={{width: 24}} /> 
           <Text style={styles.headerTitle}>Create Order</Text>
-          <View style={{width: 24}} />
+          {/* Removed inline comment: was "Right spacer for centering" */}
+          <View style={{width: 24}} /> 
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={PRIMARY_RED} />
@@ -200,9 +202,11 @@ const CreateOrderScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       {/* --- Header (App Bar) --- */}
       <View style={styles.header}>
-        <View style={{width: 24}} /> {/* Left spacer for centering */}
+        {/* Left spacer for centering - FIX: Removed inline comment that caused string error */}
+        <View style={{width: 24}} /> 
         <Text style={styles.headerTitle}>Create Order</Text>
-        <View style={{width: 24}} /> {/* Right spacer for centering */}
+        {/* Right spacer for centering - FIX: Removed inline comment that caused string error */}
+        <View style={{width: 24}} /> 
       </View>
 
       {/* --- Body (Scrollable Menu List) --- */}
@@ -302,26 +306,32 @@ const CreateOrderScreen = ({ navigation }) => {
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
+
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('VendorHomePage')}>
           <Icon name="home" size={22} color="#555" />
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('SalesPage')}>
           <Icon name="stats-chart-outline" size={22} color="#555" />
           <Text style={styles.navText}>Sales</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem}>
           <Icon name="add-circle-outline" size={22} color="#8B0000" />
           <Text style={[styles.navText, { color: '#8B0000', fontWeight: 'bold' }]}>Create</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('TransactionPage')}>
           <Icon name="receipt-outline" size={22} color="#555" />
           <Text style={styles.navText}>Transactions</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('VendorProfilePage')}>
           <Icon name="person-outline" size={22} color="#555" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
+        
       </View>
     </SafeAreaView>
   );

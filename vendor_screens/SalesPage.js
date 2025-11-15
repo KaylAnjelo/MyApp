@@ -244,26 +244,32 @@ const SalesPage = ({ navigation }) => {
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
+
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('VendorHomePage')}>
           <Icon name="home" size={22} color="#555" />
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('SalesPage')}>
           <Icon name="stats-chart-outline" size={22} color={Colors.primary} />
           <Text style={[styles.navText, { color: Colors.primary, fontWeight: 'bold' }]}>Sales</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('CreateOrder')}>
           <Icon name="add-circle-outline" size={22} color="#555" />
           <Text style={styles.navText}>Create</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('TransactionPage')}>
           <Icon name="receipt-outline" size={22} color="#555" />
           <Text style={styles.navText}>Transactions</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('VendorProfilePage')}>
           <Icon name="person-outline" size={22} color="#555" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
+        
       </View>
     </SafeAreaView>
   );
