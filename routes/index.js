@@ -5,6 +5,8 @@ const { sendSuccess, sendError } = require('../utils/response');
 // Import route modules
 const authRoutes = require('./authRoutes');
 const userRoutes = require('./userRoutes');
+const promotionRoutes = require('./promotionRoutes');
+const rewardRoutes = require('./rewardRoutes');
 
 const router = express.Router();
 
@@ -32,6 +34,8 @@ router.get('/health', async (req, res) => {
 
 // Mount route modules
 router.use('/auth', authRoutes);
+router.use('/promotions', promotionRoutes);
+router.use('/rewards', rewardRoutes);
 router.use('/', userRoutes);
 
 module.exports = router;

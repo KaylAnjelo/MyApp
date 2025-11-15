@@ -412,6 +412,60 @@ class ApiService {
   async processManualCode(customerId, code) {
     return this.processShortCode(customerId, code);
   }
+
+  // 🎁 PROMOTIONS
+  async getPromotions() {
+    return this.request('/promotions');
+  }
+
+  async getPromotionsByStore(storeId) {
+    return this.request(`/promotions/store/${storeId}`);
+  }
+
+  async getPromotion(promotionId) {
+    return this.request(`/promotions/${promotionId}`);
+  }
+
+  async validatePromotion(promotionId, storeId, purchaseAmount) {
+    return this.request('/promotions/validate', {
+      method: 'POST',
+      body: JSON.stringify({ promotionId, storeId, purchaseAmount }),
+    });
+  }
+
+  async usePromotion(promotionId) {
+    return this.request(`/promotions/use/${promotionId}`, {
+      method: 'POST',
+    });
+  }
+
+  // 🎁 REWARDS
+  async getRewards() {
+    return this.request('/rewards');
+  }
+
+  async getRewardsByStore(storeId) {
+    return this.request(`/rewards/store/${storeId}`);
+  }
+
+  async getReward(rewardId) {
+    return this.request(`/rewards/${rewardId}`);
+  }
+
+  async getAvailableRewards(customerId) {
+    return this.request(`/rewards/customer/${customerId}/available`);
+  }
+
+  async redeemReward(customerId, rewardId, storeId, ownerId) {
+    return this.request('/rewards/redeem', {
+      method: 'POST',
+      body: JSON.stringify({ customerId, rewardId, storeId, ownerId }),
+    });
+  }
+
+  async getRedemptionHistory(customerId) {
+    return this.request(`/rewards/customer/${customerId}/history`);
+  }
 }
 
 const apiService = new ApiService();
