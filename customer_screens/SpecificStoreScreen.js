@@ -39,7 +39,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
         // Test network connectivity first
         console.log('=== TESTING NETWORK CONNECTIVITY ===');
         try {
-          const healthUrl = Platform.OS === 'android' ? 'http://192.168.1.10:3000/health' : 'http://localhost:3000/health';
+          const healthUrl = Platform.OS === 'android' ? 'http://10.0.2.2:3000/health' : 'http://localhost:3000/health';
           console.log('Testing health endpoint:', healthUrl);
           const healthResponse = await fetch(healthUrl);
           const healthText = await healthResponse.text();

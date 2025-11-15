@@ -232,47 +232,31 @@ const TransactionPage = ({ navigation }) => {
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate('VendorHomePage')}
-        >
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('VendorHomePage')}>
           <FontAwesome name="home" size={22} color="#555" />
           <Text style={styles.navText}>Home</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate('SalesPage')}
-        >
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('SalesPage')}>
           <FontAwesome name="stats-chart-outline" size={22} color="#555" />
           <Text style={styles.navText}>Sales</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate('CreateOrder')}
-        >
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('CreateOrder')}>
           <FontAwesome name="add-circle-outline" size={22} color="#555" />
           <Text style={styles.navText}>Create</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate('TransactionPage')}
-        >
+        <TouchableOpacity style={styles.navItem}onPress={() => navigation.navigate('TransactionPage')}>
           <FontAwesome name="receipt-outline" size={22} color={Colors.primary} />
-          <Text style={[styles.navText, { color: Colors.primary, fontWeight: 'bold' }]}>
-            Transaction
-          </Text>
+          <Text style={[styles.navText, { color: Colors.primary, fontWeight: 'bold' }]}>Transaction</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => navigation.navigate('VendorProfilePage')}
-        >
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('VendorProfilePage')}>
           <FontAwesome name="person-outline" size={22} color="#555" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
+        
       </View>
     </SafeAreaView>
   );
