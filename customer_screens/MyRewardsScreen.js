@@ -84,26 +84,43 @@ export default function MyRewardsScreen({ navigation }) {
             ) : (
               <View>
                 {rewards.map((reward, idx) => (
-                  <View key={reward.redemption_id || `reward-${idx}`} style={styles.rewardItem}>
-                    <View style={styles.rewardItemLeft}>
-                      <FontAwesome name="gift" size={18} color={Colors.primary} />
+                  <View key={reward.redemption_id || `reward-${idx}`} style={styles.rewardCard}>
+                    <View style={styles.rewardCardHeader}>
+                      <View style={styles.rewardIconContainer}>
+                        <FontAwesome name="gift" size={24} color={Colors.primary} />
+                      </View>
                       <View style={styles.rewardInfo}>
-                        <Text style={styles.rewardItemTitle}>{reward.description || 'Reward'}</Text>
-                        <Text style={styles.rewardPoints}>{reward.points_used} points • {reward.status}</Text>
-                        {reward.redeemed_at && (
+                        <Text style={styles.rewardItemTitle}>{reward.reward_name || reward.description || 'Reward'}</Text>
+                        {reward.store_name && (
+                          <Text style={styles.storeName}>{reward.store_name}</Text>
+                        )}
+                        <View style={styles.rewardMeta}>
+                          <View style={styles.pointsBadge}>
+                            <Text style={styles.pointsBadgeText}>{reward.points_used} pts</Text>
+                          </View>
+                          <View style={[styles.statusBadge, { backgroundColor: reward.status === 'completed' ? '#e8f5e9' : '#fff3e0' }]}>
+                            <Text style={[styles.statusText, { color: reward.status === 'completed' ? '#2e7d32' : '#e65100' }]}>
+                              {reward.status.charAt(0).toUpperCase() + reward.status.slice(1)}
+                            </Text>
+                          </View>
+                        </View>
+                        {reward.redemption_date && (
                           <Text style={styles.rewardDate}>
-                            Redeemed: {new Date(reward.redeemed_at).toLocaleDateString()}
+                            {new Date(reward.redemption_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </Text>
                         )}
                       </View>
                     </View>
-                    <TouchableOpacity 
-                      style={styles.useButton} 
-                      activeOpacity={0.8} 
-                      onPress={() => Alert.alert('Use Reward', 'Show this to the store owner to claim your reward')}
-                    >
-                      <Text style={styles.useText}>Use</Text>
-                    </TouchableOpacity>
+                    {reward.status === 'pending' && (
+                      <TouchableOpacity 
+                        style={styles.useButton} 
+                        activeOpacity={0.7} 
+                        onPress={() => Alert.alert('Use Reward', 'Show this to the store owner to claim your reward')}
+                      >
+                        <Text style={styles.useText}>Show to Vendor</Text>
+                        <FontAwesome name="chevron-right" size={14} color="#fff" style={{ marginLeft: 8 }} />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 ))}
               </View>
@@ -197,50 +214,93 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
   },
-  rewardItem: {
+  rewardCard: {
     backgroundColor: Colors.white,
-    borderRadius: Radii.md,
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    borderRadius: Radii.lg,
+    padding: Spacing.lg,
     marginBottom: Spacing.md,
-    ...Shadows.light,
+    ...Shadows.medium,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
-  rewardItemLeft: {
+  rewardCardHeader: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.md,
+  },
+  rewardIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: Radii.md,
+    backgroundColor: '#fff3e0',
     alignItems: 'center',
-    gap: 10,
-    flex: 1,
+    justifyContent: 'center',
+    marginRight: Spacing.md,
   },
   rewardInfo: {
-    marginLeft: 10,
     flex: 1,
   },
   rewardItemTitle: {
-    fontSize: Typography.body,
+    fontSize: Typography.h4,
     color: Colors.textPrimary,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginBottom: 4,
   },
-  rewardPoints: {
+  storeName: {
     fontSize: Typography.small,
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginBottom: Spacing.sm,
+  },
+  rewardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 8,
+  },
+  pointsBadge: {
+    backgroundColor: '#e3f2fd',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: Radii.sm,
+    borderWidth: 1,
+    borderColor: '#2196f3',
+  },
+  pointsBadgeText: {
+    fontSize: 12,
+    color: '#1565c0',
+    fontWeight: '600',
+  },
+  statusBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: Radii.sm,
+    borderWidth: 1,
+    borderColor: '#ffb74d',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   rewardDate: {
     fontSize: 12,
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginTop: Spacing.sm,
   },
   useButton: {
     backgroundColor: Colors.primary,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: Radii.sm,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: Radii.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadows.light,
+    marginTop: Spacing.sm,
   },
   useText: {
     color: Colors.white,
+    fontWeight: '600',
+    fontSize: Typography.body,
     fontWeight: '700',
     fontSize: Typography.small,
   },

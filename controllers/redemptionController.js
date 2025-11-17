@@ -213,6 +213,26 @@ class RedemptionController {
         return sendError(res, 'Missing required fields: customerId, rewardId, storeId, ownerId', 400);
       }
 
+      // Check if customer has already redeemed this reward
+      const { data: existingRedemption, error: redemptionCheckError } = await supabase
+        .from('redemptions')
+        .select('redemption_id, status')
+        .eq('customer_id', customerId)
+        .eq('reward_id', rewardId)
+        .in('status', ['pending', 'completed']);
+
+      if (redemptionCheckError) {
+        console.error('Error checking existing redemption:', redemptionCheckError);
+        return sendError(res, 'Failed to check redemption history', 500, redemptionCheckError.message);
+      }
+
+      if (existingRedemption && existingRedemption.length > 0) {
+        const redemption = existingRedemption[0];
+        return sendError(res, `You have already redeemed this reward. Status: ${redemption.status}`, 400);
+      }
+
+      console.log('No existing redemption found. Proceeding...');
+
       // Get reward details
       const { data: reward, error: rewardError } = await supabase
         .from('rewards')
