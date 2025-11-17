@@ -2,6 +2,12 @@ const { supabase } = require('../config/supabase');
 const { sendSuccess, sendError } = require('../utils/response');
 const crypto = require('crypto');
 
+// Initialize global pending transactions map
+if (!global.pendingTransactions) {
+  global.pendingTransactions = new Map();
+  console.log('[TransactionController] Initialized pendingTransactions map');
+}
+
 // Helper functions moved outside class
 function generateReferenceNumber() {
   const timestamp = Date.now();
@@ -344,7 +350,10 @@ class TransactionController {  // CREATE transaction and generate QR data
 
       const codeUpper = short_code.toUpperCase().trim();
       console.log('Looking for code:', codeUpper);
-      console.log('Available codes:', Array.from(global.pendingTransactions.keys()));      // Get transaction data from cache
+      console.log('Available codes:', Array.from(global.pendingTransactions.keys()));
+      console.log('Total codes in cache:', global.pendingTransactions.size);
+
+      // Get transaction data from cache
       const pending = global.pendingTransactions.get(codeUpper);
       
       if (!pending) {
