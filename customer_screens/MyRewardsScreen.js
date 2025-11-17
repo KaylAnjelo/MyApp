@@ -55,6 +55,37 @@ export default function MyRewardsScreen({ navigation }) {
     }
   };
 
+  const handleUseReward = (reward) => {
+    Alert.alert(
+      'Use Reward',
+      `Are you sure you want to use this reward?\n\n"${reward.reward_name || reward.description}"\n\nShow the code below to the vendor to claim your reward.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Show Code',
+          onPress: () => {
+            // Show the redemption code
+            const redemptionCode = reward.redemption_id ? `RWD-${reward.redemption_id}` : 'N/A';
+            Alert.alert(
+              'Redemption Code',
+              `Show this code to the vendor:\n\n${redemptionCode}\n\nStore: ${reward.store_name || 'Unknown'}\nPoints Used: ${reward.points_used}`,
+              [
+                {
+                  text: 'Done',
+                  style: 'default'
+                }
+              ],
+              { cancelable: false }
+            );
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.pageContent}>
@@ -98,11 +129,6 @@ export default function MyRewardsScreen({ navigation }) {
                           <View style={styles.pointsBadge}>
                             <Text style={styles.pointsBadgeText}>{reward.points_used} pts</Text>
                           </View>
-                          <View style={[styles.statusBadge, { backgroundColor: reward.status === 'completed' ? '#e8f5e9' : '#fff3e0' }]}>
-                            <Text style={[styles.statusText, { color: reward.status === 'completed' ? '#2e7d32' : '#e65100' }]}>
-                              {reward.status.charAt(0).toUpperCase() + reward.status.slice(1)}
-                            </Text>
-                          </View>
                         </View>
                         {reward.redemption_date && (
                           <Text style={styles.rewardDate}>
@@ -115,10 +141,10 @@ export default function MyRewardsScreen({ navigation }) {
                       <TouchableOpacity 
                         style={styles.useButton} 
                         activeOpacity={0.7} 
-                        onPress={() => Alert.alert('Use Reward', 'Show this to the store owner to claim your reward')}
+                        onPress={() => handleUseReward(reward)}
                       >
-                        <Text style={styles.useText}>Show to Vendor</Text>
-                        <FontAwesome name="chevron-right" size={14} color="#fff" style={{ marginLeft: 8 }} />
+                        <Text style={styles.useText}>Use</Text>
+                        <FontAwesome name="chevron-right" size={14} color={Colors.white} style={{ marginLeft: 6 }} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -180,15 +206,13 @@ const styles = StyleSheet.create({
   },
   whiteBox: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: '#f5f5f5',
     marginTop: 0,
   },
   whiteContent: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.quad * 2,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
   },
   rewardsCard: {
     backgroundColor: Colors.white,
@@ -221,12 +245,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     ...Shadows.medium,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
+    borderColor: '#e0e0e0',
   },
   rewardCardHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: Spacing.md,
   },
   rewardIconContainer: {
     width: 48,
@@ -262,8 +285,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: Radii.sm,
-    borderWidth: 1,
-    borderColor: '#2196f3',
   },
   pointsBadgeText: {
     fontSize: 12,
@@ -274,8 +295,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: Radii.sm,
-    borderWidth: 1,
-    borderColor: '#ffb74d',
   },
   statusText: {
     fontSize: 12,
@@ -289,20 +308,19 @@ const styles = StyleSheet.create({
   useButton: {
     backgroundColor: Colors.primary,
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     borderRadius: Radii.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'stretch',
+    marginTop: Spacing.md,
     ...Shadows.light,
-    marginTop: Spacing.sm,
   },
   useText: {
     color: Colors.white,
-    fontWeight: '600',
-    fontSize: Typography.body,
     fontWeight: '700',
-    fontSize: Typography.small,
+    fontSize: Typography.body,
   },
   redeemButton: {
     backgroundColor: Colors.primary,
