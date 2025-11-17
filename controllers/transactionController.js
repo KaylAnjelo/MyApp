@@ -342,11 +342,9 @@ class TransactionController {  // CREATE transaction and generate QR data
         return sendError(res, 'Invalid or expired code. Please generate a new code.', 400);
       }
 
-      const codeUpper = short_code.toUpperCase();
-      console.log('Looking for code:', codeUpper);
-      console.log('Available codes:', Array.from(global.pendingTransactions.keys()));
-
-      // Get transaction data from cache
+      const codeUpper = short_code.toUpperCase().trim();
+      console.log('Looking for code:', codeUpper);
+      console.log('Available codes:', Array.from(global.pendingTransactions.keys()));      // Get transaction data from cache
       const pending = global.pendingTransactions.get(codeUpper);
       
       if (!pending) {
@@ -354,13 +352,14 @@ class TransactionController {  // CREATE transaction and generate QR data
         return sendError(res, 'Invalid or expired code. Please generate a new code.', 400);
       }
 
-      // Check if expired
-      if (Date.now() > pending.expiresAt) {
-        global.pendingTransactions.delete(short_code.toUpperCase());
-        return sendError(res, 'Code has expired', 400);
-      }
+      // Check if expired
+      if (Date.now() > pending.expiresAt) {
+        global.pendingTransactions.delete(codeUpper);
+        console.log('Code expired and removed:', codeUpper);
+        return sendError(res, 'Code has expired', 400);
+      }
 
-      // Process the transaction using the cached data
+      console.log('Code valid, processing transaction...');      // Process the transaction using the cached data
       const qrData = pending.data;
       
       // Use the processScannedQR logic
