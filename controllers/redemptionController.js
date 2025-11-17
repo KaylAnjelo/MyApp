@@ -2,9 +2,63 @@ const { supabase } = require('../config/supabase');
 const { sendSuccess, sendError } = require('../utils/response');
 
 class RedemptionController {
+  // Helper function to auto-update promotion statuses based on dates
+  async updatePromotionStatuses(storeId = null) {
+    const now = new Date();
+    
+    // Build query to get all rewards
+    let query = supabase
+      .from('rewards')
+      .select('reward_id, start_date, end_date, is_active');
+    
+    if (storeId) {
+      query = query.eq('store_id', storeId);
+    }
+    
+    const { data: rewards, error } = await query;
+    
+    if (error || !rewards) {
+      console.error('Error fetching rewards for status update:', error);
+      return;
+    }
+    
+    // Update each reward's status based on dates
+    for (const reward of rewards) {
+      let shouldBeActive = false;
+      
+      if (reward.start_date && reward.end_date) {
+        const startDate = new Date(reward.start_date);
+        const endDate = new Date(reward.end_date);
+        
+        // Set time boundaries for accurate comparison
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
+        
+        // Active if current date is between start and end dates
+        shouldBeActive = now >= startDate && now <= endDate;
+      } else {
+        // If no dates specified, keep current status
+        shouldBeActive = reward.is_active;
+      }
+      
+      // Only update if status needs to change
+      if (reward.is_active !== shouldBeActive) {
+        await supabase
+          .from('rewards')
+          .update({ is_active: shouldBeActive })
+          .eq('reward_id', reward.reward_id);
+        
+        console.log(`Updated reward ${reward.reward_id} status to ${shouldBeActive}`);
+      }
+    }
+  }
+
   // Get all active rewards
   async getRewards(req, res) {
     try {
+      // Auto-update statuses before fetching
+      await this.updatePromotionStatuses();
+
       const { data, error } = await supabase
         .from('rewards')
         .select('*')
@@ -16,7 +70,7 @@ class RedemptionController {
         return sendError(res, 'Failed to fetch rewards', 500, error.message);
       }
 
-      return sendSuccess(res, data || []);
+      return sendSuccess(res, { data: data || [] });
     } catch (err) {
       console.error('Server error fetching rewards:', err);
       return sendError(res, 'Server error', 500, err.message);
@@ -27,20 +81,48 @@ class RedemptionController {
   async getRewardsByStore(req, res) {
     try {
       const { storeId } = req.params;
+      console.log('=== Fetching rewards for store:', storeId);
 
-      const { data, error } = await supabase
+      // Auto-update statuses for this store before fetching
+      await this.updatePromotionStatuses(storeId);
+
+      // Fetch rewards (point-based redemptions)
+      const { data: rewardsData, error: rewardsError } = await supabase
         .from('rewards')
         .select('*')
         .eq('store_id', storeId)
         .eq('is_active', true)
         .order('points_required', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching store rewards:', error);
-        return sendError(res, 'Failed to fetch store rewards', 500, error.message);
+      if (rewardsError) {
+        console.error('Error fetching rewards:', rewardsError);
+        return sendError(res, 'Failed to fetch rewards', 500, rewardsError.message);
       }
 
-      return sendSuccess(res, data || []);
+      // Fetch promotions (discount-based offers)
+      const { data: promotionsData, error: promotionsError } = await supabase
+        .from('promotions')
+        .select('*')
+        .eq('store_id', storeId)
+        .eq('status', 'active')
+        .order('start_date', { ascending: false });
+
+      if (promotionsError) {
+        console.warn('Error fetching promotions:', promotionsError);
+        // Don't fail if promotions fail, just use rewards only
+      }
+
+      // Combine rewards and promotions, marking each with a type
+      const allRewards = [
+        ...(rewardsData || []).map(r => ({ ...r, type: 'reward', id: r.reward_id })),
+        ...(promotionsData || []).map(p => ({ ...p, type: 'promotion', id: p.promotion_id }))
+      ];
+
+      console.log('Rewards found:', rewardsData?.length || 0);
+      console.log('Promotions found:', promotionsData?.length || 0);
+      console.log('Total items:', allRewards.length);
+      
+      return sendSuccess(res, { data: allRewards });
     } catch (err) {
       console.error('Server error fetching store rewards:', err);
       return sendError(res, 'Server error', 500, err.message);
@@ -237,20 +319,10 @@ class RedemptionController {
       console.log('=== GET REDEMPTION HISTORY ===');
       console.log('Customer ID:', customerId);
 
-      const { data, error } = await supabase
+      // Get redemptions without joins first
+      const { data: redemptions, error } = await supabase
         .from('redemptions')
-        .select(`
-          *,
-          rewards:reward_id (
-            reward_name,
-            description,
-            points_required
-          ),
-          stores:store_id (
-            store_name,
-            store_image
-          )
-        `)
+        .select('*')
         .eq('customer_id', customerId)
         .order('redemption_date', { ascending: false });
 
@@ -259,9 +331,45 @@ class RedemptionController {
         return sendError(res, 'Failed to fetch redemption history', 500, error.message);
       }
 
-      console.log('Redemption history count:', data?.length || 0);
+      // Enrich with reward and store details manually
+      const enrichedData = await Promise.all(
+        (redemptions || []).map(async (redemption) => {
+          // Get reward details
+          let rewardDetails = null;
+          if (redemption.reward_id) {
+            const { data: reward } = await supabase
+              .from('rewards')
+              .select('reward_name, description, points_required')
+              .eq('reward_id', redemption.reward_id)
+              .single();
+            rewardDetails = reward;
+          }
 
-      return sendSuccess(res, data || []);
+          // Get store details
+          let storeDetails = null;
+          if (redemption.store_id) {
+            const { data: store } = await supabase
+              .from('stores')
+              .select('store_name, store_image')
+              .eq('store_id', redemption.store_id)
+              .single();
+            storeDetails = store;
+          }
+
+          return {
+            ...redemption,
+            reward_name: rewardDetails?.reward_name || redemption.description,
+            reward_description: rewardDetails?.description,
+            points_required: rewardDetails?.points_required,
+            store_name: storeDetails?.store_name,
+            store_image: storeDetails?.store_image,
+          };
+        })
+      );
+
+      console.log('Redemption history count:', enrichedData?.length || 0);
+
+      return sendSuccess(res, { data: enrichedData || [] });
     } catch (err) {
       console.error('Server error fetching redemption history:', err);
       return sendError(res, 'Server error', 500, err.message);

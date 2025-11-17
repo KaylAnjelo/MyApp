@@ -47,6 +47,44 @@ router.get("/stores", async (req, res) => {
   }
 });
 
+// GET /api/stores/:storeId - Get single store by ID
+router.get("/stores/:storeId", async (req, res) => {
+  try {
+    const { storeId } = req.params;
+
+    if (!supabase) {
+      const store = stores.find(s => s.id === parseInt(storeId));
+      if (!store) {
+        return res.status(404).json({ error: 'Store not found' });
+      }
+      return res.json(normalizeStores([store])[0]);
+    }
+
+    const { data, error } = await supabase
+      .from('stores')
+      .select('*')
+      .eq('store_id', storeId)
+      .eq('is_active', true)
+      .single();
+
+    if (error) {
+      console.error('Error fetching store from Supabase:', error);
+      return res.status(404).json({ error: 'Store not found' });
+    }
+
+    // Normalize and include all fields including owner_id
+    const normalized = {
+      ...data,
+      address: data.address || data.location || null,
+    };
+    
+    res.json(normalized);
+  } catch (error) {
+    console.error("Error fetching store:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // GET /api/stores/:storeId/sales-summary
 router.get("/stores/:storeId/sales-summary", async (req, res) => {
   try {

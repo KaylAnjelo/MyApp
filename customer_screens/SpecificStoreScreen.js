@@ -16,6 +16,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [userPoints, setUserPoints] = useState(null);
   const [rewards, setRewards] = useState([]);
+  const [redeeming, setRedeeming] = useState(null); // Track which reward is being redeemed
 
   console.log('=== COMPONENT INITIALIZED ===');
   console.log('Route params:', route.params);
@@ -39,14 +40,23 @@ export default function SpecificStoreScreen({ route, navigation }) {
         // Test network connectivity first
         console.log('=== TESTING NETWORK CONNECTIVITY ===');
         try {
-          const healthUrl = Platform.OS === 'android' ? 'http://10.0.2.2:3000/health' : 'http://localhost:3000/health';
+          // Use the same base URL as apiService
+          const baseUrl = Platform.OS === 'android' 
+            ? 'http://192.168.1.8:3000'  // Physical device - change to 10.0.2.2 for emulator
+            : 'http://localhost:3000';
+          const healthUrl = `${baseUrl}/health`;
           console.log('Testing health endpoint:', healthUrl);
-          const healthResponse = await fetch(healthUrl);
+          const healthResponse = await fetch(healthUrl, { 
+            timeout: 5000,
+            headers: { 'Accept': 'application/json' }
+          });
           const healthText = await healthResponse.text();
           console.log('✅ Health check successful:', healthText);
         } catch (healthError) {
           console.error('❌ Health check failed:', healthError.message);
           console.error('This indicates the app cannot reach the server');
+          console.error('Make sure server is running and device is on same network as server');
+          // Continue anyway, the API calls might still work
         }
         
         // Try multiple store endpoints (some codebases use getStoreBy)
@@ -95,7 +105,29 @@ export default function SpecificStoreScreen({ route, navigation }) {
         }
         
         // Fetch rewards for this store
-        const r = await apiService.getRewardsByStore ? apiService.getRewardsByStore(storeId).catch(() => []) : [];
+        console.log('Fetching rewards for store:', storeId);
+        let r = [];
+        try {
+          if (apiService.getRewardsByStore) {
+            const response = await apiService.getRewardsByStore(storeId);
+            console.log('Rewards API full response:', JSON.stringify(response, null, 2));
+            // Extract data array from response object
+            r = response?.data || response || [];
+            console.log('Extracted rewards array:', r);
+            console.log('Number of rewards:', r.length);
+          }
+        } catch (error) {
+          console.error('Error fetching rewards:', error.message);
+        }
+        // Ensure r is always an array
+        if (!Array.isArray(r)) {
+          console.warn('Rewards is not an array, converting to empty array. Response was:', typeof r);
+          r = [];
+        }
+        console.log('Final rewards array length:', r.length);
+        if (r.length > 0) {
+          console.log('Sample reward:', JSON.stringify(r[0], null, 2));
+        }
 
         // Enhanced points fetching for this specific store
         let points = 0;
@@ -164,6 +196,72 @@ export default function SpecificStoreScreen({ route, navigation }) {
     load();
     return () => (mounted = false);
   }, [storeId]);
+
+  const handleRedeemReward = async (reward) => {
+    try {
+      setRedeeming(reward.id || reward.reward_id);
+      
+      console.log('=== STARTING REDEMPTION ===');
+      console.log('Reward:', reward);
+      console.log('Store state:', store);
+      
+      // Get user ID from AsyncStorage
+      const userString = await AsyncStorage.getItem('@app_user');
+      const user = userString ? JSON.parse(userString) : null;
+      const userId = user?.user_id;
+
+      console.log('User ID:', userId);
+
+      if (!userId) {
+        Alert.alert('Error', 'Please log in to redeem rewards');
+        setRedeeming(null);
+        return;
+      }
+
+      const rewardId = reward.id || reward.reward_id;
+      const ownerId = store?.owner_id;
+
+      console.log('Reward ID:', rewardId);
+      console.log('Owner ID from store:', ownerId);
+
+      if (!ownerId) {
+        Alert.alert('Error', 'Store information not available. Please try refreshing the page.');
+        setRedeeming(null);
+        return;
+      }
+
+      console.log('Making redemption request with:', { userId, rewardId, storeId, ownerId });
+
+      const response = await apiService.redeemReward(userId, rewardId, storeId, ownerId);
+      
+      console.log('Redemption response:', response);
+
+      // Update user points in state
+      if (response.remainingPoints !== undefined) {
+        setUserPoints(response.remainingPoints);
+      }
+
+      Alert.alert(
+        'Success!',
+        `You've redeemed: ${reward.reward_name || reward.title || reward.name}\n\nCheck "My Rewards" to use it at the store.`,
+        [
+          { text: 'View My Rewards', onPress: () => navigation.navigate('MyRewards') },
+          { text: 'OK' }
+        ]
+      );
+
+      // Reload rewards to reflect the change
+      const updatedRewards = await apiService.getRewardsByStore(storeId);
+      const rewardsArray = updatedRewards?.data || updatedRewards || [];
+      setRewards(Array.isArray(rewardsArray) ? rewardsArray : []);
+
+    } catch (error) {
+      console.error('Error redeeming reward:', error);
+      Alert.alert('Error', error.message || 'Failed to redeem reward. Please try again.');
+    } finally {
+      setRedeeming(null);
+    }
+  };
 
   // userPoints and rewards will be loaded from API (null while loading)
 
@@ -271,21 +369,57 @@ export default function SpecificStoreScreen({ route, navigation }) {
         </View>
 
         {/* Redeemable Rewards */}
-        <Text style={styles.sectionHeading}>Redeemable Rewards</Text>
-        {rewards.length === 0 ? (
+        <Text style={styles.sectionHeading}>Deals & Rewards</Text>
+        {!rewards || rewards.length === 0 ? (
           <View style={styles.emptyRewards}>
             <Text style={styles.emptyRewardsText}>No rewards available for this store</Text>
           </View>
         ) : (
-          rewards.map((r) => {
+          Array.isArray(rewards) && rewards.map((r, index) => {
+            const isPromotion = r.type === 'promotion';
+            const isReward = r.type === 'reward' || !r.type;
+            
+            // For promotions
+            if (isPromotion) {
+              const discountText = r.discount_type === 'percentage' 
+                ? `${r.discount_value}% OFF`
+                : `₱${r.discount_value} OFF`;
+              
+              return (
+                <View key={r.id || r.promotion_id || `promo-${index}`} style={styles.rewardRow}>
+                  <View style={styles.rewardLeft}>
+                    <Ionicons name="pricetag-outline" size={18} color={Colors.primary} />
+                    <View style={styles.rewardTextContainer}>
+                      <Text style={styles.rewardTitle}>{r.name || r.description}</Text>
+                      {r.description && r.name && (
+                        <Text style={styles.rewardDescription}>{r.description}</Text>
+                      )}
+                    </View>
+                  </View>
+                  <View style={styles.rewardActions}>
+                    <View style={[styles.pointsPill, { backgroundColor: Colors.primary }]}>
+                      <Text style={[styles.pointsPillText, { color: '#fff' }]}>{discountText}</Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            }
+            
+            // For rewards (point-based)
             const isRedeemed = !!r.isRedeemed || !!r.is_redeemed || !!r.redeemed;
-            const rewardPoints = r.points || r.required_points || r.point_cost || 0;
+            const rewardPoints = r.points_required || r.points || r.required_points || r.point_cost || 0;
             const canRedeem = rewardPoints <= (userPoints ?? 0) && !isRedeemed;
+            
             return (
-              <View key={r.id} style={styles.rewardRow}>
+              <View key={r.id || r.reward_id || `reward-${index}`} style={styles.rewardRow}>
                 <View style={styles.rewardLeft}>
                   <Ionicons name="gift-outline" size={18} color={isRedeemed ? '#9e9e9e' : Colors.textPrimary} />
-                  <Text style={styles.rewardTitle}>{r.title || r.name || r.description}</Text>
+                  <View style={styles.rewardTextContainer}>
+                    <Text style={styles.rewardTitle}>{r.reward_name || r.title || r.name || r.description}</Text>
+                    {r.description && r.reward_name && (
+                      <Text style={styles.rewardDescription}>{r.description}</Text>
+                    )}
+                  </View>
                 </View>
                 <View style={styles.rewardActions}>
                   {isRedeemed ? (
@@ -294,10 +428,15 @@ export default function SpecificStoreScreen({ route, navigation }) {
                     </View>
                   ) : canRedeem ? (
                     <TouchableOpacity
-                      style={styles.rewardRedeem}
-                      onPress={() => Alert.alert('Redeem', `Redeeming: ${r.title || r.name}`)}
+                      style={[styles.rewardRedeem, redeeming === (r.id || r.reward_id) && styles.rewardRedeemDisabled]}
+                      onPress={() => handleRedeemReward(r)}
+                      disabled={redeeming === (r.id || r.reward_id)}
                     >
-                      <Text style={styles.rewardRedeemText}>Redeem</Text>
+                      {redeeming === (r.id || r.reward_id) ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.rewardRedeemText}>Redeem</Text>
+                      )}
                     </TouchableOpacity>
                   ) : (
                     <View style={styles.pointsPill}>
@@ -477,8 +616,26 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     ...Shadows.light,
   },
-  rewardLeft: { flexDirection: 'row', alignItems: 'center' },
-  rewardTitle: { fontSize: Typography.body, marginLeft: Spacing.sm },
+  rewardLeft: { 
+    flexDirection: 'row', 
+    alignItems: 'center',
+    flex: 1,
+    marginRight: Spacing.sm,
+  },
+  rewardTextContainer: {
+    flex: 1,
+    marginLeft: Spacing.sm,
+  },
+  rewardTitle: { 
+    fontSize: Typography.body,
+    fontWeight: '500',
+    color: Colors.textPrimary,
+  },
+  rewardDescription: {
+    fontSize: Typography.small,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
   rewardActions: { flexDirection: 'row', alignItems: 'center' },
   rewardRedeem: {
     backgroundColor: '#b71c1c',
@@ -486,6 +643,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: Radii.sm,
     marginRight: Spacing.sm,
+  },
+  rewardRedeemDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.7,
   },
   rewardRedeemText: { color: '#fff' },
   rewardPoints: { color: Colors.textSecondary },
