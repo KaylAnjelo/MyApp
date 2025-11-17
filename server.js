@@ -8,6 +8,7 @@ const storeRoutes = require("./routes/storeRoutes"); // import your new store ro
 const productRoutes = require("./routes/productRoutes"); // import product routes
 const userRoutes = require("./routes/userRoutes"); // import user/profile routes
 const transactionRoutes = require("./routes/transactionRoutes"); // import transaction routes
+const rewardRoutes = require("./routes/rewardRoutes"); // import reward routes
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,6 +34,7 @@ app.use("/api", storeRoutes); // for /api/stores
 app.use("/api", productRoutes); // for /api/products
 app.use("/api", userRoutes); // for /api/user/profile
 app.use("/api/transactions", transactionRoutes); // for /api/transactions
+app.use("/api/rewards", rewardRoutes); // for /api/rewards
 
 // Optional: print local network IP for testing from other devices
 const os = require("os");
