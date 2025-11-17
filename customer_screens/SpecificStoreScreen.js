@@ -17,6 +17,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
   const [userPoints, setUserPoints] = useState(null);
   const [rewards, setRewards] = useState([]);
   const [redeeming, setRedeeming] = useState(null); // Track which reward is being redeemed
+  const [redeemedRewardIds, setRedeemedRewardIds] = useState([]); // Track which rewards user has already redeemed
 
   console.log('=== COMPONENT INITIALIZED ===');
   console.log('Route params:', route.params);
@@ -127,6 +128,28 @@ export default function SpecificStoreScreen({ route, navigation }) {
         console.log('Final rewards array length:', r.length);
         if (r.length > 0) {
           console.log('Sample reward:', JSON.stringify(r[0], null, 2));
+        }
+
+        // Fetch user's redemption history to check which rewards are already redeemed
+        try {
+          const userString = await AsyncStorage.getItem('@app_user');
+          const user = userString ? JSON.parse(userString) : null;
+          const userId = user?.user_id;
+
+          if (userId) {
+            const historyResponse = await apiService.getRedemptionHistory(userId);
+            const history = historyResponse?.data || [];
+            // Extract reward IDs that are pending or completed (not cancelled)
+            const redeemedIds = history
+              .filter(h => h.status !== 'cancelled')
+              .map(h => h.reward_id);
+            console.log('User has redeemed reward IDs:', redeemedIds);
+            if (mounted) {
+              setRedeemedRewardIds(redeemedIds);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching redemption history:', error.message);
         }
 
         // Enhanced points fetching for this specific store
@@ -254,6 +277,9 @@ export default function SpecificStoreScreen({ route, navigation }) {
       const updatedRewards = await apiService.getRewardsByStore(storeId);
       const rewardsArray = updatedRewards?.data || updatedRewards || [];
       setRewards(Array.isArray(rewardsArray) ? rewardsArray : []);
+
+      // Update redeemed reward IDs to include this reward
+      setRedeemedRewardIds(prev => [...prev, rewardId]);
 
     } catch (error) {
       console.error('Error redeeming reward:', error);
@@ -406,7 +432,8 @@ export default function SpecificStoreScreen({ route, navigation }) {
             }
             
             // For rewards (point-based)
-            const isRedeemed = !!r.isRedeemed || !!r.is_redeemed || !!r.redeemed;
+            const rewardId = r.id || r.reward_id;
+            const isRedeemed = redeemedRewardIds.includes(rewardId);
             const rewardPoints = r.points_required || r.points || r.required_points || r.point_cost || 0;
             const canRedeem = rewardPoints <= (userPoints ?? 0) && !isRedeemed;
             
