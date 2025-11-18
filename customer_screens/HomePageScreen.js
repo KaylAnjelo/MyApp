@@ -213,10 +213,6 @@ export default function HomePageScreen({ navigation }) {
                 </View>
                 <View style={styles.popularInfo}>
                   <Text style={styles.popularName}>{store.name || 'Store'}</Text>
-                  <View style={styles.storeRating}>
-                    <FontAwesome name="star" size={12} color="#FFD700" />
-                    <Text style={styles.storeRatingText}>{store.rating || '5.0'}</Text>
-                  </View>
                 </View>
               </TouchableOpacity>
             ))
@@ -407,8 +403,6 @@ const styles = StyleSheet.create({
   popularLogoPlaceholder: { color: '#fff' },
   popularInfo: { padding: Spacing.md, paddingTop: Spacing.sm },
   popularName: { fontSize: Typography.body, fontWeight: '700', marginBottom: Spacing.xs },
-  storeRating: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm },
-  storeRatingText: { marginLeft: Spacing.xs, color: Colors.textSecondary },
   collectButton: {
     position: 'absolute',
     right: 8,

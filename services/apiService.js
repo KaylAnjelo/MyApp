@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 // ✅ Configure API base URL
 const API_BASE_URL =
   Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api'  // For physical device on same network. Use 10.0.2.2 for android emulator
+    ? 'http://192.168.1.6:3000/api'  // For physical device on same network. Use 10.0.2.2 for android emulator
     : 'http://localhost:3000/api';
 
 const TOKEN_KEY = '@app_auth_token';
@@ -258,7 +258,6 @@ class ApiService {
         address: s.address || s.location || s.city || null,
         image_url: s.image_url || s.logoUrl || s.logo_url || s.image || null,
         logoUrl: s.logoUrl || s.image_url || s.logo_url || s.image || null,
-        rating: s.rating ?? s.store_rating ?? s.avg_rating ?? 5.0,
       }));
     }
     return data;
@@ -276,7 +275,6 @@ class ApiService {
           data.image_url || data.logoUrl || data.logo_url || data.image || null,
         logoUrl:
           data.logoUrl || data.image_url || data.logo_url || data.image || null,
-        rating: data.rating ?? data.store_rating ?? data.avg_rating ?? 5.0,
       };
     }
     return data;
