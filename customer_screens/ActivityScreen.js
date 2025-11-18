@@ -56,6 +56,15 @@ export default function ActivityScreen({ navigation }) {
     (txnData || []).forEach(txn => {
       const refNum = txn.reference_number;
       if (!grouped[refNum]) {
+        // Normalize transaction type for filtering
+        let txnType = txn.transaction_type || 'Purchase';
+        // Handle various type formats
+        if (txnType.toLowerCase().includes('redeem')) {
+          txnType = 'Redemption';
+        } else if (txnType.toLowerCase().includes('purchase')) {
+          txnType = 'Purchase';
+        }
+        
         grouped[refNum] = {
           id: refNum,
           reference_number: refNum,
@@ -63,7 +72,7 @@ export default function ActivityScreen({ navigation }) {
           date: formatDate(txn.transaction_date),
           total: 0,
           points: 0,
-          type: txn.transaction_type || 'Purchase',
+          type: txnType,
           itemCount: 0
         };
       }
@@ -102,6 +111,12 @@ export default function ActivityScreen({ navigation }) {
     if (filter === 'Redemption') return txn.type === 'Redemption';
     return true;
   });
+
+  console.log('=== ACTIVITY SCREEN FILTER DEBUG ===');
+  console.log('Current filter:', filter);
+  console.log('Total transactions:', transactions.length);
+  console.log('Filtered transactions:', filtered.length);
+  console.log('Transaction types:', transactions.map(t => ({ ref: t.reference_number, type: t.type })));
 
   const renderTransaction = ({ item }) => (
     <TouchableOpacity
