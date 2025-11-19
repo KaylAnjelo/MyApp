@@ -203,6 +203,53 @@ router.delete('/user/remove-profile-image', async (req, res) => {
   }
 });
 
+// GET /api/user/:userId/points
+router.get('/user/:userId/points', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log('[userRoutes] GET /user/:userId/points called with userId=', userId);
+
+    if (!supabase) {
+      // Dev fallback: return mock data
+      return res.json({
+        user_id: userId,
+        total_points: 150,
+        redeemed_points: 0
+      });
+    }
+
+    // Get user points from user_points table
+    const { data: userPoints, error: pointsError } = await supabase
+      .from('user_points')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (pointsError) {
+      if (pointsError.code === 'PGRST116') {
+        // No record found, return zero points
+        console.log('[userRoutes] No user_points record found for user:', userId);
+        return res.json({
+          user_id: userId,
+          total_points: 0,
+          redeemed_points: 0
+        });
+      }
+      console.error('[userRoutes] Error fetching user points:', pointsError);
+      return res.status(400).json({ error: pointsError.message });
+    }
+
+    res.json({
+      user_id: userId,
+      total_points: userPoints.total_points || 0,
+      redeemed_points: userPoints.redeemed_points || 0
+    });
+  } catch (err) {
+    console.error('Error fetching user points:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/user/:userId/points-by-store
 router.get('/user/:userId/points-by-store', async (req, res) => {
   try {

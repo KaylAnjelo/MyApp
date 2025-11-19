@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet,
   ActivityIndicator,TouchableOpacity,
-  Image, ScrollView, FlatList, Alert, Platform,
+  Image, ScrollView, FlatList, Alert, Platform, InteractionManager,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
@@ -17,12 +17,19 @@ export default function SpecificStoreScreen({ route, navigation }) {
   const [userPoints, setUserPoints] = useState(null);
   const [rewards, setRewards] = useState([]);
   const [redeeming, setRedeeming] = useState(null); // Track which reward is being redeemed
-  const [redeemedRewardIds, setRedeemedRewardIds] = useState([]); // Track which rewards user has already redeemed
+  const [isMounted, setIsMounted] = useState(true);
 
   console.log('=== COMPONENT INITIALIZED ===');
   console.log('Route params:', route.params);
   console.log('Store ID from params:', storeId);
   console.log('Store Name from params:', storeName);
+
+  useEffect(() => {
+    setIsMounted(true);
+    return () => {
+      setIsMounted(false);
+    };
+  }, []);
 
   useEffect(() => {
     if (!storeId) {
@@ -130,63 +137,33 @@ export default function SpecificStoreScreen({ route, navigation }) {
           console.log('Sample reward:', JSON.stringify(r[0], null, 2));
         }
 
-        // Fetch user's redemption history to check which rewards are already redeemed
-        try {
-          const userString = await AsyncStorage.getItem('@app_user');
-          const user = userString ? JSON.parse(userString) : null;
-          const userId = user?.user_id;
+        // Note: Redemptions are now tracked in transactions table
+        // Users can redeem rewards multiple times if they have enough points
 
-          if (userId) {
-            const historyResponse = await apiService.getRedemptionHistory(userId);
-            const history = historyResponse?.data || [];
-            // Extract reward IDs that are pending or completed (not cancelled)
-            const redeemedIds = history
-              .filter(h => h.status !== 'cancelled')
-              .map(h => h.reward_id);
-            console.log('User has redeemed reward IDs:', redeemedIds);
-            if (mounted) {
-              setRedeemedRewardIds(redeemedIds);
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching redemption history:', error.message);
-        }
-
-        // Enhanced points fetching for this specific store
+        // Fetch user's total points from user_points table
         let points = 0;
         try {
-          console.log('=== FETCHING USER POINTS FOR STORE ===');
+          console.log('=== FETCHING USER POINTS ===');
           
-          // Get user ID from AsyncStorage (same way as HomePageScreen and MyPointsScreen)
+          // Get user ID from AsyncStorage
           const userString = await AsyncStorage.getItem('@app_user');
           const user = userString ? JSON.parse(userString) : null;
           const userId = user?.user_id;
           
-          console.log('User string from @app_user:', !!userString);
-          console.log('Parsed user:', user);
-          console.log('Extracted user ID:', userId);
+          console.log('User ID:', userId);
           
           if (userId) {
-            // Try getUserPointsByStore API (same as working screens)
             try {
-              console.log(`Calling getUserPointsByStore for user ${userId}`);
-              const pointsByStore = await apiService.getUserPointsByStore(userId);
-              console.log('getUserPointsByStore response:', pointsByStore);
+              console.log('Calling getUserPoints for user:', userId);
+              const pointsData = await apiService.getUserPoints(userId);
+              console.log('getUserPoints response:', pointsData);
               
-              if (pointsByStore && Array.isArray(pointsByStore)) {
-                // Find points for this specific store
-                const storePoints = pointsByStore.find(sp => 
-                  String(sp.store_id) === String(storeId)
-                );
-                console.log('Found store points:', storePoints);
-                
-                if (storePoints) {
-                  points = Number(storePoints.available_points || 0);
-                  console.log('Extracted points for this store:', points);
-                }
+              if (pointsData) {
+                points = Number(pointsData.total_points || 0);
+                console.log('Total points from user_points table:', points);
               }
             } catch (pointsErr) {
-              console.warn('getUserPointsByStore failed:', pointsErr.message);
+              console.warn('getUserPoints failed:', pointsErr.message);
             }
           } else {
             console.log('No user found in @app_user storage');
@@ -220,6 +197,114 @@ export default function SpecificStoreScreen({ route, navigation }) {
     return () => (mounted = false);
   }, [storeId]);
 
+  const handleBuyProduct = async (product) => {
+    try {
+      console.log('=== STARTING PRODUCT REDEMPTION ===');
+      console.log('Product:', product);
+      console.log('Store state:', store);
+      console.log('Store ID:', storeId);
+      
+      // Get user ID from AsyncStorage
+      const userString = await AsyncStorage.getItem('@app_user');
+      const user = userString ? JSON.parse(userString) : null;
+      const userId = user?.user_id;
+
+      if (!userId) {
+        console.log('❌ No user ID found');
+        if (isMounted) {
+          Alert.alert('Error', 'Please log in to redeem products');
+        }
+        return;
+      }
+
+      // Get owner_id - try from store state or fetch from API
+      let ownerId = store?.owner_id;
+      
+      if (!ownerId) {
+        console.log('⚠️ Owner ID not in store state, fetching from API...');
+        try {
+          // Fetch store data to get owner_id
+          const storeData = await apiService.getStore(storeId);
+          console.log('Fetched store data:', storeData);
+          
+          if (storeData && storeData.owner_id) {
+            ownerId = storeData.owner_id;
+            // Update store state with fetched data
+            setStore(storeData);
+            console.log('✓ Got owner_id from API:', ownerId);
+          } else {
+            console.log('❌ Could not get owner_id from API');
+            if (isMounted) {
+              Alert.alert('Error', 'Store information not available. Please try again.');
+            }
+            return;
+          }
+        } catch (err) {
+          console.error('Error fetching store data:', err);
+          if (isMounted) {
+            Alert.alert('Error', 'Failed to load store information');
+          }
+          return;
+        }
+      } else {
+        console.log('✓ Owner ID from store state:', ownerId);
+      }
+
+      // Calculate points required (price / 0.6 rounded to nearest 5)
+      let pointsRequired = Math.round(product.price / 0.6);
+      let lastDigit = pointsRequired % 10;
+      if (lastDigit !== 0 && lastDigit !== 5) {
+        if (lastDigit < 5) {
+          pointsRequired = pointsRequired - lastDigit + 5;
+        } else {
+          pointsRequired = pointsRequired + (10 - lastDigit);
+        }
+      }
+
+      // Check if user has enough points
+      if (userPoints < pointsRequired) {
+        Alert.alert(
+          'Insufficient Points',
+          `You need ${pointsRequired} points to redeem this product.\n\nYou currently have ${userPoints} points.`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Process redemption directly without confirmation dialog
+      try {
+        console.log('Processing redemption with:', { userId, productId: product.id, storeId, ownerId, pointsRequired });
+        
+        // Call API to redeem product
+        const response = await apiService.redeemProduct(
+          userId,
+          product.id,
+          storeId,
+          ownerId,
+          pointsRequired
+        );
+
+        console.log('Redemption response:', response);
+
+        // Update points in state
+        if (response.remainingPoints !== undefined) {
+          setUserPoints(response.remainingPoints);
+        }
+
+        console.log('✅ Product redeemed successfully!');
+        console.log(`Points used: ${pointsRequired}, Remaining: ${response.remainingPoints}`);
+      } catch (error) {
+        console.error('Error processing redemption:', error);
+        console.error('Error message:', error.message);
+      }
+    } catch (error) {
+      console.error('Error in handleBuyProduct:', error);
+      if (isMounted) {
+        Alert.alert('Error', 'Failed to process redemption');
+      }
+    }
+  };
+
   const handleRedeemReward = async (reward) => {
     try {
       setRedeeming(reward.id || reward.reward_id);
@@ -236,7 +321,9 @@ export default function SpecificStoreScreen({ route, navigation }) {
       console.log('User ID:', userId);
 
       if (!userId) {
-        Alert.alert('Error', 'Please log in to redeem rewards');
+        if (isMounted) {
+          Alert.alert('Error', 'Please log in to redeem rewards');
+        }
         setRedeeming(null);
         return;
       }
@@ -248,7 +335,9 @@ export default function SpecificStoreScreen({ route, navigation }) {
       console.log('Owner ID from store:', ownerId);
 
       if (!ownerId) {
-        Alert.alert('Error', 'Store information not available. Please try refreshing the page.');
+        if (isMounted) {
+          Alert.alert('Error', 'Store information not available. Please try refreshing the page.');
+        }
         setRedeeming(null);
         return;
       }
@@ -264,26 +353,27 @@ export default function SpecificStoreScreen({ route, navigation }) {
         setUserPoints(response.remainingPoints);
       }
 
-      Alert.alert(
-        'Success!',
-        `You've redeemed: ${reward.reward_name || reward.title || reward.name}\n\nCheck "My Rewards" to use it at the store.`,
-        [
-          { text: 'View My Rewards', onPress: () => navigation.navigate('MyRewards') },
-          { text: 'OK' }
-        ]
-      );
+      if (isMounted) {
+        Alert.alert(
+          'Success!',
+          `You've redeemed: ${reward.reward_name || reward.title || reward.name}\n\nCheck "My Rewards" to use it at the store.`,
+          [
+            { text: 'View My Rewards', onPress: () => navigation.navigate('MyRewards') },
+            { text: 'OK' }
+          ]
+        );
+      }
 
       // Reload rewards to reflect the change
       const updatedRewards = await apiService.getRewardsByStore(storeId);
       const rewardsArray = updatedRewards?.data || updatedRewards || [];
       setRewards(Array.isArray(rewardsArray) ? rewardsArray : []);
 
-      // Update redeemed reward IDs to include this reward
-      setRedeemedRewardIds(prev => [...prev, rewardId]);
-
     } catch (error) {
       console.error('Error redeeming reward:', error);
-      Alert.alert('Error', error.message || 'Failed to redeem reward. Please try again.');
+      if (isMounted) {
+        Alert.alert('Error', error.message || 'Failed to redeem reward. Please try again.');
+      }
     } finally {
       setRedeeming(null);
     }
@@ -384,8 +474,11 @@ export default function SpecificStoreScreen({ route, navigation }) {
                         return `${points} points`;
                       })() : 'points_value'}
                     </Text>
-                    <TouchableOpacity style={styles.buyButton}>
-                      <Text style={styles.buyButtonText}>Buy</Text>
+                    <TouchableOpacity 
+                      style={styles.buyButton}
+                      onPress={() => handleBuyProduct(item)}
+                    >
+                      <Text style={styles.buyButtonText}>Redeem</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -433,14 +526,13 @@ export default function SpecificStoreScreen({ route, navigation }) {
             
             // For rewards (point-based)
             const rewardId = r.id || r.reward_id;
-            const isRedeemed = redeemedRewardIds.includes(rewardId);
             const rewardPoints = r.points_required || r.points || r.required_points || r.point_cost || 0;
-            const canRedeem = rewardPoints <= (userPoints ?? 0) && !isRedeemed;
+            const canRedeem = rewardPoints <= (userPoints ?? 0);
             
             return (
               <View key={r.id || r.reward_id || `reward-${index}`} style={styles.rewardRow}>
                 <View style={styles.rewardLeft}>
-                  <Ionicons name="gift-outline" size={18} color={isRedeemed ? '#9e9e9e' : Colors.textPrimary} />
+                  <Ionicons name="gift-outline" size={18} color={Colors.textPrimary} />
                   <View style={styles.rewardTextContainer}>
                     <Text style={styles.rewardTitle}>{r.reward_name || r.title || r.name || r.description}</Text>
                     {r.description && r.reward_name && (
@@ -449,11 +541,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
                   </View>
                 </View>
                 <View style={styles.rewardActions}>
-                  {isRedeemed ? (
-                    <View style={styles.redeemedPill}>
-                      <Text style={styles.redeemedText}>Redeemed</Text>
-                    </View>
-                  ) : canRedeem ? (
+                  {canRedeem ? (
                     <TouchableOpacity
                       style={[styles.rewardRedeem, redeeming === (r.id || r.reward_id) && styles.rewardRedeemDisabled]}
                       onPress={() => handleRedeemReward(r)}

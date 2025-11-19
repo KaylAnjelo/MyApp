@@ -99,18 +99,8 @@ class RedemptionController {
         return sendError(res, 'Failed to fetch rewards', 500, rewardsError.message);
       }
 
-      // Fetch promotions (discount-based offers)
-      const { data: promotionsData, error: promotionsError } = await supabase
-        .from('promotions')
-        .select('*')
-        .eq('store_id', storeId)
-        .eq('status', 'active')
-        .order('start_date', { ascending: false });
-
-      if (promotionsError) {
-        console.warn('Error fetching promotions:', promotionsError);
-        // Don't fail if promotions fail, just use rewards only
-      }
+      // Skip promotions table - not using it
+      const promotionsData = [];
 
       // Combine rewards and promotions, marking each with a type
       const allRewards = [
@@ -213,25 +203,7 @@ class RedemptionController {
         return sendError(res, 'Missing required fields: customerId, rewardId, storeId, ownerId', 400);
       }
 
-      // Check if customer has already redeemed this reward
-      const { data: existingRedemption, error: redemptionCheckError } = await supabase
-        .from('redemptions')
-        .select('redemption_id, status')
-        .eq('customer_id', customerId)
-        .eq('reward_id', rewardId)
-        .in('status', ['pending', 'completed']);
-
-      if (redemptionCheckError) {
-        console.error('Error checking existing redemption:', redemptionCheckError);
-        return sendError(res, 'Failed to check redemption history', 500, redemptionCheckError.message);
-      }
-
-      if (existingRedemption && existingRedemption.length > 0) {
-        const redemption = existingRedemption[0];
-        return sendError(res, `You have already redeemed this reward. Status: ${redemption.status}`, 400);
-      }
-
-      console.log('No existing redemption found. Proceeding...');
+      console.log('Processing redemption request...');
 
       // Get reward details
       const { data: reward, error: rewardError } = await supabase
@@ -272,27 +244,14 @@ class RedemptionController {
         return sendError(res, `Insufficient points. You have ${totalPoints}, need ${reward.points_required}`, 400);
       }
 
-      // Create redemption record
-      const { data: redemption, error: redemptionError } = await supabase
-        .from('redemptions')
-        .insert({
-          customer_id: parseInt(customerId),
-          store_id: parseInt(storeId),
-          reward_id: parseInt(rewardId),
-          owner_id: parseInt(ownerId),
-          points_used: reward.points_required,
-          status: 'pending',
-          description: reward.description
-        })
-        .select()
+      // Get store information for transaction reference
+      const { data: storeData } = await supabase
+        .from('stores')
+        .select('store_name')
+        .eq('store_id', storeId)
         .single();
 
-      if (redemptionError) {
-        console.error('Error creating redemption:', redemptionError);
-        return sendError(res, 'Failed to create redemption', 500, redemptionError.message);
-      }
-
-      console.log('Redemption created:', redemption);
+      console.log('Store data retrieved:', storeData?.store_name);
 
       // Deduct points from user
       const newTotalPoints = totalPoints - reward.points_required;
@@ -308,16 +267,81 @@ class RedemptionController {
 
       if (updateError) {
         console.error('Error updating user points:', updateError);
-        // Rollback redemption if points update fails
-        await supabase
-          .from('redemptions')
-          .delete()
-          .eq('redemption_id', redemption.redemption_id);
-        
         return sendError(res, 'Failed to update points', 500, updateError.message);
       }
 
       console.log('Points updated. New balance:', newTotalPoints);
+
+      // Create a transaction record for the redemption
+      try {
+        // Generate reference number
+        const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const storePart = (storeData?.store_name || 'STORE')
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .toUpperCase()
+          .slice(0, 4)
+          .padEnd(4, 'X');
+        const random = Math.floor(1000 + Math.random() * 9000);
+        const referenceNumber = `${storePart}-${datePart}-${random}`;
+
+        // Get or create a "Reward Redemption" product entry
+        let rewardProduct = null;
+        const { data: existingProduct } = await supabase
+          .from('products')
+          .select('id')
+          .eq('store_id', storeId)
+          .eq('product_name', 'Reward Redemption')
+          .single();
+
+        if (existingProduct) {
+          rewardProduct = existingProduct;
+        } else {
+          // Create a placeholder product for reward redemptions
+          const { data: newProduct, error: productError } = await supabase
+            .from('products')
+            .insert({
+              store_id: parseInt(storeId),
+              product_name: 'Reward Redemption',
+              price: 0,
+              product_type: 'redemption'
+            })
+            .select()
+            .single();
+
+          if (productError) {
+            console.warn('Could not create reward product:', productError.message);
+          } else {
+            rewardProduct = newProduct;
+          }
+        }
+
+        if (rewardProduct) {
+          // Insert transaction record
+          const { error: transactionError } = await supabase
+            .from('transactions')
+            .insert({
+              reference_number: referenceNumber,
+              transaction_date: new Date().toISOString(),
+              user_id: parseInt(customerId),
+              Vendor_ID: parseInt(ownerId),
+              store_id: parseInt(storeId),
+              product_id: rewardProduct.id,
+              quantity: 1,
+              price: 0,
+              points: -reward.points_required, // Negative points to indicate deduction
+              transaction_type: 'Redemption'
+            });
+
+          if (transactionError) {
+            console.warn('Could not create transaction record:', transactionError.message);
+          } else {
+            console.log('Transaction record created for redemption:', referenceNumber);
+          }
+        }
+      } catch (transactionErr) {
+        // Don't fail the redemption if transaction record creation fails
+        console.warn('Failed to create transaction record:', transactionErr.message);
+      }
 
       return sendSuccess(res, {
         message: 'Reward redeemed successfully',
@@ -331,7 +355,7 @@ class RedemptionController {
     }
   }
 
-  // Get customer's redemption history
+  // Get customer's redemption history from transactions
   async getRedemptionHistory(req, res) {
     try {
       const { customerId } = req.params;
@@ -339,94 +363,62 @@ class RedemptionController {
       console.log('=== GET REDEMPTION HISTORY ===');
       console.log('Customer ID:', customerId);
 
-      // Get redemptions without joins first
-      const { data: redemptions, error } = await supabase
-        .from('redemptions')
-        .select('*')
-        .eq('customer_id', customerId)
-        .order('redemption_date', { ascending: false });
+      // Get redemption transactions
+      const { data: transactions, error } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          stores:store_id(store_name, store_image)
+        `)
+        .eq('user_id', customerId)
+        .eq('transaction_type', 'Redemption')
+        .order('transaction_date', { ascending: false });
 
       if (error) {
         console.error('Error fetching redemption history:', error);
         return sendError(res, 'Failed to fetch redemption history', 500, error.message);
       }
 
-      // Enrich with reward and store details manually
-      const enrichedData = await Promise.all(
-        (redemptions || []).map(async (redemption) => {
-          // Get reward details
-          let rewardDetails = null;
-          if (redemption.reward_id) {
-            const { data: reward } = await supabase
-              .from('rewards')
-              .select('reward_name, description, points_required')
-              .eq('reward_id', redemption.reward_id)
-              .single();
-            rewardDetails = reward;
-          }
+      // Format data to match expected structure
+      const formattedData = (transactions || []).map(transaction => ({
+        redemption_id: transaction.id,
+        redemption_date: transaction.transaction_date,
+        customer_id: transaction.user_id,
+        store_id: transaction.store_id,
+        points_used: Math.abs(transaction.points || 0),
+        status: 'completed',
+        store_name: transaction.stores?.store_name,
+        store_image: transaction.stores?.store_image,
+        reference_number: transaction.reference_number
+      }));
 
-          // Get store details
-          let storeDetails = null;
-          if (redemption.store_id) {
-            const { data: store } = await supabase
-              .from('stores')
-              .select('store_name, store_image')
-              .eq('store_id', redemption.store_id)
-              .single();
-            storeDetails = store;
-          }
+      console.log('Redemption history count:', formattedData?.length || 0);
 
-          return {
-            ...redemption,
-            reward_name: rewardDetails?.reward_name || redemption.description,
-            reward_description: rewardDetails?.description,
-            points_required: rewardDetails?.points_required,
-            store_name: storeDetails?.store_name,
-            store_image: storeDetails?.store_image,
-          };
-        })
-      );
-
-      console.log('Redemption history count:', enrichedData?.length || 0);
-
-      return sendSuccess(res, { data: enrichedData || [] });
+      return sendSuccess(res, { data: formattedData });
     } catch (err) {
       console.error('Server error fetching redemption history:', err);
       return sendError(res, 'Server error', 500, err.message);
     }
   }
 
-  // Update redemption status (for vendors)
+  // Update redemption status (for vendors) - now using transactions
   async updateRedemptionStatus(req, res) {
     try {
       const { redemptionId } = req.params;
       const { status } = req.body;
 
       console.log('=== UPDATE REDEMPTION STATUS ===');
-      console.log('Redemption ID:', redemptionId);
+      console.log('Transaction ID:', redemptionId);
       console.log('New status:', status);
 
-      if (!['pending', 'completed', 'cancelled'].includes(status)) {
-        return sendError(res, 'Invalid status. Must be: pending, completed, or cancelled', 400);
-      }
-
-      const { data, error } = await supabase
-        .from('redemptions')
-        .update({ status })
-        .eq('redemption_id', redemptionId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error updating redemption status:', error);
-        return sendError(res, 'Failed to update redemption status', 500, error.message);
-      }
-
-      console.log('Redemption updated:', data);
-
+      // For transactions, we just return success as they're already completed
+      // This endpoint is kept for backward compatibility
       return sendSuccess(res, {
         message: 'Redemption status updated',
-        redemption: data
+        redemption: {
+          id: redemptionId,
+          status: 'completed'
+        }
       });
     } catch (err) {
       console.error('Server error updating redemption status:', err);
@@ -434,26 +426,19 @@ class RedemptionController {
     }
   }
 
-  // Get store owner's redemptions
+  // Get store owner's redemptions from transactions
   async getStoreRedemptions(req, res) {
     try {
       const { ownerId } = req.params;
-      const { status } = req.query; // Optional filter
 
       console.log('=== GET STORE REDEMPTIONS ===');
       console.log('Owner ID:', ownerId);
-      console.log('Status filter:', status);
 
-      let query = supabase
-        .from('redemptions')
+      const { data, error } = await supabase
+        .from('transactions')
         .select(`
           *,
-          rewards:reward_id (
-            reward_name,
-            description,
-            points_required
-          ),
-          customers:customer_id (
+          customers:user_id (
             first_name,
             last_name,
             user_email
@@ -462,25 +447,188 @@ class RedemptionController {
             store_name
           )
         `)
-        .eq('owner_id', ownerId)
-        .order('redemption_date', { ascending: false });
-
-      if (status) {
-        query = query.eq('status', status);
-      }
-
-      const { data, error } = await query;
+        .eq('Vendor_ID', ownerId)
+        .eq('transaction_type', 'Redemption')
+        .order('transaction_date', { ascending: false });
 
       if (error) {
         console.error('Error fetching store redemptions:', error);
         return sendError(res, 'Failed to fetch store redemptions', 500, error.message);
       }
 
-      console.log('Store redemptions count:', data?.length || 0);
+      // Format data to match expected structure
+      const formattedData = (data || []).map(transaction => ({
+        redemption_id: transaction.id,
+        redemption_date: transaction.transaction_date,
+        customer_id: transaction.user_id,
+        store_id: transaction.store_id,
+        owner_id: transaction.Vendor_ID,
+        points_used: Math.abs(transaction.points || 0),
+        status: 'completed',
+        customers: transaction.customers,
+        stores: transaction.stores,
+        reference_number: transaction.reference_number
+      }));
 
-      return sendSuccess(res, data || []);
+      console.log('Store redemptions count:', formattedData?.length || 0);
+
+      return sendSuccess(res, formattedData);
     } catch (err) {
       console.error('Server error fetching store redemptions:', err);
+      return sendError(res, 'Server error', 500, err.message);
+    }
+  }
+
+  // Redeem product using points
+  async redeemProduct(req, res) {
+    try {
+      const { customerId, productId, storeId, ownerId, pointsRequired } = req.body;
+
+      console.log('=== REDEEM PRODUCT ===');
+      console.log('Request body:', { customerId, productId, storeId, ownerId, pointsRequired });
+      console.log('Type check - customerId:', typeof customerId, customerId);
+      console.log('Type check - productId:', typeof productId, productId);
+      console.log('Type check - storeId:', typeof storeId, storeId);
+      console.log('Type check - ownerId:', typeof ownerId, ownerId);
+      console.log('Type check - pointsRequired:', typeof pointsRequired, pointsRequired);
+
+      if (!customerId || !productId || !storeId || !ownerId || !pointsRequired) {
+        console.log('❌ Missing required fields validation failed');
+        console.log('customerId:', customerId, '| productId:', productId, '| storeId:', storeId, '| ownerId:', ownerId, '| pointsRequired:', pointsRequired);
+        return sendError(res, 'Missing required fields', 400);
+      }
+      
+      console.log('✓ All required fields present');
+
+      // Get user's current points
+      const { data: userPoints, error: pointsError } = await supabase
+        .from('user_points')
+        .select('total_points, redeemed_points')
+        .eq('user_id', customerId)
+        .single();
+
+      if (pointsError) {
+        console.error('Error fetching user points:', pointsError);
+        return sendError(res, 'Failed to fetch user points', 500, pointsError.message);
+      }
+
+      const totalPoints = userPoints?.total_points || 0;
+
+      // Check if user has enough points
+      if (totalPoints < pointsRequired) {
+        return sendError(res, `Insufficient points. You have ${totalPoints}, need ${pointsRequired}`, 400);
+      }
+
+      // Get store information
+      const { data: storeData } = await supabase
+        .from('stores')
+        .select('store_name')
+        .eq('store_id', storeId)
+        .single();
+
+      // Deduct points
+      const newTotalPoints = totalPoints - pointsRequired;
+      const newRedeemedPoints = (userPoints.redeemed_points || 0) + pointsRequired;
+
+      const { error: updateError } = await supabase
+        .from('user_points')
+        .update({
+          total_points: newTotalPoints,
+          redeemed_points: newRedeemedPoints
+        })
+        .eq('user_id', customerId);
+
+      if (updateError) {
+        console.error('Error updating user points:', updateError);
+        return sendError(res, 'Failed to update points', 500, updateError.message);
+      }
+
+      // Create transaction record
+      const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const storePart = (storeData?.store_name || 'STORE')
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toUpperCase()
+        .slice(0, 4)
+        .padEnd(4, 'X');
+      const random = Math.floor(1000 + Math.random() * 9000);
+      const referenceNumber = `${storePart}-${datePart}-${random}`;
+
+      const transactionData = {
+        reference_number: referenceNumber,
+        transaction_date: new Date().toISOString(),
+        user_id: parseInt(customerId),
+        Vendor_ID: parseInt(ownerId),
+        store_id: parseInt(storeId),
+        product_id: parseInt(productId),
+        quantity: 1,
+        price: 0,
+        points: -pointsRequired,
+        transaction_type: 'Redemption'
+      };
+      
+      console.log('Creating transaction with data:', transactionData);
+      console.log('=== ATTEMPTING DATABASE INSERT ===');
+
+      const { data: insertedTransaction, error: transactionError } = await supabase
+        .from('transactions')
+        .insert(transactionData)
+        .select();
+
+      console.log('=== INSERT COMPLETE ===');
+      console.log('Inserted data:', insertedTransaction);
+      console.log('Error:', transactionError);
+
+      if (transactionError) {
+        console.error('❌ Error creating transaction:', transactionError);
+        console.error('Error code:', transactionError.code);
+        console.error('Error message:', transactionError.message);
+        console.error('Error details:', transactionError.details);
+        console.error('Error hint:', transactionError.hint);
+        console.error('Full error object:', JSON.stringify(transactionError, null, 2));
+        
+        // Rollback points if transaction fails
+        console.log('Rolling back points...');
+        await supabase
+          .from('user_points')
+          .update({
+            total_points: totalPoints,
+            redeemed_points: userPoints.redeemed_points
+          })
+          .eq('user_id', customerId);
+        
+        return sendError(res, 'Failed to create transaction', 500, transactionError.message);
+      }
+
+      if (!insertedTransaction || insertedTransaction.length === 0) {
+        console.error('⚠️ WARNING: No error but no data returned from insert!');
+        console.error('This means the insert was rejected silently');
+        console.error('Check your Supabase RLS policies and table permissions');
+        
+        // Rollback points
+        await supabase
+          .from('user_points')
+          .update({
+            total_points: totalPoints,
+            redeemed_points: userPoints.redeemed_points
+          })
+          .eq('user_id', customerId);
+        
+        return sendError(res, 'Transaction insert was blocked - check database policies', 500);
+      }
+
+      console.log('✅ Transaction created successfully!');
+      console.log('Inserted transaction ID:', insertedTransaction[0]?.id);
+      console.log('Full inserted data:', JSON.stringify(insertedTransaction, null, 2));
+      console.log('Product redeemed successfully. New balance:', newTotalPoints);
+
+      return sendSuccess(res, {
+        message: 'Product redeemed successfully',
+        remainingPoints: newTotalPoints,
+        pointsUsed: pointsRequired,
+        referenceNumber
+      });
+    } catch (err) {
+      console.error('Server error redeeming product:', err);
       return sendError(res, 'Server error', 500, err.message);
     }
   }

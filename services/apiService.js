@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 // ✅ Configure API base URL
 const API_BASE_URL =
   Platform.OS === 'android'
-    ? 'http://192.168.1.6:3000/api'  // For physical device on same network. Use 10.0.2.2 for android emulator
+    ? 'http://10.0.2.2:3000/api'  // For physical device on same network. Use 10.0.2.2 for android emulator
     : 'http://localhost:3000/api';
 
 const TOKEN_KEY = '@app_auth_token';
@@ -270,6 +270,22 @@ class ApiService {
     return data;
   }
 
+  async getStore(storeId) {
+    const data = await this.request(`/stores/${storeId}`);
+    if (data) {
+      return {
+        ...data,
+        id: data.id || data.store_id || data.storeId || null,
+        name: data.name || data.store_name || data.storeName || data.store || null,
+        address: data.address || data.location || data.city || null,
+        image_url: data.image_url || data.logoUrl || data.logo_url || data.image || null,
+        logoUrl: data.logoUrl || data.image_url || data.logo_url || data.image || null,
+        owner_id: data.owner_id || data.ownerId || null,
+      };
+    }
+    return data;
+  }
+
   async getStoreBy(storeId) {
     const data = await this.request(`/stores/${storeId}`);
     if (data && typeof data === 'object') {
@@ -370,6 +386,11 @@ class ApiService {
   }
 
   // 🎯 USER POINTS
+  async getUserPoints(userId) {
+    if (!userId) throw new Error('Missing userId');
+    return this.request(`/user/${userId}/points`);
+  }
+
   async getUserPointsByStore(userId) {
     if (!userId) throw new Error('Missing userId');
     return this.request(`/user/${userId}/points-by-store`);
@@ -466,6 +487,27 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ customerId, rewardId, storeId, ownerId }),
     });
+  }
+
+  async redeemProduct(customerId, productId, storeId, ownerId, pointsRequired) {
+    console.log('=== API SERVICE: redeemProduct ===');
+    console.log('Endpoint:', '/rewards/redeem-product');
+    console.log('Method: POST');
+    console.log('Body:', { customerId, productId, storeId, ownerId, pointsRequired });
+    console.log('Base URL:', this.baseURL);
+    console.log('Full URL:', `${this.baseURL}/rewards/redeem-product`);
+    
+    try {
+      const response = await this.request('/rewards/redeem-product', {
+        method: 'POST',
+        body: JSON.stringify({ customerId, productId, storeId, ownerId, pointsRequired }),
+      });
+      console.log('API response:', response);
+      return response;
+    } catch (error) {
+      console.error('API error in redeemProduct:', error);
+      throw error;
+    }
   }
 
   async getRedemptionHistory(customerId) {
