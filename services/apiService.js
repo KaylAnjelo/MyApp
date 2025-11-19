@@ -117,6 +117,13 @@ class ApiService {
     });
   }
 
+  async verifyOTPAndRegisterVendor(userData) {
+    return this.request('/auth/vendor-verify-otp', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  }
+
   async register(userData) {
     return this.request('/auth/register', {
       method: 'POST',
