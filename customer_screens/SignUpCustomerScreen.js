@@ -37,7 +37,7 @@ export default function SignUpCustomerScreen() {
 
     setLoading(true);
     try {
-      await apiService.sendOTP(formData.email);
+      await apiService.sendOTP(formData.email.trim().toLowerCase());
       setOtpSent(true);
       Alert.alert('Success', 'Verification code sent to your email!');
     } catch (error) {
@@ -56,9 +56,9 @@ export default function SignUpCustomerScreen() {
     setLoading(true);
     try {
       const userData = {
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(),
         otp: otp,
-        username: formData.email,
+        username: formData.email.trim().toLowerCase(),
         password: formData.password,
         first_name: formData.firstName,
         last_name: formData.lastName,

@@ -136,14 +136,22 @@ class AuthController {
         return sendError(res, 'Email already registered', 400);
       }
 
+      // Normalize email and generate OTP
+      const normalizedEmail = String(email).trim().toLowerCase();
+
       // Generate OTP
       const otp = emailService.generateOTP();
       
       // Store OTP with expiry (10 minutes)
-      otpStore.set(email, {
+      otpStore.set(normalizedEmail, {
         otp,
         expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
       });
+
+      // Helpful debug: log OTP in dev (REMOVE in production)
+      if (process.env.NODE_ENV !== 'production') {
+        console.info(`DEV OTP for ${normalizedEmail}:`, otp);
+      }
 
       // Send OTP email
       await emailService.sendOTP(email, otp);
@@ -179,14 +187,15 @@ class AuthController {
       }
 
       // Check OTP
-      const storedOTP = otpStore.get(email);
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const storedOTP = otpStore.get(normalizedEmail);
       
       if (!storedOTP) {
         return sendError(res, 'OTP not found or expired', 400);
       }
 
       if (Date.now() > storedOTP.expiresAt) {
-        otpStore.delete(email);
+        otpStore.delete(normalizedEmail);
         return sendError(res, 'OTP has expired', 400);
       }
 
@@ -225,7 +234,7 @@ class AuthController {
       }
 
       // Clear OTP after successful registration
-      otpStore.delete(email);
+      otpStore.delete(normalizedEmail);
 
       return sendSuccess(
         res,
@@ -275,14 +284,15 @@ class AuthController {
         return sendError(res, 'Username and password are required', 400);
       }
 
-      // Verify OTP
-      const storedData = otpStore.get(email);
+      // Verify OTP (normalize email)
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const storedData = otpStore.get(normalizedEmail);
       if (!storedData) {
         return sendError(res, 'Invalid or expired verification code', 400);
       }
 
       if (Date.now() > storedData.expiresAt) {
-        otpStore.delete(email);
+        otpStore.delete(normalizedEmail);
         return sendError(res, 'Verification code has expired', 400);
       }
 
@@ -342,7 +352,7 @@ class AuthController {
       }
 
       // Clear OTP after successful registration
-      otpStore.delete(email);
+      otpStore.delete(normalizedEmail);
 
       return sendSuccess(
         res,
@@ -509,7 +519,9 @@ class AuthController {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       
       // Store OTP with 10-minute expiration
-      otpStore.set(email, {
+      const normalizedEmail = String(email).trim().toLowerCase();
+
+      otpStore.set(normalizedEmail, {
         code: otp,
         expiresAt: Date.now() + 10 * 60 * 1000,
         userId: user.user_id,
@@ -539,7 +551,8 @@ class AuthController {
         return sendError(res, 'Email and OTP are required', 400);
       }
 
-      const stored = otpStore.get(email);
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const stored = otpStore.get(normalizedEmail);
 
       if (!stored) {
         return sendError(res, 'No OTP request found for this email', 400);
@@ -562,14 +575,14 @@ class AuthController {
       const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       
       // Store reset token (expires in 15 minutes)
-      otpStore.set(`reset_${email}`, {
+      otpStore.set(`reset_${normalizedEmail}`, {
         token: resetToken,
         userId: stored.userId,
         expiresAt: Date.now() + 15 * 60 * 1000
       });
 
       // Clear OTP
-      otpStore.delete(email);
+      otpStore.delete(normalizedEmail);
 
       return sendSuccess(res, {
         message: 'OTP verified successfully',
@@ -597,7 +610,8 @@ class AuthController {
       }
 
       // Verify reset token
-      const stored = otpStore.get(`reset_${email}`);
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const stored = otpStore.get(`reset_${normalizedEmail}`);
 
       if (!stored) {
         return sendError(res, 'Invalid or expired reset token', 400);
@@ -608,7 +622,7 @@ class AuthController {
       }
 
       if (Date.now() > stored.expiresAt) {
-        otpStore.delete(`reset_${email}`);
+        otpStore.delete(`reset_${normalizedEmail}`);
         return sendError(res, 'Reset token has expired', 400);
       }
 
@@ -626,7 +640,7 @@ class AuthController {
       }
 
       // Clear reset token
-      otpStore.delete(`reset_${email}`);
+      otpStore.delete(`reset_${normalizedEmail}`);
 
       return sendSuccess(res, {
         message: 'Password changed successfully'

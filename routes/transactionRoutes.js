@@ -12,6 +12,9 @@ router.post('/process-qr', (req, res) => transactionController.processScannedQR(
 // POST - Process manual code entry
 router.post('/process-code', (req, res) => transactionController.processShortCode(req, res));
 
+// POST - Purchase product with points
+router.post('/purchase', (req, res) => transactionController.purchaseProduct(req, res));
+
 // GET - Get transactions by user
 router.get('/user/:userId', (req, res) => transactionController.getUserTransactions(req, res));
 
