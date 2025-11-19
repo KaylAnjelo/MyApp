@@ -159,7 +159,7 @@ router.get("/stores/:storeId/sales-summary", async (req, res) => {
 
     // Group by day of month and product type
     const monthlySales = new Array(daysInMonth).fill(0);
-    const salesByType = {}; // { "Food": [0,0,0...], "Beverage": [0,0,0...] }
+    const salesByType = {}; // { "Food": [0,0,0...], "Beverages": [0,0,0...] }
     
     monthTransactions.forEach(t => {
       const date = new Date(t.transaction_date);
@@ -277,7 +277,7 @@ router.get("/stores/:storeId/sales-analytics", async (req, res) => {
         ],
         salesByType: {
           'Food': [5000, 7000, 3000, 4000],
-          'Beverage': [3000, 4000, 2000, 3000]
+          'Beverages': [3000, 4000, 2000, 3000]
         },
         transactionProgress: { current: 580, target: 820 }
       });
