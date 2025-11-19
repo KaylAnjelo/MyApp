@@ -102,12 +102,6 @@ export default function StoresScreen({ navigation }) {
                   <Text style={styles.storeAddress}>
                     {store.address || 'Address not available'}
                   </Text>
-                  <View style={styles.storeRating}>
-                    <FontAwesome name="star" size={12} color="#FFD700" />
-                    <Text style={styles.storeRatingText}>
-                      {store.rating || '5.0'}
-                    </Text>
-                  </View>
                 </View>
               </TouchableOpacity>
             ))
@@ -227,15 +221,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.small,
     color: Colors.textSecondary,
     marginBottom: Spacing.sm,
-  },
-  storeRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  storeRatingText: {
-    fontSize: Typography.small,
-    color: Colors.textSecondary,
-    marginLeft: Spacing.xs,
   },
   emptyState: {
     flex: 1,
