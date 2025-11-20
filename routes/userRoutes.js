@@ -203,34 +203,46 @@ router.delete('/user/remove-profile-image', async (req, res) => {
   }
 });
 
-// GET /api/user/:userId/points
+// GET /api/user/:userId/points?storeId=1 (store-specific points)
 router.get('/user/:userId/points', async (req, res) => {
   try {
     const { userId } = req.params;
-    console.log('[userRoutes] GET /user/:userId/points called with userId=', userId);
+    const { storeId } = req.query;
+    console.log('[userRoutes] GET /user/:userId/points called with userId=', userId, 'storeId=', storeId);
 
     if (!supabase) {
       // Dev fallback: return mock data
       return res.json({
         user_id: userId,
+        store_id: storeId || null,
         total_points: 150,
         redeemed_points: 0
       });
     }
 
-    // Get user points from user_points table
-    const { data: userPoints, error: pointsError } = await supabase
+    // Build query for user points
+    let query = supabase
       .from('user_points')
       .select('*')
-      .eq('user_id', userId)
-      .single();
+      .eq('user_id', userId);
+
+    // If storeId provided, filter by store
+    if (storeId) {
+      query = query.eq('store_id', storeId);
+    } else {
+      // If no storeId, get record where store_id is null (global points, if any)
+      query = query.is('store_id', null);
+    }
+
+    const { data: userPoints, error: pointsError } = await query.single();
 
     if (pointsError) {
       if (pointsError.code === 'PGRST116') {
         // No record found, return zero points
-        console.log('[userRoutes] No user_points record found for user:', userId);
+        console.log('[userRoutes] No user_points record found for user:', userId, 'store:', storeId);
         return res.json({
           user_id: userId,
+          store_id: storeId ? parseInt(storeId) : null,
           total_points: 0,
           redeemed_points: 0
         });
@@ -241,6 +253,7 @@ router.get('/user/:userId/points', async (req, res) => {
 
     res.json({
       user_id: userId,
+      store_id: userPoints.store_id,
       total_points: userPoints.total_points || 0,
       redeemed_points: userPoints.redeemed_points || 0
     });
