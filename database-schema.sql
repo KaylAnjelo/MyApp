@@ -168,3 +168,14 @@ create table public.owner_recommendations (
 create index IF not exists idx_owner_recs_owner on public.owner_recommendations using btree (owner_id) TABLESPACE pg_default;
 
 create index IF not exists idx_owner_recs_product on public.owner_recommendations using btree (product_id) TABLESPACE pg_default;
+
+create table public.notifications (
+  id serial not null,
+  user_id integer not null,
+  title character varying(255) not null,
+  message text not null,
+  is_read boolean null default false,
+  created_at timestamp without time zone null default CURRENT_TIMESTAMP,
+  constraint notifications_pkey primary key (id),
+  constraint notifications_user_id_fkey foreign KEY (user_id) references users (user_id) on delete CASCADE
+) TABLESPACE pg_default;
