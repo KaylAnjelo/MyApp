@@ -108,20 +108,6 @@ const MyPointsScreen = ({ navigation }) => {
                           <Text style={{ fontWeight: "700" }}>{store.customerPoints || 0} points</Text>
                         </Text>
                       </View>
-                      {canClaim && (
-                        <TouchableOpacity 
-                          style={[styles.cardButton, styles.useButton]} 
-                          activeOpacity={0.9}
-                          onPress={() => {
-                            // Navigate to rewards screen or handle redemption
-                            console.log('Redeem points for store:', store.name);
-                          }}
-                        >
-                          <Text style={[styles.cardButtonText, { color: Colors.white }]}>
-                            Use points
-                          </Text>
-                        </TouchableOpacity>
-                      )}
                     </View>
                   );
                 })

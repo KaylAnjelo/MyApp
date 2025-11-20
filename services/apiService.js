@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { Platform, DeviceInfo } from 'react-native';
 
 // ✅ Configure API base URL
 const API_BASE_URL =
   Platform.OS === 'android'
-    ? 'http://10.0.2.2:3000/api'  // For physical device on same network. Use 10.0.2.2 for android emulator
+    ? 'http://192.168.68.110:3000/api'  // For physical device on same network. Use 10.0.2.2 for android emulator
     : 'http://localhost:3000/api';
 
 const TOKEN_KEY = '@app_auth_token';
