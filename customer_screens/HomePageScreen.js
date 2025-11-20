@@ -49,27 +49,56 @@ export default function HomePageScreen({ navigation }) {
       // Fetch highest points by store and recent activities if userId is available
       if (userId) {
         try {
-          const [pointsByStore, transactionsData] = await Promise.all([
-            apiService.getUserPointsByStore(userId),
-            apiService.getUserTransactions(userId, 'customer')
-          ]);
+          // Fetch transactions data
+          const transactionsData = await apiService.getUserTransactions(userId, 'customer');
+          
+          // Fetch points for each store
+          const storePointsPromises = storesData.map(async (store) => {
+            try {
+              const storeId = store.store_id || store.id;
+              const pointsData = await apiService.getUserPoints(userId, storeId);
+              return {
+                store_id: storeId,
+                store_name: store.store_name || store.name,
+                available_points: pointsData?.total_points || 0,
+                storeImage: store.store_image
+              };
+            } catch (err) {
+              // If no points record for this store, return 0
+              return {
+                store_id: store.store_id || store.id,
+                store_name: store.store_name || store.name,
+                available_points: 0,
+                storeImage: store.store_image
+              };
+            }
+          });
+          
+          const pointsByStore = await Promise.all(storePointsPromises);
           
           // Handle points by store
-          if (pointsByStore && Array.isArray(pointsByStore) && pointsByStore.length > 0) {
+          if (pointsByStore && pointsByStore.length > 0) {
             // Find the store with highest points
             const highest = pointsByStore.reduce((max, current) =>
               (current.available_points || 0) > (max.available_points || 0) ? current : max
             );
             
-            // Find the corresponding store from stores list
-            const storeData = storesData?.find(s => s.id === highest.store_id || s.store_id === highest.store_id);
-            
-            setHighestPointsStore({
-              storeName: highest.store_name || storeData?.name || 'Store',
-              points: highest.available_points || 0,
-              storeImage: storeData?.store_image || null,
-              hasPoints: true,
-            });
+            if (highest.available_points > 0) {
+              setHighestPointsStore({
+                storeName: highest.store_name || 'Store',
+                points: highest.available_points || 0,
+                storeImage: highest.storeImage || null,
+                hasPoints: true,
+              });
+            } else {
+              // No points available at any store
+              setHighestPointsStore({
+                storeName: 'No points yet',
+                points: 0,
+                storeImage: null,
+                hasPoints: false,
+              });
+            }
           } else {
             // No points available
             setHighestPointsStore({

@@ -225,20 +225,25 @@ class RedemptionController {
         return sendError(res, 'Reward does not belong to this store', 400);
       }
 
-      // Check if customer has enough points
+      // Check if customer has enough points AT THIS STORE
       const { data: userPoints, error: pointsError } = await supabase
         .from('user_points')
         .select('total_points, redeemed_points')
         .eq('user_id', customerId)
+        .eq('store_id', storeId)
         .single();
 
       if (pointsError) {
+        if (pointsError.code === 'PGRST116') {
+          console.log('No points record found for user', customerId, 'at store', storeId);
+          return sendError(res, 'You have no points at this store yet', 400);
+        }
         console.error('Error fetching user points:', pointsError);
         return sendError(res, 'Failed to fetch user points', 500, pointsError.message);
       }
 
       const totalPoints = userPoints?.total_points || 0;
-      console.log('Customer points:', totalPoints, 'Required:', reward.points_required);
+      console.log(`Customer has ${totalPoints} points at store ${storeId}, required:`, reward.points_required);
 
       if (totalPoints < reward.points_required) {
         return sendError(res, `Insufficient points. You have ${totalPoints}, need ${reward.points_required}`, 400);
@@ -253,7 +258,7 @@ class RedemptionController {
 
       console.log('Store data retrieved:', storeData?.store_name);
 
-      // Deduct points from user
+      // Deduct points from user AT THIS STORE
       const newTotalPoints = totalPoints - reward.points_required;
       const newRedeemedPoints = (userPoints.redeemed_points || 0) + reward.points_required;
 
@@ -263,7 +268,8 @@ class RedemptionController {
           total_points: newTotalPoints,
           redeemed_points: newRedeemedPoints
         })
-        .eq('user_id', customerId);
+        .eq('user_id', customerId)
+        .eq('store_id', storeId);
 
       if (updateError) {
         console.error('Error updating user points:', updateError);
@@ -500,19 +506,26 @@ class RedemptionController {
       
       console.log('✓ All required fields present');
 
-      // Get user's current points
+      // Get user's current points FOR THIS SPECIFIC STORE
       const { data: userPoints, error: pointsError } = await supabase
         .from('user_points')
         .select('total_points, redeemed_points')
         .eq('user_id', customerId)
+        .eq('store_id', storeId)
         .single();
 
       if (pointsError) {
+        if (pointsError.code === 'PGRST116') {
+          // No points record for this store yet
+          console.log('No points record found for user', customerId, 'at store', storeId);
+          return sendError(res, 'You have no points at this store yet', 400);
+        }
         console.error('Error fetching user points:', pointsError);
         return sendError(res, 'Failed to fetch user points', 500, pointsError.message);
       }
 
       const totalPoints = userPoints?.total_points || 0;
+      console.log(`User has ${totalPoints} points at store ${storeId}`);
 
       // Check if user has enough points
       if (totalPoints < pointsRequired) {
@@ -526,7 +539,7 @@ class RedemptionController {
         .eq('store_id', storeId)
         .single();
 
-      // Deduct points
+      // Deduct points FROM THIS STORE'S BALANCE
       const newTotalPoints = totalPoints - pointsRequired;
       const newRedeemedPoints = (userPoints.redeemed_points || 0) + pointsRequired;
 
@@ -536,7 +549,8 @@ class RedemptionController {
           total_points: newTotalPoints,
           redeemed_points: newRedeemedPoints
         })
-        .eq('user_id', customerId);
+        .eq('user_id', customerId)
+        .eq('store_id', storeId);
 
       if (updateError) {
         console.error('Error updating user points:', updateError);
@@ -594,7 +608,8 @@ class RedemptionController {
             total_points: totalPoints,
             redeemed_points: userPoints.redeemed_points
           })
-          .eq('user_id', customerId);
+          .eq('user_id', customerId)
+          .eq('store_id', storeId);
         
         return sendError(res, 'Failed to create transaction', 500, transactionError.message);
       }
@@ -611,7 +626,8 @@ class RedemptionController {
             total_points: totalPoints,
             redeemed_points: userPoints.redeemed_points
           })
-          .eq('user_id', customerId);
+          .eq('user_id', customerId)
+          .eq('store_id', storeId);
         
         return sendError(res, 'Transaction insert was blocked - check database policies', 500);
       }

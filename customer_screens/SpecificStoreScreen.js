@@ -154,13 +154,13 @@ export default function SpecificStoreScreen({ route, navigation }) {
           
           if (userId) {
             try {
-              console.log('Calling getUserPoints for user:', userId);
-              const pointsData = await apiService.getUserPoints(userId);
+              console.log('Calling getUserPoints for user:', userId, 'store:', storeId);
+              const pointsData = await apiService.getUserPoints(userId, storeId);
               console.log('getUserPoints response:', pointsData);
               
               if (pointsData) {
                 points = Number(pointsData.total_points || 0);
-                console.log('Total points from user_points table:', points);
+                console.log(`Total points for store ${storeId}:`, points);
               }
             } catch (pointsErr) {
               console.warn('getUserPoints failed:', pointsErr.message);

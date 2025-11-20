@@ -20,27 +20,30 @@ const MyPointsScreen = ({ navigation }) => {
           const currentUserId = user.user_id;
           setUserId(currentUserId);
 
-          // Fetch stores and user points in parallel
-          const [storesData, pointsData] = await Promise.all([
-            apiService.getStores(),
-            apiService.getUserPointsByStore(currentUserId)
-          ]);
+          // Fetch stores first
+          const storesData = await apiService.getStores();
 
-          // Create a map of store_id to points
-          const pointsMap = {};
-          if (Array.isArray(pointsData)) {
-            pointsData.forEach(pointData => {
-              pointsMap[pointData.store_id] = pointData.available_points || 0;
-            });
-          }
+          // Fetch points for each store individually
+          const storesWithPointsPromises = storesData.map(async (store) => {
+            try {
+              const storeId = store.store_id || store.id;
+              const pointsData = await apiService.getUserPoints(currentUserId, storeId);
+              return {
+                ...store,
+                customerPoints: pointsData?.total_points || 0,
+                claimThreshold: store.claim_threshold || store.claimThreshold || 100 // Default threshold
+              };
+            } catch (err) {
+              // If no points record for this store, return 0
+              return {
+                ...store,
+                customerPoints: 0,
+                claimThreshold: store.claim_threshold || store.claimThreshold || 100
+              };
+            }
+          });
 
-          // Merge stores with user points
-          const storesWithPoints = storesData.map(store => ({
-            ...store,
-            customerPoints: pointsMap[store.store_id] || pointsMap[store.id] || 0,
-            claimThreshold: store.claim_threshold || store.claimThreshold || 100 // Default threshold
-          }));
-
+          const storesWithPoints = await Promise.all(storesWithPointsPromises);
           setStores(storesWithPoints);
         }
       } catch (error) {

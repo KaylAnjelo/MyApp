@@ -385,10 +385,13 @@ class ApiService {
     return this.request(endpoint);
   }
 
-  // 🎯 USER POINTS
-  async getUserPoints(userId) {
+  // 🎯 USER POINTS (store-specific)
+  async getUserPoints(userId, storeId = null) {
     if (!userId) throw new Error('Missing userId');
-    return this.request(`/user/${userId}/points`);
+    const url = storeId 
+      ? `/user/${userId}/points?storeId=${storeId}`
+      : `/user/${userId}/points`;
+    return this.request(url);
   }
 
   async getUserPointsByStore(userId) {
