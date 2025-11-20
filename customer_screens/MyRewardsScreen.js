@@ -6,7 +6,9 @@ import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
 
 export default function MyRewardsScreen({ navigation }) {
-  const [rewards, setRewards] = useState([]);
+  // split rewards into active (pending) and used/expired
+  const [activeRewards, setActiveRewards] = useState([]);
+  const [usedRewards, setUsedRewards] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export default function MyRewardsScreen({ navigation }) {
   const loadRewards = async () => {
     try {
       setLoading(true);
-      
+
       // Get user ID from AsyncStorage
       const userString = await AsyncStorage.getItem('@app_user');
       const user = userString ? JSON.parse(userString) : null;
@@ -35,24 +37,49 @@ export default function MyRewardsScreen({ navigation }) {
         return;
       }
 
-      console.log('Fetching redemption history for user:', userId);
-      const response = await apiService.getRedemptionHistory(userId);
-      console.log('Redemption history response:', response);
-      
-      const rewardsData = response?.data || response || [];
-      
-      // Filter for pending rewards only (not yet used)
-      const pendingRewards = Array.isArray(rewardsData) 
-        ? rewardsData.filter(r => r.status === 'pending')
-        : [];
-      
-      setRewards(pendingRewards);
+      console.log('Fetching active rewards (rewards table) and redemption history for user:', userId);
+
+      // 1) Try to fetch active vouchers from the rewards table (apiService.getRewards)
+      let activeList = [];
+      try {
+        // Expectation: apiService.getRewards(userId) returns array or { data: [...] }
+        const activeResp = apiService.getRewards ? await apiService.getRewards(userId) : null;
+        const activeData = activeResp?.data || activeResp || [];
+        activeList = Array.isArray(activeData) ? activeData : [];
+      } catch (err) {
+        console.warn('Failed to fetch rewards table (active vouchers):', err);
+        activeList = [];
+      }
+
+      // 2) Fetch redemption history for used/expired vouchers
+      let redemptionList = [];
+      try {
+        const resp = await apiService.getRedemptionHistory(userId);
+        const rewardsData = resp?.data || resp || [];
+        redemptionList = Array.isArray(rewardsData) ? rewardsData : [];
+      } catch (err) {
+        console.warn('Failed to fetch redemption history:', err);
+        redemptionList = [];
+      }
+
+      // Use all entries from rewards table as active vouchers (source: rewards table)
+      setActiveRewards(activeList);
+      // Use redemption history entries that are not pending as used/expired
+      setUsedRewards(redemptionList.filter(r => (r.status || '').toLowerCase() !== 'pending'));
     } catch (error) {
       console.error('Error loading rewards:', error);
       Alert.alert('Error', 'Failed to load rewards');
     } finally {
       setLoading(false);
     }
+  };
+
+  // helper to map status -> display and color
+  const getStatusMeta = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s === 'expired') return { label: 'Expired', color: '#9e9e9e' };
+    if (s === 'redeemed' || s === 'used') return { label: 'Redeemed', color: '#6b6b6b' };
+    return { label: status || 'Status', color: '#9e9e9e' };
   };
 
   const handleUseReward = (reward) => {
@@ -106,7 +133,7 @@ export default function MyRewardsScreen({ navigation }) {
                 <ActivityIndicator size="large" color={Colors.primary} />
                 <Text style={styles.rewardsText}>Loading rewards...</Text>
               </View>
-            ) : rewards.length === 0 ? (
+            ) : (activeRewards.length === 0 && usedRewards.length === 0) ? (
               <View style={styles.emptyState}>
                 <FontAwesome name="gift" size={48} color="#ccc" style={{ marginBottom: 14 }} />
                 <Text style={styles.rewardsText}>No rewards yet</Text>
@@ -114,41 +141,79 @@ export default function MyRewardsScreen({ navigation }) {
               </View>
             ) : (
               <View>
-                {rewards.map((reward, idx) => (
-                  <View key={reward.redemption_id || `reward-${idx}`} style={styles.rewardCard}>
-                    <View style={styles.rewardCardHeader}>
-                      <View style={styles.rewardIconContainer}>
-                        <FontAwesome name="gift" size={24} color={Colors.primary} />
-                      </View>
-                      <View style={styles.rewardInfo}>
-                        <Text style={styles.rewardItemTitle}>{reward.reward_name || reward.description || 'Reward'}</Text>
-                        {reward.store_name && (
-                          <Text style={styles.storeName}>{reward.store_name}</Text>
-                        )}
-                        <View style={styles.rewardMeta}>
-                          <View style={styles.pointsBadge}>
-                            <Text style={styles.pointsBadgeText}>{reward.points_used} pts</Text>
-                          </View>
+                {/* Active Vouchers */}
+                <Text style={[styles.rewardsText, { marginBottom: Spacing.sm }]}>Active Vouchers</Text>
+                {activeRewards.length === 0 ? (
+                  <Text style={styles.rewardsSubtext}>No active vouchers</Text>
+                ) : (
+                  activeRewards.map((reward, idx) => (
+                    <View key={reward.redemption_id || `active-${idx}`} style={styles.rewardCard}>
+                      <View style={styles.rewardCardHeader}>
+                        <View style={styles.rewardIconContainer}>
+                          <FontAwesome name="gift" size={24} color={Colors.primary} />
                         </View>
-                        {reward.redemption_date && (
-                          <Text style={styles.rewardDate}>
-                            {new Date(reward.redemption_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </Text>
-                        )}
+                        <View style={styles.rewardInfo}>
+                          <Text style={styles.rewardItemTitle}>{reward.reward_name || reward.description || 'Reward'}</Text>
+                          {reward.store_name && <Text style={styles.storeName}>{reward.store_name}</Text>}
+                          <View style={styles.rewardMeta}>
+                            <View style={styles.pointsBadge}>
+                              <Text style={styles.pointsBadgeText}>{reward.points_used} pts</Text>
+                            </View>
+                          </View>
+                          {reward.redemption_date && (
+                            <Text style={styles.rewardDate}>
+                              {new Date(reward.redemption_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </Text>
+                          )}
+                        </View>
                       </View>
-                    </View>
-                    {reward.status === 'pending' && (
                       <TouchableOpacity 
                         style={styles.useButton} 
                         activeOpacity={0.7} 
                         onPress={() => handleUseReward(reward)}
                       >
-                        <Text style={styles.useText}>Use</Text>
+                        <Text style={styles.useText}>Use Now</Text>
                         <FontAwesome name="chevron-right" size={14} color={Colors.white} style={{ marginLeft: 6 }} />
                       </TouchableOpacity>
-                    )}
-                  </View>
-                ))}
+                    </View>
+                  ))
+                )}
+
+                {/* Used / Expired Vouchers */}
+                <Text style={[styles.rewardsText, { marginTop: Spacing.lg, marginBottom: Spacing.sm }]}>Used / Expired Vouchers</Text>
+                {usedRewards.length === 0 ? (
+                  <Text style={styles.rewardsSubtext}>No used or expired vouchers</Text>
+                ) : (
+                  usedRewards.map((reward, idx) => {
+                    const meta = getStatusMeta(reward.status);
+                    return (
+                      <View key={reward.redemption_id || `used-${idx}`} style={styles.rewardCard}>
+                        <View style={styles.rewardCardHeader}>
+                          <View style={styles.rewardIconContainer}>
+                            <FontAwesome name="gift" size={24} color={Colors.primary} />
+                          </View>
+                          <View style={styles.rewardInfo}>
+                            <Text style={styles.rewardItemTitle}>{reward.reward_name || reward.description || 'Reward'}</Text>
+                            {reward.store_name && <Text style={styles.storeName}>{reward.store_name}</Text>}
+                            <View style={styles.rewardMeta}>
+                              <View style={styles.pointsBadge}>
+                                <Text style={styles.pointsBadgeText}>{reward.points_used} pts</Text>
+                              </View>
+                              <View style={[styles.statusBadge, { backgroundColor: meta.color }]}>
+                                <Text style={[styles.statusText, { color: '#fff' }]}>{meta.label}</Text>
+                              </View>
+                            </View>
+                            {reward.redemption_date && (
+                              <Text style={styles.rewardDate}>
+                                {new Date(reward.redemption_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
               </View>
             )}
           </View>
