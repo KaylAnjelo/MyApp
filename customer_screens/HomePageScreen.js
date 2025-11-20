@@ -1,14 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  RefreshControl,
-} from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { Animated, Easing } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -16,6 +9,11 @@ import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
 
 export default function HomePageScreen({ navigation }) {
+  const [showBanner, setShowBanner] = useState(false);
+  const bannerAnim = useRef(new Animated.Value(-60)).current; // for translateY
+  const bannerOpacity = useRef(new Animated.Value(0)).current;
+  const isFocused = useIsFocused();
+  const prevUnreadRef = useRef(0);
   const [stores, setStores] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,10 +25,73 @@ export default function HomePageScreen({ navigation }) {
     storeImage: null,
     hasPoints: false,
   });
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isFocused) {
+      fetchData();
+      fetchNotifications();
+    }
+  }, [isFocused]);
+
+  // Alert when new notification arrives
+  useEffect(() => {
+    console.log('Unread notifications:', unreadNotifications);
+    if (unreadNotifications > prevUnreadRef.current) {
+      setShowBanner(true);
+      Animated.parallel([
+        Animated.timing(bannerAnim, {
+          toValue: 0,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(bannerOpacity, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+      ]).start();
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(bannerAnim, {
+            toValue: -60,
+            duration: 350,
+            easing: Easing.in(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(bannerOpacity, {
+            toValue: 0,
+            duration: 350,
+            useNativeDriver: true,
+          }),
+        ]).start(() => setShowBanner(false));
+      }, 2000);
+    }
+    prevUnreadRef.current = unreadNotifications;
+  }, [unreadNotifications]);
+
+  // Fetch unread notifications count
+  const fetchNotifications = async () => {
+    try {
+      const userString = await AsyncStorage.getItem('@app_user');
+      const user = userString ? JSON.parse(userString) : null;
+      const userId = user?.user_id;
+      if (!userId) return;
+      const response = await apiService.getUserNotifications(userId);
+      let unread = 0;
+      if (Array.isArray(response)) {
+        unread = response.filter(n => !n.is_read).length;
+      } else if (response && response.notifications) {
+        unread = response.notifications.filter(n => !n.is_read).length;
+      }
+      setUnreadNotifications(Number(unread));
+      console.log('Fetched unread notifications:', unread);
+    } catch (err) {
+      setUnreadNotifications(0);
+      console.log('Error fetching notifications:', err);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -181,6 +242,19 @@ export default function HomePageScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <Animated.View
+        style={[
+          styles.banner,
+          {
+            transform: [{ translateY: bannerAnim }],
+            opacity: bannerOpacity,
+            display: showBanner ? 'flex' : 'none',
+          },
+        ]}
+        pointerEvents="none"
+      >
+        <Text style={styles.bannerText}>You have a new notification!</Text>
+      </Animated.View>
       <ScrollView
         contentContainerStyle={styles.scrollViewContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -188,8 +262,13 @@ export default function HomePageScreen({ navigation }) {
         {/* Header */}
         <View style={styles.header}>
           <Image source={require('../assets/logo_maroon.png')} style={styles.logoImage} />
-          <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ position: 'relative' }}>
             <Ionicons name="notifications-outline" size={26} color={Colors.primary} />
+            {unreadNotifications > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>{unreadNotifications}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -320,6 +399,24 @@ export default function HomePageScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  banner: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#d32f2f',
+    paddingVertical: 12,
+    zIndex: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 10,
+  },
+  bannerText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
+    letterSpacing: 0.5,
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
@@ -504,4 +601,22 @@ const styles = StyleSheet.create({
   navText: { fontSize: 11, marginTop: 2, color: '#555' },
   loadingContainer: { justifyContent: 'center', alignItems: 'center', flex: 1 },
   loadingText: { marginTop: 10, fontSize: Typography.body, color: Colors.textSecondary },
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#d32f2f',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    zIndex: 10,
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
 });

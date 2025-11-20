@@ -516,6 +516,32 @@ class ApiService {
   async getRedemptionHistory(customerId) {
     return this.request(`/rewards/customer/${customerId}/history`);
   }
+
+  // 📬 NOTIFICATIONS
+  async getUserNotifications(userId) {
+  return this.request(`/notifications/${userId}`);
+}
+
+  async markNotificationAsRead(notificationId) {
+    return this.request(`/notifications/${notificationId}/read`, {
+      method: 'POST',
+    });
+  }
+
+  async deleteNotification(notificationId) {
+    return this.request(`/notifications/${notificationId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // PATCH request method
+  async patch(endpoint, body = null, options = {}) {
+    return this.request(endpoint, {
+      method: 'PATCH',
+      ...(body ? { body: JSON.stringify(body) } : {}),
+      ...options,
+    });
+  }
 }
 
 const apiService = new ApiService();
