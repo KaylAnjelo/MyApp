@@ -26,6 +26,7 @@ import PointsHistoryScreen from './customer_screens/PointsHistoryScreen';
 import TransactionDetailsScreen from './customer_screens/TransactionDetailsScreen';
 import ChangePasswordScreen from './customer_screens/ChangePasswordScreen';
 import VendorTransactionDetail from './vendor_screens/VendorTransactionDetailScreen';
+import NotificationsScreen from './customer_screens/NotificationsScreen';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -57,6 +58,7 @@ export default function App() {
         <Stack.Screen name="VTransactionDetail" component={VendorTransactionDetail} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
 
+        <Stack.Screen name="Notifications" component={NotificationsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

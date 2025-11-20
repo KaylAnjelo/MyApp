@@ -50,7 +50,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
         try {
           // Use the same base URL as apiService
           const baseUrl = Platform.OS === 'android' 
-            ? 'http://10.0.2.2:3000'  // Physical device - change to 10.0.2.2 for emulator
+            ? 'http://192.168.68.110:3000'  // Physical device - change to 10.0.2.2 for emulator
             : 'http://localhost:3000';
           const healthUrl = `${baseUrl}/health`;
           console.log('Testing health endpoint:', healthUrl);

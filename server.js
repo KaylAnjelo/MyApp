@@ -4,6 +4,7 @@ require("dotenv").config();
 
 const { supabase } = require("./supabaseClient.js");
 const authRoutes = require("./routes/authRoutes"); // import your auth routes
+const notificationRoutes = require('./routes/notificationRoutes');
 const storeRoutes = require("./routes/storeRoutes"); // import your new store routes
 const productRoutes = require("./routes/productRoutes"); // import product routes
 const userRoutes = require("./routes/userRoutes"); // import user/profile routes
@@ -30,6 +31,7 @@ app.get("/health", (req, res) => {
 
 // Use routes
 app.use("/api", authRoutes);  // for /api/auth/*
+app.use('/api/notifications', notificationRoutes);
 app.use("/api", storeRoutes); // for /api/stores
 app.use("/api", productRoutes); // for /api/products
 app.use("/api", userRoutes); // for /api/user/profile
