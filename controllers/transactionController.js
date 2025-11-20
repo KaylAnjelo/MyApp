@@ -397,7 +397,7 @@ class TransactionController {
         quantity: item.quantity,
         price: item.price,
         points: parseFloat((item.price * item.quantity * 0.1).toFixed(2)),
-        transaction_type: qr_data.transaction_type
+        transaction_type: qr_data.transaction_type || 'Purchase'
       }));
 
       const { data: transactions, error: transactionError } = await supabase
