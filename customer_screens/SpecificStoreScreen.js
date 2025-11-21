@@ -446,11 +446,15 @@ export default function SpecificStoreScreen({ route, navigation }) {
               renderItem={({ item }) => (
                 <View style={styles.menuCard}>
                   <View style={styles.menuImageWrap}>
-                    <Image
-                      source={{ uri: item.product_image || item.image_url || item.imageUrl || 'https://via.placeholder.com/150/c0c0c0' }}
-                      style={styles.menuImage}
-                      resizeMode="cover"
-                    />
+                    {item.product_image || item.image_url || item.imageUrl ? (
+                      <Image
+                        source={{ uri: item.product_image || item.image_url || item.imageUrl }}
+                        style={styles.menuImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <FontAwesome name="utensils" size={48} color="#bbb" solid />
+                    )}
                   </View>
                   <View style={styles.menuLabelWrap}>
                     <Text 
@@ -647,7 +651,7 @@ const styles = StyleSheet.create({
   menuImageWrap: {
     width: '100%',
     height: 120,
-    backgroundColor: '#c0c0c0',
+    backgroundColor: '#f4f4f4', // lighter background for placeholder
     alignItems: 'center',
     justifyContent: 'center',
   },

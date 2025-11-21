@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView } from "react-native";
-import FontAwesome from "react-native-vector-icons/FontAwesome";
+import FontAwesome from "react-native-vector-icons/FontAwesome5";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Radii, Shadows } from "../styles/theme";
 import apiService from "../services/apiService";
@@ -95,10 +95,14 @@ const MyPointsScreen = ({ navigation }) => {
                   return (
                     <View key={store && store.id ? String(store.id) : `store-${idx}`} style={styles.storeCard}>
                       <View style={styles.logoCircle}>
-                        <Image 
-                          source={{ uri: store.logoUrl || store.store_image || 'https://via.placeholder.com/64' }} 
-                          style={styles.logoImage} 
-                        />
+                        {store.logoUrl || store.store_image ? (
+                          <Image 
+                            source={{ uri: store.logoUrl || store.store_image }} 
+                            style={styles.logoImage} 
+                          />
+                        ) : (
+                          <FontAwesome name="store" size={36} color="#bbb" solid />
+                        )}
                       </View>
                       <View style={styles.cardInfo}>
                         <Text style={styles.storeName}>

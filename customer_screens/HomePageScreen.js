@@ -3,7 +3,7 @@ import { Animated, Easing } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import FontAwesome from 'react-native-vector-icons/FontAwesome5';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
@@ -313,10 +313,14 @@ export default function HomePageScreen({ navigation }) {
                 style={styles.popularCard}
                 onPress={() => navigation.navigate('SpecificStore', { storeId: store.id, storeName: store.name })}
               >
-                <View style={[styles.popularImageArea, { backgroundColor: store.brandColor || '#7D0006' }]}> 
-                  {/* centered store image */}
-                  {store.store_image && (
+                <View style={styles.popularImageArea}>
+                  {/* centered store image or icon */}
+                  {store.store_image ? (
                     <Image source={{ uri: store.store_image }} style={styles.popularLogo} />
+                  ) : (
+                    <View style={[styles.popularLogo, styles.popularLogoPlaceholder]}>
+                      <FontAwesome name="store" size={48} color="#bbb" solid />
+                    </View>
                   )}
                 </View>
                 <View style={styles.popularInfo}>
@@ -525,15 +529,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  popularLogo: { width: '100%', height: '100%', resizeMode: 'cover' },
-  popularLogoPlaceholder: { color: '#fff' },
+  popularLogo: {
+    width: '100%',
+    height: '100%',
+    borderRadius: Radii.md,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  popularLogoPlaceholder: {
+    backgroundColor: '#f4f4f4',
+  },
   popularInfo: { padding: Spacing.md, paddingTop: Spacing.sm },
   popularName: { fontSize: Typography.body, fontWeight: '700', marginBottom: Spacing.xs },
   collectButton: {
     position: 'absolute',
     right: 8,
     bottom: 8,
-    backgroundColor: '#7D0006',
+    backgroundColor: '#f4f4f4',
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: Radii.md,
