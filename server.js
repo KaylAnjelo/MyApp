@@ -46,10 +46,18 @@ const localIp = Object.values(networkInterfaces)
   .flat()
   .find((i) => i.family === "IPv4" && !i.internal)?.address;
 
+// Quick environment sanity checks (do not print secrets in full)
+const supabaseUrlPresent = !!process.env.SUPABASE_URL;
+const supabaseAnonPresent = !!process.env.SUPABASE_ANON_KEY;
+const anonPreview = supabaseAnonPresent ? `${process.env.SUPABASE_ANON_KEY.substring(0, 8)}...` : 'not-set';
+
 app.listen(PORT, () => {
   console.log(`Server is running at:`);
   console.log(`- Local:   http://localhost:${PORT}`);
   if (localIp) console.log(`- Network: http://${localIp}:${PORT}`);
+  console.log(`- Node version: ${process.version}`);
+  console.log(`- SUPABASE_URL present: ${supabaseUrlPresent}`);
+  console.log(`- SUPABASE_ANON_KEY present: ${supabaseAnonPresent} (${anonPreview})`);
 });
 
 module.exports = app;
