@@ -1,6 +1,9 @@
+
 const express = require('express');
 const router = express.Router();
 const redemptionController = require('../controllers/redemptionController');
+// Claimed reward usage endpoint
+router.patch('/claimed/:claimedRewardId/use', (req, res) => redemptionController.useClaimedReward(req, res));
 
 // Rewards endpoints
 router.get('/', (req, res) => redemptionController.getRewards(req, res));
