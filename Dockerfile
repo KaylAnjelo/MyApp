@@ -1,7 +1,7 @@
 # Minimal Dockerfile for Node backend
 # Uses Node 18 LTS and runs server.js as the start command
 
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Create app directory
 WORKDIR /app
