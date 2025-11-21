@@ -49,6 +49,7 @@ const VendorHomePage = ({ navigation }) => { // <-- Add navigation prop
   const [activeMonth, setActiveMonth] = useState(currentMonth);
   const [loading, setLoading] = useState(true);
   const [storeId, setStoreId] = useState(null);
+  const [transactions, setTransactions] = useState([]);
   const [salesSummary, setSalesSummary] = useState({
     todayRevenue: 0,
     todayOrders: 0,
@@ -59,14 +60,14 @@ const VendorHomePage = ({ navigation }) => { // <-- Add navigation prop
   const [topProducts, setTopProducts] = useState([]);
 
   useEffect(() => {
-    if (storeId) {
-      loadSalesData();
-    }
-  }, [activeMonth, storeId]); // Reload when month changes
-
-  useEffect(() => {
     loadInitialData();
   }, []);
+
+  useEffect(() => {
+    if (storeId) {
+      loadTransactions();
+    }
+  }, [activeMonth, storeId]);
 
   const loadInitialData = async () => {
     try {
@@ -89,34 +90,152 @@ const VendorHomePage = ({ navigation }) => { // <-- Add navigation prop
       }
 
       setStoreId(vendorStoreId);
-
-      // Fetch sales summary for current month
-      const summary = await apiService.getStoreSalesSummary(vendorStoreId, activeMonth, currentYear);
-      setSalesSummary(summary);
-
-      // Fetch top selling products
-      const products = await apiService.getTopSellingProducts(vendorStoreId);
-      setTopProducts(products);
-
     } catch (error) {
-      console.error('Error loading vendor data:', error);
-      Alert.alert('Error', 'Failed to load dashboard data.');
+      console.error('Error loading initial data:', error);
+      Alert.alert('Error', 'Failed to load initial data.');
     } finally {
       setLoading(false);
     }
   };
 
-  const loadSalesData = async () => {
+  const loadTransactions = async () => {
     if (!storeId) return;
-    
+
     try {
-      const summary = await apiService.getStoreSalesSummary(storeId, activeMonth, currentYear);
-      console.log('Sales Summary received:', summary);
-      console.log('salesByType keys:', Object.keys(summary.salesByType || {}));
-      setSalesSummary(summary);
+      setLoading(true);
+
+      const userData = await AsyncStorage.getItem('@app_user');
+      const parsedUser = JSON.parse(userData);
+
+      if (!parsedUser || parsedUser.role !== 'vendor' || !parsedUser.user_id) {
+        Alert.alert('Error', 'Vendor or User ID not found. Please relog.');
+        setLoading(false);
+        return;
+      }
+
+      const userId = parsedUser.user_id;
+      let response = null;
+      let txns = [];
+
+      // 1) Primary: try user-specific endpoint (common signature)
+      try {
+        response = await apiService.getUserTransactions(userId, 'vendor');
+        if (response && Array.isArray(response.transactions) && response.transactions.length > 0) {
+          txns = response.transactions;
+        }
+      } catch (err) {
+        console.log('getUserTransactions(userId, "vendor") failed:', err?.message || err);
+      }
+
+      // 2) Secondary: try user-specific without role (some apiService variants)
+      if (txns.length === 0) {
+        try {
+          response = await apiService.getUserTransactions(userId);
+          if (response && Array.isArray(response.transactions) && response.transactions.length > 0) {
+            txns = response.transactions;
+          }
+        } catch (err) {
+          console.log('getUserTransactions(userId) failed:', err?.message || err);
+        }
+      }
+
+      // 3) Fallback: fetch store transactions and filter by Vendor_ID === userId
+      if (txns.length === 0 && parsedUser.store_id) {
+        try {
+          const storeResp = await apiService.getStoreTransactions(parsedUser.store_id);
+          if (storeResp && Array.isArray(storeResp.transactions)) {
+            txns = storeResp.transactions.filter(t => String(t.Vendor_ID) === String(userId));
+          }
+        } catch (err) {
+          console.log('getStoreTransactions fallback failed:', err?.message || err);
+        }
+      }
+
+      // Filter transactions by selected month and year
+      const filteredTxns = txns.filter(txn => {
+        const txnDate = new Date(txn.transaction_date);
+        return txnDate.getMonth() === activeMonth && txnDate.getFullYear() === currentYear;
+      });
+
+      setTransactions(filteredTxns);
+      computeAnalytics(filteredTxns);
     } catch (error) {
-      console.error('Error loading sales data:', error);
+      console.error('Error loading transactions:', error);
+      Alert.alert('Error', 'Failed to load transactions.');
+      setTransactions([]);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const computeAnalytics = (txns) => {
+    const today = new Date();
+    const todayStr = today.toDateString();
+    let todayRevenue = 0;
+    let todayOrders = new Set();
+
+    // Determine days in month
+    const daysInMonth = new Date(currentYear, activeMonth + 1, 0).getDate();
+    const monthlySales = new Array(daysInMonth).fill(0);
+    const salesByType = {};
+
+    // Group by product type and day
+    txns.forEach(txn => {
+      const txnDate = new Date(txn.transaction_date);
+      const txnDateStr = txnDate.toDateString();
+      const day = txnDate.getDate() - 1; // 0-based
+      const productType = txn.products?.category || txn.category || 'Other';
+      const revenue = parseFloat(txn.price || 0) * parseFloat(txn.quantity || 1);
+
+      // Today's metrics
+      if (txnDateStr === todayStr) {
+        todayRevenue += revenue;
+        todayOrders.add(txn.reference_number);
+      }
+
+      // Monthly sales
+      if (day >= 0 && day < daysInMonth) {
+        monthlySales[day] += revenue;
+      }
+
+      // Sales by type
+      if (!salesByType[productType]) {
+        salesByType[productType] = new Array(daysInMonth).fill(0);
+      }
+      if (day >= 0 && day < daysInMonth) {
+        salesByType[productType][day] += revenue;
+      }
+    });
+
+    const todayOrdersCount = todayOrders.size;
+
+    // Top products
+    const productRevenue = {};
+    txns.forEach(txn => {
+      const productName = txn.products?.product_name || txn.product_name || 'Unknown Product';
+      const revenue = parseFloat(txn.price || 0) * parseFloat(txn.quantity || 1);
+      productRevenue[productName] = (productRevenue[productName] || 0) + revenue;
+    });
+
+    const topProducts = Object.entries(productRevenue)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, revenue], index) => ({
+        id: index + 1,
+        name,
+        price: txns.find(t => (t.products?.product_name || t.product_name) === name)?.price || 0,
+        total_sold: Math.floor(revenue / (txns.find(t => (t.products?.product_name || t.product_name) === name)?.price || 1)), // Approximate
+        image_url: txns.find(t => (t.products?.product_name || t.product_name) === name)?.products?.image_url || null
+      }));
+
+    setSalesSummary({
+      todayRevenue,
+      todayOrders: todayOrdersCount,
+      monthlySales,
+      salesByType,
+      daysInMonth
+    });
+    setTopProducts(topProducts);
   };
 
   // Prepare chart data - group by weeks
