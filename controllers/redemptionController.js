@@ -344,8 +344,25 @@ class RedemptionController {
 
       console.log('Points updated. New balance:', newTotalPoints);
 
+      // Prevent duplicate claims: check if already claimed
+      const { data: alreadyClaimed, error: checkError } = await supabase
+        .from('claimed_rewards')
+        .select('id')
+        .eq('user_id', customerId)
+        .eq('reward_id', rewardId)
+        .maybeSingle();
+
+      if (checkError) {
+        console.warn('Error checking for existing claimed_reward:', checkError.message);
+        return sendError(res, 'Failed to check for existing claim', 500, checkError.message);
+      }
+      if (alreadyClaimed) {
+        return sendError(res, 'You have already claimed this voucher.', 400);
+      }
+
       // Insert into claimed_rewards for per-user voucher tracking
       let claimedRewardId = null;
+      let transactionError = null;
       try {
         const { data: claimedReward, error: claimedError } = await supabase
           .from('claimed_rewards')
@@ -362,12 +379,49 @@ class RedemptionController {
         } else {
           claimedRewardId = claimedReward.id;
           console.log('Claimed reward created with id:', claimedRewardId);
+
+          // Also create a transaction record for analytics/history
+          try {
+            // Generate reference number
+            const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            const storePart = (storeData?.store_name || 'STORE')
+              .replace(/[^a-zA-Z0-9]/g, '')
+              .toUpperCase()
+              .slice(0, 4)
+              .padEnd(4, 'X');
+            const random = Math.floor(1000 + Math.random() * 9000);
+            const referenceNumber = `${storePart}-${datePart}-${random}`;
+
+            const { error: txnError } = await supabase
+              .from('transactions')
+              .insert({
+                reference_number: referenceNumber,
+                transaction_date: new Date().toISOString(),
+                user_id: parseInt(customerId),
+                Vendor_ID: parseInt(ownerId),
+                store_id: parseInt(storeId),
+                product_id: null, // Not a product purchase
+                reward_id: parseInt(rewardId),
+                quantity: 1,
+                price: 0,
+                points: -reward.points_required, // Negative points to indicate deduction
+                transaction_type: 'Redemption',
+                status: 'active'
+              });
+            if (txnError) {
+              transactionError = txnError;
+              console.warn('Could not create transaction record:', txnError.message);
+            } else {
+              console.log('Transaction record created for redemption:', referenceNumber);
+            }
+          } catch (txnCatch) {
+            transactionError = txnCatch;
+            console.warn('Failed to create transaction record:', txnCatch.message);
+          }
         }
       } catch (claimedErr) {
         console.warn('Failed to create claimed_reward record:', claimedErr.message);
       }
-
-      // Optionally, you may still create a transaction record for analytics/history (optional)
 
       return sendSuccess(res, {
         message: 'Reward redeemed successfully',
@@ -381,7 +435,7 @@ class RedemptionController {
     }
   }
 
-  // Get customer's redemption history from transactions, including reward_name
+  // Get customer's redemption history from transactions, including reward_name and store_name
   async getRedemptionHistory(req, res) {
     try {
       const { customerId } = req.params;
@@ -389,12 +443,12 @@ class RedemptionController {
       console.log('=== GET REDEMPTION HISTORY (claimed_rewards) ===');
       console.log('Customer ID:', customerId);
 
-      // Get claimed rewards for this user, join rewards table for details
+      // Get claimed rewards for this user, join rewards and stores table for details
       const { data: claimed, error } = await supabase
         .from('claimed_rewards')
         .select(`
           *,
-          rewards:reward_id(reward_name, promotion_code, store_id)
+          rewards:reward_id(reward_name, promotion_code, store_id, stores:store_id(store_name))
         `)
         .eq('user_id', customerId)
         .order('claimed_at', { ascending: false });
@@ -413,7 +467,8 @@ class RedemptionController {
         is_redeemed: row.is_redeemed,
         reward_name: row.rewards?.reward_name || null,
         promotion_code: row.rewards?.promotion_code || null,
-        store_id: row.rewards?.store_id || null
+        store_id: row.rewards?.store_id || null,
+        store_name: row.rewards?.stores?.store_name || null
       }));
 
       console.log('Claimed rewards history count:', formattedData?.length || 0);
