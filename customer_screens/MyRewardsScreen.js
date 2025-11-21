@@ -102,6 +102,8 @@ export default function MyRewardsScreen({ navigation }) {
         setModalStage('code');
         // Await loadRewards to ensure UI updates after backend update
         await loadRewards();
+        // Store the selected voucher for automatic discount application in TransactionPage
+        await AsyncStorage.setItem('@selected_voucher', JSON.stringify(selectedReward));
       } catch (err) {
         Alert.alert('Error', 'Failed to mark voucher as used.');
       }
