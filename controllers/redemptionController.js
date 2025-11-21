@@ -1,7 +1,58 @@
+
 const { supabase } = require('../config/supabase');
 const { sendSuccess, sendError } = require('../utils/response');
 
 class RedemptionController {
+    // Mark a claimed reward as used (redeemed)
+    async useClaimedReward(req, res) {
+      try {
+        const { claimedRewardId } = req.params;
+        const { userId } = req.body; // Optionally require userId for extra security
+
+        if (!claimedRewardId) {
+          return sendError(res, 'claimedRewardId is required', 400);
+        }
+
+        // Fetch the claimed reward
+        const { data: claimed, error: fetchError } = await supabase
+          .from('claimed_rewards')
+          .select('*')
+          .eq('id', claimedRewardId)
+          .single();
+
+        if (fetchError || !claimed) {
+          return sendError(res, 'Claimed reward not found', 404, fetchError?.message);
+        }
+
+        if (claimed.is_redeemed) {
+          return sendError(res, 'Voucher already used', 400);
+        }
+
+        // Optionally, check userId matches
+        if (userId && claimed.user_id !== parseInt(userId)) {
+          return sendError(res, 'User does not own this voucher', 403);
+        }
+
+        // Mark as redeemed
+        const { data: updated, error: updateError } = await supabase
+          .from('claimed_rewards')
+          .update({ is_redeemed: true })
+          .eq('id', claimedRewardId)
+          .select()
+          .single();
+
+        if (updateError) {
+          return sendError(res, 'Failed to update voucher status', 500, updateError.message);
+        }
+
+        return sendSuccess(res, {
+          message: 'Voucher marked as used',
+          claimedReward: updated
+        });
+      } catch (err) {
+        return sendError(res, 'Server error', 500, err.message);
+      }
+    }
   // Helper function to auto-update promotion statuses based on dates
   async updatePromotionStatuses(storeId = null) {
     const now = new Date();
@@ -178,12 +229,27 @@ class RedemptionController {
         return sendError(res, 'Failed to fetch available rewards', 500, rewardsError.message);
       }
 
-      console.log('Available rewards count:', rewards?.length || 0);
+      // Get claimed rewards for this user (not yet redeemed)
+      const { data: claimed, error: claimedError } = await supabase
+        .from('claimed_rewards')
+        .select('reward_id, is_redeemed')
+        .eq('user_id', customerId);
+
+      if (claimedError) {
+        console.error('Error fetching claimed_rewards:', claimedError);
+        return sendError(res, 'Failed to fetch claimed rewards', 500, claimedError.message);
+      }
+
+      // Exclude rewards already claimed and not yet redeemed
+      const claimedRewardIds = new Set((claimed || []).filter(r => !r.is_redeemed).map(r => r.reward_id));
+      const availableRewards = (rewards || []).filter(r => !claimedRewardIds.has(r.reward_id));
+
+      console.log('Available rewards count (filtered):', availableRewards.length);
 
       return sendSuccess(res, {
         totalPoints,
         redeemedPoints: userPoints?.redeemed_points || 0,
-        availableRewards: rewards || []
+        availableRewards: availableRewards
       });
     } catch (err) {
       console.error('Server error fetching available rewards:', err);
@@ -278,82 +344,36 @@ class RedemptionController {
 
       console.log('Points updated. New balance:', newTotalPoints);
 
-      // Create a transaction record for the redemption
+      // Insert into claimed_rewards for per-user voucher tracking
+      let claimedRewardId = null;
       try {
-        // Generate reference number
-        const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        const storePart = (storeData?.store_name || 'STORE')
-          .replace(/[^a-zA-Z0-9]/g, '')
-          .toUpperCase()
-          .slice(0, 4)
-          .padEnd(4, 'X');
-        const random = Math.floor(1000 + Math.random() * 9000);
-        const referenceNumber = `${storePart}-${datePart}-${random}`;
-
-        // Get or create a "Reward Redemption" product entry
-        let rewardProduct = null;
-        const { data: existingProduct } = await supabase
-          .from('products')
-          .select('id')
-          .eq('store_id', storeId)
-          .eq('product_name', 'Reward Redemption')
+        const { data: claimedReward, error: claimedError } = await supabase
+          .from('claimed_rewards')
+          .insert({
+            user_id: parseInt(customerId),
+            reward_id: parseInt(rewardId),
+            is_redeemed: false
+          })
+          .select()
           .single();
 
-        if (existingProduct) {
-          rewardProduct = existingProduct;
+        if (claimedError || !claimedReward) {
+          console.warn('Could not create claimed_reward record:', claimedError?.message);
         } else {
-          // Create a placeholder product for reward redemptions
-          const { data: newProduct, error: productError } = await supabase
-            .from('products')
-            .insert({
-              store_id: parseInt(storeId),
-              product_name: 'Reward Redemption',
-              price: 0,
-              product_type: 'redemption'
-            })
-            .select()
-            .single();
-
-          if (productError) {
-            console.warn('Could not create reward product:', productError.message);
-          } else {
-            rewardProduct = newProduct;
-          }
+          claimedRewardId = claimedReward.id;
+          console.log('Claimed reward created with id:', claimedRewardId);
         }
-
-        if (rewardProduct) {
-          // Insert transaction record with reward_id
-          const { error: transactionError } = await supabase
-            .from('transactions')
-            .insert({
-              reference_number: referenceNumber,
-              transaction_date: new Date().toISOString(),
-              user_id: parseInt(customerId),
-              Vendor_ID: parseInt(ownerId),
-              store_id: parseInt(storeId),
-              product_id: rewardProduct.id,
-              reward_id: parseInt(rewardId),
-              quantity: 1,
-              price: 0,
-              points: -reward.points_required, // Negative points to indicate deduction
-              transaction_type: 'Redemption'
-            });
-
-          if (transactionError) {
-            console.warn('Could not create transaction record:', transactionError.message);
-          } else {
-            console.log('Transaction record created for redemption:', referenceNumber);
-          }
-        }
-      } catch (transactionErr) {
-        // Don't fail the redemption if transaction record creation fails
-        console.warn('Failed to create transaction record:', transactionErr.message);
+      } catch (claimedErr) {
+        console.warn('Failed to create claimed_reward record:', claimedErr.message);
       }
+
+      // Optionally, you may still create a transaction record for analytics/history (optional)
 
       return sendSuccess(res, {
         message: 'Reward redeemed successfully',
         remainingPoints: newTotalPoints,
-        totalRedeemed: newRedeemedPoints
+        totalRedeemed: newRedeemedPoints,
+        claimedRewardId // This is the voucher code to be used for redemption
       });
     } catch (err) {
       console.error('Server error redeeming reward:', err);
@@ -366,48 +386,41 @@ class RedemptionController {
     try {
       const { customerId } = req.params;
 
-      console.log('=== GET REDEMPTION HISTORY ===');
+      console.log('=== GET REDEMPTION HISTORY (claimed_rewards) ===');
       console.log('Customer ID:', customerId);
 
-
-      // Get redemption transactions, join rewards table to get reward_name and promotion_code (using reward_id)
-      const { data: transactions, error } = await supabase
-        .from('transactions')
+      // Get claimed rewards for this user, join rewards table for details
+      const { data: claimed, error } = await supabase
+        .from('claimed_rewards')
         .select(`
           *,
-          stores:store_id(store_name, store_image),
-          rewards:reward_id(reward_name, promotion_code)
+          rewards:reward_id(reward_name, promotion_code, store_id)
         `)
         .eq('user_id', customerId)
-        .eq('transaction_type', 'Redemption')
-        .order('transaction_date', { ascending: false });
+        .order('claimed_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching redemption history:', error);
+        console.error('Error fetching claimed_rewards history:', error);
         return sendError(res, 'Failed to fetch redemption history', 500, error.message);
       }
 
-
-      // Format data to match expected structure, including promotion_code
-      const formattedData = (transactions || []).map(transaction => ({
-        redemption_id: transaction.id,
-        redemption_date: transaction.transaction_date,
-        customer_id: transaction.user_id,
-        store_id: transaction.store_id,
-        points_used: Math.abs(transaction.points || 0),
-        status: 'completed',
-        store_name: transaction.stores?.store_name,
-        store_image: transaction.stores?.store_image,
-        reference_number: transaction.reference_number,
-        reward_name: transaction.rewards?.reward_name || null,
-        promotion_code: transaction.rewards?.promotion_code || null
+      // Format data to match expected structure
+      const formattedData = (claimed || []).map(row => ({
+        claimed_reward_id: row.id,
+        claimed_at: row.claimed_at,
+        customer_id: row.user_id,
+        reward_id: row.reward_id,
+        is_redeemed: row.is_redeemed,
+        reward_name: row.rewards?.reward_name || null,
+        promotion_code: row.rewards?.promotion_code || null,
+        store_id: row.rewards?.store_id || null
       }));
 
-      console.log('Redemption history count:', formattedData?.length || 0);
+      console.log('Claimed rewards history count:', formattedData?.length || 0);
 
       return sendSuccess(res, { data: formattedData });
     } catch (err) {
-      console.error('Server error fetching redemption history:', err);
+      console.error('Server error fetching claimed_rewards history:', err);
       return sendError(res, 'Server error', 500, err.message);
     }
   }
@@ -422,13 +435,23 @@ class RedemptionController {
       console.log('Transaction ID:', redemptionId);
       console.log('New status:', status);
 
-      // For transactions, we just return success as they're already completed
-      // This endpoint is kept for backward compatibility
+      if (!redemptionId || !status) {
+        return sendError(res, 'Redemption ID and status are required', 400);
+      }
+      const { data, error } = await supabase
+        .from('transactions')
+        .update({ status })
+        .eq('id', redemptionId)
+        .select()
+        .single();
+      if (error) {
+        return sendError(res, 'Failed to update redemption status', 500, error.message);
+      }
       return sendSuccess(res, {
         message: 'Redemption status updated',
         redemption: {
           id: redemptionId,
-          status: 'completed'
+          status: data.status
         }
       });
     } catch (err) {

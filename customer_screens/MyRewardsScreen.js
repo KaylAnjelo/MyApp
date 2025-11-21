@@ -6,7 +6,6 @@ import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
 
 export default function MyRewardsScreen({ navigation }) {
-  const [comingSoonRewards, setComingSoonRewards] = useState([]);
   const [activeRewards, setActiveRewards] = useState([]);
   const [usedRewards, setUsedRewards] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,52 +32,36 @@ export default function MyRewardsScreen({ navigation }) {
   const loadRewards = async () => {
     try {
       setLoading(true);
-
       const userString = await AsyncStorage.getItem('@app_user');
       const user = userString ? JSON.parse(userString) : null;
       const userId = user?.user_id;
-
       if (!userId) {
-        console.log('No user ID found');
         setLoading(false);
         return;
       }
-
-      // Fetch redemption history instead of just rewards
-      let redemptionsList = [];
+      let claimedList = [];
       try {
         const resp = apiService.getRedemptionHistory ? await apiService.getRedemptionHistory(userId) : null;
         const data = resp?.data || resp || [];
-        redemptionsList = Array.isArray(data) ? data : [];
+        claimedList = Array.isArray(data) ? data : [];
       } catch (err) {
-        console.warn('Failed to fetch redemption history:', err);
-        redemptionsList = [];
+        claimedList = [];
       }
-
-      // Sort redemptions by date (most recent first)
-      redemptionsList.sort((a, b) => (new Date(b.redemption_date)) - (new Date(a.redemption_date)));
-
-      // Partition into active and used/expired (for now, all are considered used except the most recent one)
-      const now = new Date();
-      const comingSoon = [];
-      const activeListPH = [];
-      const usedExpired = [];
-
-      redemptionsList.forEach((r, idx) => {
-        // If you want to mark the most recent as active, or use a status field, adjust here
-        if (idx === 0 && r.status !== 'expired') {
-          activeListPH.push(r);
+      // Sort by claimed_at
+      claimedList.sort((a, b) => (new Date(b.claimed_at)) - (new Date(a.claimed_at)));
+      // Partition into active and used based on is_redeemed
+      const active = [];
+      const used = [];
+      claimedList.forEach((r) => {
+        if (!r.is_redeemed) {
+          active.push(r);
         } else {
-          usedExpired.push(r);
+          used.push(r);
         }
       });
-
-      setComingSoonRewards(comingSoon);
-      setActiveRewards(activeListPH);
-      setUsedRewards(usedExpired);
-
+      setActiveRewards(active);
+      setUsedRewards(used);
     } catch (error) {
-      console.error('Error loading rewards:', error);
       Alert.alert('Error', 'Failed to load rewards');
     } finally {
       setLoading(false);
@@ -86,22 +69,17 @@ export default function MyRewardsScreen({ navigation }) {
   };
 
   const getStatusMeta = (reward) => {
-    const now = new Date();
-    const startDate = reward.start_date ? new Date(new Date(reward.start_date).getTime() + 8*60*60*1000) : null;
-    const endDate = reward.end_date ? new Date(new Date(reward.end_date).getTime() + 8*60*60*1000) : null;
-
-    if (startDate && now < startDate) return { label: 'Coming Soon', color: '#1976d2' };
-    if (endDate && now > endDate) return { label: 'Expired', color: '#9e9e9e' };
+    if (reward.is_redeemed) return { label: 'Used', color: '#9e9e9e' };
     return { label: 'Active', color: '#4caf50' };
   };
 
   const handleUseReward = (reward) => {
     setSelectedReward(reward);
-    // prefill fields (convert redemption id to display code)
-    const redemptionCode = reward?.redemption_id ? `RWD-${reward.redemption_id}` : '';
-    setCodeInput(redemptionCode);
-    setStoreInput(reward?.store_name || '');
-    setPointsInput(reward?.points_used != null ? String(reward.points_used) : '');
+    // Use claimed_reward_id as code
+    const code = reward?.claimed_reward_id || reward?.claimed_reward_id === 0 ? `RWD-${reward.claimed_reward_id}` : '';
+    setCodeInput(code);
+    setStoreInput(reward?.store_id ? String(reward.store_id) : '');
+    setPointsInput('');
     setModalStage('confirm');
     setModalVisible(true);
   };
@@ -116,11 +94,11 @@ export default function MyRewardsScreen({ navigation }) {
   };
 
   const showRedemptionCode = () => {
-    // Set codeInput to promotion_code if available, else fallback to redemption_id
+    // Set codeInput to promotion_code if available, else fallback to claimed_reward_id
     if (selectedReward?.promotion_code) {
       setCodeInput(selectedReward.promotion_code);
-    } else if (selectedReward?.redemption_id) {
-      setCodeInput(`RWD-${selectedReward.redemption_id}`);
+    } else if (selectedReward?.claimed_reward_id || selectedReward?.claimed_reward_id === 0) {
+      setCodeInput(`RWD-${selectedReward.claimed_reward_id}`);
     }
     setModalStage('code');
   };
@@ -131,8 +109,8 @@ export default function MyRewardsScreen({ navigation }) {
         <Text style={[styles.rewardsText, { marginBottom: Spacing.sm }]}>{title}</Text>
         {rewards.length === 0 ? (
           <Text style={styles.rewardsSubtext}>
-            {title === 'Used / Expired Vouchers'
-              ? 'No rewards have yet to be used or expired'
+            {title === 'Used Vouchers'
+              ? 'No rewards have yet to be used'
               : 'No rewards in this section'}
           </Text>
         ) : rewards.map(r => renderRewardCard(r, isActive))}
@@ -142,30 +120,31 @@ export default function MyRewardsScreen({ navigation }) {
 
   const renderRewardCard = (reward, isActive = true) => {
     const meta = getStatusMeta(reward);
+    const canUse = !reward.is_redeemed;
     return (
-      <View key={reward.redemption_id || reward.reward_name} style={styles.rewardCard}>
+      <View key={reward.claimed_reward_id || reward.reward_id} style={styles.rewardCard}>
         <View style={styles.rewardCardHeader}>
           <View style={styles.rewardIconContainer}>
             <FontAwesome name="gift" size={24} color={Colors.primary} />
           </View>
           <View style={styles.rewardInfo}>
-            <Text style={styles.rewardItemTitle}>{reward.reward_name || reward.description || 'Reward'}</Text>
-            {reward.store_name && <Text style={styles.storeName}>{reward.store_name}</Text>}
+            <Text style={styles.rewardItemTitle}>{reward.reward_name || 'Reward'}</Text>
+            {reward.store_id && <Text style={styles.storeName}>Store ID: {reward.store_id}</Text>}
             <View style={styles.rewardMeta}>
-              {!isActive && (
+              {!canUse && (
                 <View style={[styles.statusBadge, { backgroundColor: meta.color }]}> 
                   <Text style={[styles.statusText, { color: '#fff' }]}>{meta.label}</Text>
                 </View>
               )}
             </View>
-            {reward.redemption_date && (
+            {reward.claimed_at && (
               <Text style={styles.rewardDate}>
-                {new Date(reward.redemption_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {new Date(reward.claimed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </Text>
             )}
           </View>
         </View>
-        {isActive && (
+        {canUse && (
           <TouchableOpacity style={styles.useButton} activeOpacity={0.7} onPress={() => handleUseReward(reward)}>
             <Text style={styles.useText}>Use Now</Text>
             <FontAwesome name="chevron-right" size={14} color={Colors.white} style={{ marginLeft: 6 }} />
@@ -236,9 +215,8 @@ export default function MyRewardsScreen({ navigation }) {
               </View>
             ) : (
               <>
-                {renderSection('Coming Soon', comingSoonRewards, false)}
                 {renderSection('Active Vouchers', activeRewards, true)}
-                {renderSection('Used / Expired Vouchers', usedRewards, false)}
+                {renderSection('Used Vouchers', usedRewards, false)}
               </>
             )}
           </View>
