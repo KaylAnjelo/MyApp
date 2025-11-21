@@ -10,6 +10,13 @@ const API_BASE_URL =
 const TOKEN_KEY = '@app_auth_token';
 
 class ApiService {
+    // Mark a claimed reward as used
+    async useClaimedReward(claimedRewardId, userId = null) {
+      return this.request(`/rewards/claimed/${claimedRewardId}/use`, {
+        method: 'PATCH',
+        body: userId ? JSON.stringify({ userId }) : undefined,
+      });
+    }
   constructor() {
     this.baseURL = API_BASE_URL;
     this.token = null;
