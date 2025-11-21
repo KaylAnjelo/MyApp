@@ -29,6 +29,7 @@ app.get("/health", (req, res) => {
   res.status(200).send("OK");
 });
 
+
 // Use routes
 app.use("/api", authRoutes);  // for /api/auth/*
 app.use('/api/notifications', notificationRoutes);
