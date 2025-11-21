@@ -1,4 +1,3 @@
-
 const { supabase } = require('../config/supabase');
 const { sendSuccess, sendError } = require('../utils/response');
 
@@ -379,48 +378,48 @@ class RedemptionController {
         } else {
           claimedRewardId = claimedReward.id;
           console.log('Claimed reward created with id:', claimedRewardId);
-
-          // Also create a transaction record for analytics/history
-          try {
-            // Generate reference number
-            const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-            const storePart = (storeData?.store_name || 'STORE')
-              .replace(/[^a-zA-Z0-9]/g, '')
-              .toUpperCase()
-              .slice(0, 4)
-              .padEnd(4, 'X');
-            const random = Math.floor(1000 + Math.random() * 9000);
-            const referenceNumber = `${storePart}-${datePart}-${random}`;
-
-            const { error: txnError } = await supabase
-              .from('transactions')
-              .insert({
-                reference_number: referenceNumber,
-                transaction_date: new Date().toISOString(),
-                user_id: parseInt(customerId),
-                Vendor_ID: parseInt(ownerId),
-                store_id: parseInt(storeId),
-                product_id: null, // Not a product purchase
-                reward_id: parseInt(rewardId),
-                quantity: 1,
-                price: 0,
-                points: -reward.points_required, // Negative points to indicate deduction
-                transaction_type: 'Redemption',
-                status: 'active'
-              });
-            if (txnError) {
-              transactionError = txnError;
-              console.warn('Could not create transaction record:', txnError.message);
-            } else {
-              console.log('Transaction record created for redemption:', referenceNumber);
-            }
-          } catch (txnCatch) {
-            transactionError = txnCatch;
-            console.warn('Failed to create transaction record:', txnCatch.message);
-          }
         }
       } catch (claimedErr) {
         console.warn('Failed to create claimed_reward record:', claimedErr.message);
+      }
+
+      // Always create a transaction record for the voucher redemption (reward_id)
+      try {
+        // Generate reference number
+        const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const storePart = (storeData?.store_name || 'STORE')
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .toUpperCase()
+          .slice(0, 4)
+          .padEnd(4, 'X');
+        const random = Math.floor(1000 + Math.random() * 9000);
+        const referenceNumber = `${storePart}-${datePart}-${random}`;
+
+        const { error: txnError } = await supabase
+          .from('transactions')
+          .insert({
+            reference_number: referenceNumber,
+            transaction_date: new Date().toISOString(),
+            user_id: parseInt(customerId),
+            Vendor_ID: parseInt(ownerId),
+            store_id: parseInt(storeId),
+            product_id: null, // Not a product purchase
+            reward_id: parseInt(rewardId),
+            quantity: 1,
+            price: 0,
+            points: -reward.points_required, // Negative points to indicate deduction
+            transaction_type: 'Redemption',
+            status: 'active'
+          });
+        if (txnError) {
+          transactionError = txnError;
+          console.warn('Could not create transaction record:', txnError.message);
+        } else {
+          console.log('Transaction record created for redemption:', referenceNumber);
+        }
+      } catch (txnCatch) {
+        transactionError = txnCatch;
+        console.warn('Failed to create transaction record:', txnCatch.message);
       }
 
       return sendSuccess(res, {
