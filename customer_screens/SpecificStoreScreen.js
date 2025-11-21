@@ -6,7 +6,7 @@ import { View, Text, StyleSheet,
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
-import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import FontAwesome from 'react-native-vector-icons/FontAwesome5';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 export default function SpecificStoreScreen({ route, navigation }) {
@@ -431,7 +431,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
           
           {products.length === 0 && !loading && (
             <View style={styles.noProductsContainer}>
-              <FontAwesome name="cutlery" size={48} color="#c0c0c0" style={styles.noProductsIcon} />
+              <FontAwesome name="utensils" size={48} color="#c0c0c0" style={styles.noProductsIcon} solid />
               <Text style={styles.noProductsText}>No menu items available</Text>
               <Text style={styles.noProductsSubtext}>This store hasn't added any products yet.</Text>
             </View>
@@ -453,7 +453,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
                         resizeMode="cover"
                       />
                     ) : (
-                      <FontAwesome name="utensils" size={48} color="#bbb" />
+                      <FontAwesome name="utensils" size={48} color="#bbb" solid />
                     )}
                   </View>
                   <View style={styles.menuLabelWrap}>
