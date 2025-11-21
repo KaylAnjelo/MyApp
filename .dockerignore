@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+.git
+.env
+android
+ios
+*.keystore
+*.p12
+*.jks
+dist
+build
+local-* 
+/.github
