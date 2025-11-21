@@ -20,16 +20,16 @@ export default function MyRewardsScreen({ navigation }) {
   const [storeInput, setStoreInput] = useState('');
   const [pointsInput, setPointsInput] = useState('');
 
+
   useEffect(() => {
     loadRewards();
-    
     const unsubscribe = navigation.addListener('focus', () => {
       loadRewards();
     });
-
     return unsubscribe;
   }, [navigation]);
 
+  // Restore the loadRewards function
   const loadRewards = async () => {
     try {
       setLoading(true);
@@ -44,33 +44,32 @@ export default function MyRewardsScreen({ navigation }) {
         return;
       }
 
-      console.log('Fetching rewards for user:', userId);
-
-      let rewardsList = [];
+      // Fetch redemption history instead of just rewards
+      let redemptionsList = [];
       try {
-        const resp = apiService.getRewards ? await apiService.getRewards(userId) : null;
+        const resp = apiService.getRedemptionHistory ? await apiService.getRedemptionHistory(userId) : null;
         const data = resp?.data || resp || [];
-        rewardsList = Array.isArray(data) ? data : [];
+        redemptionsList = Array.isArray(data) ? data : [];
       } catch (err) {
-        console.warn('Failed to fetch rewards:', err);
-        rewardsList = [];
+        console.warn('Failed to fetch redemption history:', err);
+        redemptionsList = [];
       }
 
+      // Sort redemptions by date (most recent first)
+      redemptionsList.sort((a, b) => (new Date(b.redemption_date)) - (new Date(a.redemption_date)));
+
+      // Partition into active and used/expired (for now, all are considered used except the most recent one)
       const now = new Date();
       const comingSoon = [];
       const activeListPH = [];
       const usedExpired = [];
 
-      rewardsList.forEach(r => {
-        const startDate = r.start_date ? new Date(new Date(r.start_date).getTime() + 8*60*60*1000) : null;
-        const endDate = r.end_date ? new Date(new Date(r.end_date).getTime() + 8*60*60*1000) : null;
-
-        if (startDate && now < startDate) {
-          comingSoon.push(r);
-        } else if (endDate && now > endDate) {
-          usedExpired.push(r);
-        } else {
+      redemptionsList.forEach((r, idx) => {
+        // If you want to mark the most recent as active, or use a status field, adjust here
+        if (idx === 0 && r.status !== 'expired') {
           activeListPH.push(r);
+        } else {
+          usedExpired.push(r);
         }
       });
 
@@ -117,12 +116,29 @@ export default function MyRewardsScreen({ navigation }) {
   };
 
   const showRedemptionCode = () => {
-    // ensure codeInput is set (in case of blank)
-    if (!codeInput && selectedReward?.redemption_id) {
+    // Set codeInput to promotion_code if available, else fallback to redemption_id
+    if (selectedReward?.promotion_code) {
+      setCodeInput(selectedReward.promotion_code);
+    } else if (selectedReward?.redemption_id) {
       setCodeInput(`RWD-${selectedReward.redemption_id}`);
     }
     setModalStage('code');
   };
+
+  function renderSection(title, rewards, isActive = true) {
+    return (
+      <>
+        <Text style={[styles.rewardsText, { marginBottom: Spacing.sm }]}>{title}</Text>
+        {rewards.length === 0 ? (
+          <Text style={styles.rewardsSubtext}>
+            {title === 'Used / Expired Vouchers'
+              ? 'No rewards have yet to be used or expired'
+              : 'No rewards in this section'}
+          </Text>
+        ) : rewards.map(r => renderRewardCard(r, isActive))}
+      </>
+    );
+  }
 
   const renderRewardCard = (reward, isActive = true) => {
     const meta = getStatusMeta(reward);
@@ -140,7 +156,7 @@ export default function MyRewardsScreen({ navigation }) {
                 <Text style={styles.pointsBadgeText}>{reward.points_used} pts</Text>
               </View>
               {!isActive && (
-                <View style={[styles.statusBadge, { backgroundColor: meta.color }]}>
+                <View style={[styles.statusBadge, { backgroundColor: meta.color }]}> 
                   <Text style={[styles.statusText, { color: '#fff' }]}>{meta.label}</Text>
                 </View>
               )}
@@ -162,56 +178,47 @@ export default function MyRewardsScreen({ navigation }) {
     );
   };
 
-  const renderSection = (title, rewards, isActive = true) => (
-  <>
-    <Text style={[styles.rewardsText, { marginBottom: Spacing.sm }]}>{title}</Text>
-    {rewards.length === 0 ? (
-      <Text style={styles.rewardsSubtext}>
-        {title === 'Used / Expired Vouchers'
-          ? 'No rewards have yet to be used or expired'
-          : 'No rewards in this section'}
-      </Text>
-    ) : rewards.map(r => renderRewardCard(r, isActive))}
-  </>
-);
-
   return (
     <View style={styles.container}>
       {/* Themed modal for Use / Redemption flow */}
       <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={closeModal}>
-  <View style={styles.modalOverlay}>
-    <View style={styles.modalContainer}>
-      {modalStage === 'confirm' ? (
-        <View style={{ alignItems: 'center' }}>
-          <Text style={[styles.modalTitle, { textAlign: 'center' }]}>Use Reward</Text>
-          <Text style={[styles.modalMessage, { textAlign: 'center' }]}>
-            {`Are you sure you want to use this reward?\n\n"${selectedReward?.reward_name || selectedReward?.description}"\n\nShow the code below to the vendor to claim your reward.`}
-          </Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: Spacing.md }}>
-            <TouchableOpacity style={[styles.modalButton, styles.modalButtonCancel]} onPress={closeModal}>
-              <Text style={[styles.modalButtonText]}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.modalButton, styles.modalButtonPrimary]} onPress={showRedemptionCode}>
-              <Text style={[styles.modalButtonText, { color: Colors.white }]}>Show Code</Text>
-            </TouchableOpacity>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {modalStage === 'confirm' ? (
+              <View style={{ alignItems: 'center' }}>
+                <Text style={[styles.modalTitle, { textAlign: 'center' }]}>Use Reward</Text>
+                <Text style={[styles.modalMessage, { textAlign: 'center' }]}> 
+                  {`Are you sure you want to use this reward?\n\n"${selectedReward?.reward_name || selectedReward?.description}"\n\nShow the code below to the vendor to claim your reward.`}
+                </Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: Spacing.md }}>
+                  <TouchableOpacity style={[styles.modalButton, styles.modalButtonCancel]} onPress={closeModal}>
+                    <Text style={[styles.modalButtonText]}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.modalButton, styles.modalButtonPrimary]} onPress={showRedemptionCode}>
+                    <Text style={[styles.modalButtonText, { color: Colors.white }]}>Show Code</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={{ alignItems: 'center' }}>
+                <Text style={[styles.modalTitle, { textAlign: 'center' }]}> 
+                  {selectedReward?.reward_name || selectedReward?.description || 'Reward'}
+                </Text>
+                {/* Show the code in a styled box */}
+                <View style={styles.codeBox}>
+                  <Text style={styles.codeText}>{codeInput || selectedReward?.promotion_code || '—'}</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonPrimary, { marginTop: Spacing.lg, width: '60%' }]}
+                  onPress={closeModal}
+                >
+                  <Text style={[styles.modalButtonText, { color: Colors.white, textAlign: 'center' }]}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
-      ) : (
-        <View style={{ alignItems: 'center' }}>
-          <Text style={[styles.modalTitle, { textAlign: 'center' }]}>
-            {selectedReward?.reward_name || selectedReward?.description || 'Reward'}
-          </Text>
-          <TouchableOpacity
-            style={[styles.modalButton, styles.modalButtonPrimary, { marginTop: Spacing.lg, width: '60%' }]}
-            onPress={closeModal}
-          >
-            <Text style={[styles.modalButtonText, { color: Colors.white, textAlign: 'center' }]}>Done</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
-  </View>
-</Modal>
+      </Modal>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.pageContent}>
         {/* Header */}

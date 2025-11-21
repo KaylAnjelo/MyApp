@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  TextInput,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -48,6 +49,11 @@ const CreateOrderScreen = ({ navigation }) => {
   const [qrData, setQrData] = useState(null);
   const [shortCode, setShortCode] = useState(null);
   const [generatingQR, setGeneratingQR] = useState(false);
+  // Cart modal and reward code state
+  const [showCartModal, setShowCartModal] = useState(false);
+  const [rewardCode, setRewardCode] = useState('');
+  const [rewardCodeStatus, setRewardCodeStatus] = useState(null); // null | 'valid' | 'invalid' | 'checking'
+  const [appliedReward, setAppliedReward] = useState(null);
 
   useEffect(() => {
     loadVendorProducts();
@@ -123,44 +129,66 @@ const CreateOrderScreen = ({ navigation }) => {
     return cart.reduce((sum, item) => sum + item.quantity, 0);
   };
 
-  const generateQRCode = async () => {
+  // Open cart modal instead of generating QR directly
+  const generateQRCode = () => {
     if (cart.length === 0) {
       Alert.alert('Empty Cart', 'Please add items to cart before generating QR code');
       return;
     }
+    setShowCartModal(true);
+  };
 
+  // Validate reward code
+  const validateRewardCode = async () => {
+    if (!rewardCode.trim()) return;
+    setRewardCodeStatus('checking');
+    try {
+      // You may need to implement this endpoint in your backend
+      const reward = await apiService.request('/rewards/validate-code', {
+        method: 'POST',
+        body: JSON.stringify({ code: rewardCode.trim(), store_id: storeId })
+      });
+      if (reward && reward.id) {
+        setRewardCodeStatus('valid');
+        setAppliedReward(reward);
+      } else {
+        setRewardCodeStatus('invalid');
+        setAppliedReward(null);
+      }
+    } catch (e) {
+      setRewardCodeStatus('invalid');
+      setAppliedReward(null);
+    }
+  };
+
+  // Finalize transaction after cart review and reward code
+  const finalizeTransaction = async () => {
     if (!vendorId || !storeId) {
       Alert.alert('Error', 'Vendor or store information is missing. Please reload the page.');
       console.error('Missing vendorId or storeId:', { vendorId, storeId });
       return;
     }
-
     setGeneratingQR(true);
     try {
-      console.log('Cart items:', cart);
-      console.log('Vendor ID:', vendorId, 'Store ID:', storeId);
-
       const items = cart.map(item => ({
         product_id: item.id,
         product_name: item.name || item.product_name,
         quantity: item.quantity,
         price: parseFloat(item.price)
       }));
-
-      console.log('Generating QR with items:', items);
-
-      const response = await apiService.generateTransactionQR({
+      // Pass reward code if applied
+      const payload = {
         vendor_id: vendorId,
         store_id: storeId,
-        items: items
-      });
-
-      console.log('QR Response:', response);
-
+        items,
+        reward_code: appliedReward ? rewardCode.trim() : undefined
+      };
+      const response = await apiService.generateTransactionQR(payload);
       if (response && response.qr_string && response.short_code) {
         setQrData(response.qr_string);
         setShortCode(response.short_code);
         setShowQRModal(true);
+        setShowCartModal(false);
       } else {
         Alert.alert('Error', 'Invalid response from server');
         console.error('Invalid response:', response);
@@ -258,6 +286,86 @@ const CreateOrderScreen = ({ navigation }) => {
         {/* Right Side: Total Price */}
         <Text style={styles.totalPriceText}>₱ {getCartTotal()}</Text>
       </TouchableOpacity>
+
+      {/* --- Cart Review Modal --- */}
+      <Modal
+        visible={showCartModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCartModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { padding: 20, width: '90%' }]}> 
+            <Text style={styles.modalTitle}>Review Cart</Text>
+            <ScrollView style={{ maxHeight: 250, width: '100%' }}>
+              {cart.map(item => (
+                <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                  <Text style={{ flex: 1 }}>{item.name || item.product_name} x{item.quantity}</Text>
+                  <Text style={{ width: 60, textAlign: 'right' }}>₱{(item.price * item.quantity).toFixed(2)}</Text>
+                  <TouchableOpacity onPress={() => removeFromCart(item.id)} style={{ marginLeft: 10 }}>
+                    <Icon name="remove-circle-outline" size={22} color="#d32f2f" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+            <Text style={{ fontWeight: 'bold', marginTop: 10 }}>Total: ₱{getCartTotal()}</Text>
+            {/* Reward Code Input */}
+            <View style={{ marginTop: 20, width: '100%' }}>
+              <Text style={{ fontWeight: '600', marginBottom: 6 }}>Reward Code (if any):</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TextInput
+                  style={{
+                    borderWidth: 1,
+                    borderColor: rewardCodeStatus === 'valid' ? '#4caf50' : rewardCodeStatus === 'invalid' ? '#d32f2f' : '#ccc',
+                    borderRadius: 8,
+                    padding: 8,
+                    flex: 1,
+                    marginRight: 10,
+                  }}
+                  placeholder="Enter reward code"
+                  value={rewardCode}
+                  onChangeText={text => {
+                    setRewardCode(text);
+                    setRewardCodeStatus(null);
+                    setAppliedReward(null);
+                  }}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  editable={!generatingQR}
+                />
+                <TouchableOpacity onPress={validateRewardCode} disabled={!!generatingQR || !(rewardCode && rewardCode.trim().length > 0)} style={{ padding: 8 }}>
+                  <Icon name="checkmark-circle-outline" size={24} color={rewardCodeStatus === 'valid' ? '#4caf50' : rewardCodeStatus === 'invalid' ? '#d32f2f' : '#888'} />
+                </TouchableOpacity>
+              </View>
+              {rewardCodeStatus === 'valid' && appliedReward && (
+                <Text style={{ color: '#4caf50', marginTop: 4 }}>Reward applied: {appliedReward.reward_name || appliedReward.name || appliedReward.title}</Text>
+              )}
+              {rewardCodeStatus === 'invalid' && (
+                <Text style={{ color: '#d32f2f', marginTop: 4 }}>Invalid or already used code.</Text>
+              )}
+              {rewardCodeStatus === 'checking' && (
+                <Text style={{ color: '#888', marginTop: 4 }}>Checking code...</Text>
+              )}
+            </View>
+            <View style={{ flexDirection: 'row', marginTop: 30, width: '100%' }}>
+              <TouchableOpacity
+                style={[styles.closeButton, { flex: 1, backgroundColor: '#ccc', marginRight: 10 }]}
+                onPress={() => setShowCartModal(false)}
+                disabled={generatingQR}
+              >
+                <Text style={styles.closeButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.closeButton, { flex: 1, backgroundColor: '#FF6F61' }]}
+                onPress={finalizeTransaction}
+                disabled={!!generatingQR || (!!rewardCode && rewardCodeStatus !== 'valid' && rewardCodeStatus !== null)}
+              >
+                <Text style={styles.closeButtonText}>{generatingQR ? 'Processing...' : 'Finalize & Generate QR'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* QR Code Modal */}
       <Modal

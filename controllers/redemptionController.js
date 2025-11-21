@@ -322,7 +322,7 @@ class RedemptionController {
         }
 
         if (rewardProduct) {
-          // Insert transaction record
+          // Insert transaction record with reward_id
           const { error: transactionError } = await supabase
             .from('transactions')
             .insert({
@@ -332,6 +332,7 @@ class RedemptionController {
               Vendor_ID: parseInt(ownerId),
               store_id: parseInt(storeId),
               product_id: rewardProduct.id,
+              reward_id: parseInt(rewardId),
               quantity: 1,
               price: 0,
               points: -reward.points_required, // Negative points to indicate deduction
@@ -351,7 +352,6 @@ class RedemptionController {
 
       return sendSuccess(res, {
         message: 'Reward redeemed successfully',
-        redemption,
         remainingPoints: newTotalPoints,
         totalRedeemed: newRedeemedPoints
       });
@@ -361,7 +361,7 @@ class RedemptionController {
     }
   }
 
-  // Get customer's redemption history from transactions
+  // Get customer's redemption history from transactions, including reward_name
   async getRedemptionHistory(req, res) {
     try {
       const { customerId } = req.params;
@@ -369,12 +369,14 @@ class RedemptionController {
       console.log('=== GET REDEMPTION HISTORY ===');
       console.log('Customer ID:', customerId);
 
-      // Get redemption transactions
+
+      // Get redemption transactions, join rewards table to get reward_name and promotion_code (using reward_id)
       const { data: transactions, error } = await supabase
         .from('transactions')
         .select(`
           *,
-          stores:store_id(store_name, store_image)
+          stores:store_id(store_name, store_image),
+          rewards:reward_id(reward_name, promotion_code)
         `)
         .eq('user_id', customerId)
         .eq('transaction_type', 'Redemption')
@@ -385,7 +387,8 @@ class RedemptionController {
         return sendError(res, 'Failed to fetch redemption history', 500, error.message);
       }
 
-      // Format data to match expected structure
+
+      // Format data to match expected structure, including promotion_code
       const formattedData = (transactions || []).map(transaction => ({
         redemption_id: transaction.id,
         redemption_date: transaction.transaction_date,
@@ -395,7 +398,9 @@ class RedemptionController {
         status: 'completed',
         store_name: transaction.stores?.store_name,
         store_image: transaction.stores?.store_image,
-        reference_number: transaction.reference_number
+        reference_number: transaction.reference_number,
+        reward_name: transaction.rewards?.reward_name || null,
+        promotion_code: transaction.rewards?.promotion_code || null
       }));
 
       console.log('Redemption history count:', formattedData?.length || 0);

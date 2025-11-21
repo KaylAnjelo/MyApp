@@ -453,7 +453,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
                         resizeMode="cover"
                       />
                     ) : (
-                      <FontAwesome name="utensils" size={48} color="#bbb" solid />
+                      <FontAwesome name="utensils" size={48} color="#bbb" />
                     )}
                   </View>
                   <View style={styles.menuLabelWrap}>

@@ -42,10 +42,11 @@ class TransactionController {
       const {
         vendor_id,
         store_id,
-        items // Array of {product_id, product_name, quantity, price}
+        items, // Array of {product_id, product_name, quantity, price}
+        reward_code, // Optional: reward code from modal
       } = req.body;
 
-      console.log('Generate QR Request:', { vendor_id, store_id, itemCount: items?.length });
+      console.log('Generate QR Request:', { vendor_id, store_id, itemCount: items?.length, reward_code });
 
       if (!vendor_id || !store_id || !items || items.length === 0) {
         console.error('Missing required fields:', { vendor_id, store_id, items: items?.length });
@@ -85,8 +86,56 @@ class TransactionController {
         return sendError(res, `Vendor does not belong to this store. Vendor belongs to store ${vendorStoreId}, but requested store ${requestedStoreId}`, 403);
       }
 
+      let cart = [...items];
+      let appliedReward = null;
+      let rewardInfo = null;
+
+      // If reward_code is provided, validate and apply reward
+      if (reward_code && reward_code.trim().length > 0) {
+        // Find the claimed reward by code (assuming code is unique or maps to claimed_rewards)
+        // You may need to adjust this lookup based on your code logic
+        const { data: claimed, error: claimedError } = await supabase
+          .from('claimed_rewards')
+          .select('*, rewards:reward_id(*)')
+          .eq('id', reward_code.replace(/[^0-9]/g, '')) // e.g., code is RWD-123 => 123
+          .single();
+
+        if (claimedError || !claimed) {
+          return sendError(res, 'Invalid or already used reward code', 400);
+        }
+        if (claimed.is_redeemed) {
+          return sendError(res, 'Reward already redeemed', 400);
+        }
+        appliedReward = claimed.rewards;
+        rewardInfo = claimed;
+
+        // Apply reward logic
+        if (appliedReward.reward_type === 'free_item' && appliedReward.free_item_product_id) {
+          // Add the free item to the cart with price 0
+          cart.push({
+            product_id: appliedReward.free_item_product_id,
+            quantity: 1,
+            price: 0,
+            is_reward: true
+          });
+        }
+        if (appliedReward.reward_type === 'buy_x_get_y' && appliedReward.buy_x_product_id && appliedReward.get_y_product_id) {
+          // Check if cart has enough of the buy_x product
+          const buyXItem = cart.find(item => item.product_id === appliedReward.buy_x_product_id);
+          if (buyXItem && buyXItem.quantity >= (appliedReward.buy_x_quantity || 1)) {
+            // Add the get_y product as free
+            cart.push({
+              product_id: appliedReward.get_y_product_id,
+              quantity: appliedReward.get_y_quantity || 1,
+              price: 0,
+              is_reward: true
+            });
+          }
+        }
+      }
+
       // Calculate totals
-      const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       const totalPoints = parseFloat((totalAmount * 0.1).toFixed(2)); // 10% of total as points
 
       const transactionDate = new Date().toISOString();
@@ -108,15 +157,17 @@ class TransactionController {
         transaction_date: transactionDate,
         vendor_id: vendor_id,
         store_id: store_id,
-        items: items.map(item => ({
+        items: cart.map(item => ({
           product_id: item.product_id,
           product_name: item.product_name,
           quantity: item.quantity,
-          price: parseFloat(item.price).toFixed(2)
+          price: parseFloat(item.price).toFixed(2),
+          is_reward: item.is_reward || false
         })),
         total_amount: parseFloat(totalAmount).toFixed(2),
         total_points: totalPoints,
-        transaction_type: 'Purchase'
+        transaction_type: 'Purchase',
+        reward_id: appliedReward ? appliedReward.reward_id : null
       };
 
       // Store transaction data in database with 10 min expiry
@@ -147,6 +198,14 @@ class TransactionController {
         console.log('Stored in in-memory cache as fallback');
       } else {
         console.log('Stored transaction in DB with code:', shortCode, 'expires at:', expiresAt.toISOString());
+      }
+
+      // If reward was used, mark as redeemed
+      if (rewardInfo && rewardInfo.id) {
+        await supabase
+          .from('claimed_rewards')
+          .update({ is_redeemed: true })
+          .eq('id', rewardInfo.id);
       }
 
       // Return QR data without inserting into database yet
