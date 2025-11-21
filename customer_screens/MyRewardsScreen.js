@@ -93,14 +93,27 @@ export default function MyRewardsScreen({ navigation }) {
     setPointsInput('');
   };
 
-  const showRedemptionCode = () => {
-    // Set codeInput to promotion_code if available, else fallback to claimed_reward_id
-    if (selectedReward?.promotion_code) {
-      setCodeInput(selectedReward.promotion_code);
-    } else if (selectedReward?.claimed_reward_id || selectedReward?.claimed_reward_id === 0) {
-      setCodeInput(`RWD-${selectedReward.claimed_reward_id}`);
+  const showRedemptionCode = async () => {
+    // Mark as used in backend
+    if (selectedReward?.claimed_reward_id != null) {
+      try {
+        await apiService.useClaimedReward(selectedReward.claimed_reward_id);
+        setCodeInput(selectedReward.promotion_code ? selectedReward.promotion_code : `RWD-${selectedReward.claimed_reward_id}`);
+        setModalStage('code');
+        // Await loadRewards to ensure UI updates after backend update
+        await loadRewards();
+      } catch (err) {
+        Alert.alert('Error', 'Failed to mark voucher as used.');
+      }
+    } else {
+      // fallback: just show code
+      if (selectedReward?.promotion_code) {
+        setCodeInput(selectedReward.promotion_code);
+      } else if (selectedReward?.claimed_reward_id || selectedReward?.claimed_reward_id === 0) {
+        setCodeInput(`RWD-${selectedReward.claimed_reward_id}`);
+      }
+      setModalStage('code');
     }
-    setModalStage('code');
   };
 
   function renderSection(title, rewards, isActive = true) {
