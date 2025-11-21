@@ -33,11 +33,11 @@ const PointsHistoryScreen = ({ navigation }) => {
             "customer"
           );
           
-          // Filter only transactions with points (earned points)
+          // Filter for both earned (Purchase) and deducted (Redemption) points
           const pointTransactions = data.transactions?.filter(
-            (t) => t.points > 0 && t.transaction_type === "Purchase"
+            (t) => t.points !== 0 && (t.transaction_type === "Purchase" || t.transaction_type === "Redemption")
           ) || [];
-          
+
           // Group by reference_number to match other screens
           const grouped = {};
           pointTransactions.forEach(txn => {
@@ -53,11 +53,19 @@ const PointsHistoryScreen = ({ navigation }) => {
                 transaction_type: txn.transaction_type
               };
             }
-            
             // Sum up totals and points for this reference
             const itemTotal = txn.total != null ? parseFloat(txn.total) : (parseFloat(txn.price || 0) * parseFloat(txn.quantity || 0));
             grouped[refNum].total += isNaN(itemTotal) ? 0 : itemTotal;
-            grouped[refNum].points += parseFloat(txn.points || 0);
+            // For redemptions, points are negative
+            if (txn.transaction_type === "Redemption") {
+              grouped[refNum].points -= Math.abs(parseFloat(txn.points || 0));
+            } else {
+              grouped[refNum].points += parseFloat(txn.points || 0);
+            }
+            // If this group has both types, mark as Redemption if net points is negative
+            if (grouped[refNum].points < 0) {
+              grouped[refNum].transaction_type = "Redemption";
+            }
           });
 
           setTransactions(Object.values(grouped));
@@ -119,77 +127,80 @@ const PointsHistoryScreen = ({ navigation }) => {
             </Text>
           </View>
         ) : (
-          transactions.map((transaction, index) => (
-            <TouchableOpacity
-              key={transaction.id || index}
-              style={styles.transactionCard}
-              activeOpacity={0.8}
-              onPress={() =>
-                navigation.navigate('TransactionDetails', {
-                  referenceNumber: transaction.reference_number,
-                  initial: {
-                    store: transaction.stores?.store_name || "Unknown Store",
-                    reference_number: transaction.reference_number,
-                    date: formatDate(transaction.transaction_date),
-                    amount: `₱${parseFloat(transaction.total || 0).toFixed(2)}`,
-                    pointsEarned: `+${transaction.points || 0} pts`,
-                    type: transaction.transaction_type || "Purchase",
-                    items: []
-                  },
-                })
-              }
-            >
-              <View style={styles.cardHeader}>
-                <View style={styles.storeInfo}>
-                  <Text style={styles.storeName}>
-                    {transaction.stores?.store_name || "Unknown Store"}
-                  </Text>
-                  <Text style={styles.dateText}>
-                    {formatDate(transaction.transaction_date)}
-                  </Text>
+          transactions.map((transaction, index) => {
+            const isRedemption = transaction.transaction_type === "Redemption" || transaction.points < 0;
+            return (
+              <TouchableOpacity
+                key={transaction.id || index}
+                style={styles.transactionCard}
+                activeOpacity={0.8}
+                onPress={() =>
+                  navigation.navigate('TransactionDetails', {
+                    referenceNumber: transaction.reference_number,
+                    initial: {
+                      store: transaction.stores?.store_name || "Unknown Store",
+                      reference_number: transaction.reference_number,
+                      date: formatDate(transaction.transaction_date),
+                      amount: `₱${parseFloat(transaction.total || 0).toFixed(2)}`,
+                      pointsEarned: `${isRedemption ? '' : '+'}${transaction.points || 0} pts`,
+                      type: transaction.transaction_type || (isRedemption ? "Redemption" : "Purchase"),
+                      items: []
+                    },
+                  })
+                }
+              >
+                <View style={styles.cardHeader}>
+                  <View style={styles.storeInfo}>
+                    <Text style={styles.storeName}>
+                      {transaction.stores?.store_name || "Unknown Store"}
+                    </Text>
+                    <Text style={styles.dateText}>
+                      {formatDate(transaction.transaction_date)}
+                    </Text>
+                  </View>
+                  <View style={styles.pointsContainer}>
+                    <Text style={[styles.pointsText, isRedemption && { color: '#d32f2f' }]}> {/* Red for deductions */}
+                      {isRedemption ? '' : '+'}{transaction.points || 0}
+                    </Text>
+                    <Text style={styles.pointsLabel}>points</Text>
+                  </View>
                 </View>
-                <View style={styles.pointsContainer}>
-                  <Text style={styles.pointsText}>
-                    +{transaction.points || 0}
-                  </Text>
-                  <Text style={styles.pointsLabel}>points</Text>
-                </View>
-              </View>
 
-              <View style={styles.cardDetails}>
-                <View style={styles.detailRow}>
-                  <FontAwesome
-                    name="clock-o"
-                    size={14}
-                    color={Colors.textSecondary}
-                  />
-                  <Text style={styles.detailText}>
-                    {formatTime(transaction.transaction_date)}
-                  </Text>
+                <View style={styles.cardDetails}>
+                  <View style={styles.detailRow}>
+                    <FontAwesome
+                      name="clock-o"
+                      size={14}
+                      color={Colors.textSecondary}
+                    />
+                    <Text style={styles.detailText}>
+                      {formatTime(transaction.transaction_date)}
+                    </Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <FontAwesome
+                      name="tag"
+                      size={14}
+                      color={Colors.textSecondary}
+                    />
+                    <Text style={styles.detailText}>
+                      {transaction.reference_number || "N/A"}
+                    </Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <FontAwesome
+                      name="money"
+                      size={14}
+                      color={Colors.textSecondary}
+                    />
+                    <Text style={styles.detailText}>
+                      ₱{parseFloat(transaction.total || 0).toFixed(2)}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.detailRow}>
-                  <FontAwesome
-                    name="tag"
-                    size={14}
-                    color={Colors.textSecondary}
-                  />
-                  <Text style={styles.detailText}>
-                    {transaction.reference_number || "N/A"}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <FontAwesome
-                    name="money"
-                    size={14}
-                    color={Colors.textSecondary}
-                  />
-                  <Text style={styles.detailText}>
-                    ₱{parseFloat(transaction.total || 0).toFixed(2)}
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))
+              </TouchableOpacity>
+            );
+          })
         )}
       </ScrollView>
     </View>

@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl
 } from 'react-native';
-import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import FontAwesome from 'react-native-vector-icons/FontAwesome5';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
@@ -89,13 +89,18 @@ export default function StoresScreen({ navigation }) {
                 }}
               >
                 <View style={styles.storeImageContainer}>
-                  <Image
-                    source={{
-                      // prefer logoUrl if available, otherwise fall back to store_image
-                      uri: store.logoUrl || store.store_image || 'https://via.placeholder.com/150',
-                    }}
-                    style={styles.storeImage}
-                  />
+                  {store.logoUrl || store.store_image ? (
+                    <Image
+                      source={{
+                        uri: store.logoUrl || store.store_image
+                      }}
+                      style={styles.storeImage}
+                    />
+                  ) : (
+                    <View style={[styles.storeImage, styles.storeImagePlaceholder]}>
+                      <FontAwesome name="store" size={48} color="#bbb" solid style={styles.placeholderIcon} />
+                    </View>
+                  )}
                 </View>
                 <View style={styles.storeInfo}>
                   <Text style={styles.storeName}>{store.name || 'Store'}</Text>
@@ -206,6 +211,15 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: Radii.md,
     backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  storeImagePlaceholder: {
+    backgroundColor: '#f4f4f4',
+  },
+  placeholderIcon: {
+    // Centered by parent styles
   },
   
   storeInfo: {

@@ -33,6 +33,14 @@ class AuthController {
         return sendError(res, 'Invalid username or password', 401);
       }
 
+      await supabase
+        .from('user_logs')
+        .insert([{
+          user_id: users.user_id,
+          username: users.username,
+          // timestamp: new Date().toISOString(),
+        }]);
+
       return sendSuccess(res, {
         message: 'Login successful',
         user: {
