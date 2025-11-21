@@ -4,7 +4,7 @@ import { Platform, DeviceInfo } from 'react-native';
 // ✅ Configure API base URL
 const API_BASE_URL =
   Platform.OS === 'android'
-    ? 'http://192.168.68.110:3000/api'  // For physical device on same network. Use 10.0.2.2 for android emulator
+    ? 'http://localhost:3000/api'  // For physical device on same network. Use 10.0.2.2 for android emulator
     : 'http://localhost:3000/api';
 
 const TOKEN_KEY = '@app_auth_token';
@@ -400,10 +400,15 @@ class ApiService {
   }
 
   // ✅ NEW METHOD: Get all transactions for a specific store
-  async getStoreTransactions(storeId) {
-    if (!storeId) throw new Error('Missing storeId');
-    return this.request(`/transactions/store/${storeId}`);
-  }
+  async getStoreTransactions(storeId, vendorId = null) {
+  if (!storeId) throw new Error('Missing storeId');
+
+  const queryParams = new URLSearchParams();
+  if (vendorId) queryParams.append('vendorId', vendorId);
+
+  const url = `/transactions/store/${storeId}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  return this.request(url);
+}
 
   // Create a new transaction
   async createTransaction(transactionData) {
