@@ -149,7 +149,7 @@ export default function StoresScreen({ navigation }) {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={() => navigation.navigate('ProfilePage')}>
-          <FontAwesome name="user-o" size={20} color="#555" />
+          <FontAwesome name="user" size={20} color="#555" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
       </View>

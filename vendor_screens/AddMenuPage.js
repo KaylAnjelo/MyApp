@@ -131,10 +131,7 @@ const CreateOrderScreen = ({ navigation }) => {
 
   // Open cart modal instead of generating QR directly
   const generateQRCode = () => {
-    if (cart.length === 0) {
-      Alert.alert('Empty Cart', 'Please add items to cart before generating QR code');
-      return;
-    }
+    // Always open the cart modal so vendor can enter a reward code even with empty cart
     setShowCartModal(true);
   };
 
@@ -265,7 +262,7 @@ const CreateOrderScreen = ({ navigation }) => {
       <TouchableOpacity 
         style={styles.bottomBar}
         onPress={generateQRCode}
-        disabled={generatingQR || cart.length === 0}
+        disabled={generatingQR}
       >
         {/* Left Side: Cart Icon and Cart Info */}
         <View style={styles.cartInfoContainer}>
@@ -360,7 +357,11 @@ const CreateOrderScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={[styles.closeButton, { flex: 1, backgroundColor: '#FF6F61' }]}
                 onPress={finalizeTransaction}
-                disabled={!!generatingQR || (!!rewardCode && rewardCodeStatus !== 'valid' && rewardCodeStatus !== null)}
+                disabled={
+                  !!generatingQR ||
+                  ((cart.length === 0) && !(rewardCode && rewardCode.trim().length > 0)) ||
+                  (!!rewardCode && rewardCodeStatus !== 'valid' && rewardCodeStatus !== null)
+                }
               >
                 <Text style={styles.closeButtonText}>{generatingQR ? 'Processing...' : 'Finalize & Generate QR'}</Text>
               </TouchableOpacity>
