@@ -6,6 +6,7 @@ import { View, Text, StyleSheet,
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
+import { API_BASE_URL, API_HEALTH_URL } from '../config/api';
 import FontAwesome from 'react-native-vector-icons/FontAwesome5';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
@@ -45,14 +46,10 @@ export default function SpecificStoreScreen({ route, navigation }) {
         console.log('Store ID:', storeId);
         console.log('Store Name:', storeName);
         
-        // Test network connectivity first
+        // Test network connectivity first (use centralized API_HEALTH_URL)
         console.log('=== TESTING NETWORK CONNECTIVITY ===');
         try {
-          // Use the same base URL as apiService
-          const baseUrl = Platform.OS === 'android' 
-            ? 'http://localhost:3000'  // Physical device - change to 10.0.2.2 for emulator
-            : 'http://localhost:3000';
-          const healthUrl = `${baseUrl}/health`;
+          const healthUrl = `${API_HEALTH_URL}/health`;
           console.log('Testing health endpoint:', healthUrl);
           const healthResponse = await fetch(healthUrl, { 
             timeout: 5000,
@@ -78,7 +75,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
 
         console.log('=== FETCHING PRODUCTS ===');
         console.log('Calling apiService.getProductsByStore with storeId:', storeId);
-        console.log('API Base URL:', Platform.OS === 'android' ? 'http://192.168.1.10:3000/api' : 'http://localhost:3000/api');
+        console.log('API Base URL:', API_BASE_URL);
         
         let p;
         try {
