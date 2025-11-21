@@ -102,6 +102,9 @@ const TransactionPage = ({ navigation }) => {
           total: 0,
           type: txn.transaction_type || 'Purchase',
           items: [], // Track individual items
+          discount_amount: 0, // Initialize discount fields
+          discount_percent: 0,
+          reward_id: null,
         };
       }
       
@@ -123,14 +126,23 @@ const TransactionPage = ({ navigation }) => {
       .sort((a, b) => b.transaction_timestamp - a.transaction_timestamp) // Sort by timestamp descending
       .map(txn => {
         let discount = 0;
+        let discount_amount = 0;
+        let discount_percent = 0;
+        let reward_id = null;
         if (selectedVoucher && txn.type === 'Purchase' && new Date(txn.transaction_date) > new Date(selectedVoucher.claimed_at)) {
           discount = 50; // Assume fixed discount of 50 pesos; adjust based on voucher details
+          discount_amount = discount;
+          discount_percent = 0; // Fixed amount, not percentage
+          reward_id = selectedVoucher.id; // Assuming selectedVoucher has an id field
         }
         const adjustedTotal = txn.total - discount;
         return {
           ...txn,
           total: adjustedTotal.toFixed(2), // Format total for display with discount applied
           discountApplied: discount > 0, // Optional: flag for UI indication
+          discount_amount,
+          discount_percent,
+          reward_id,
         };
       });
   };
