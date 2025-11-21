@@ -136,9 +136,6 @@ export default function MyRewardsScreen({ navigation }) {
             <Text style={styles.rewardItemTitle}>{reward.reward_name || reward.description || 'Reward'}</Text>
             {reward.store_name && <Text style={styles.storeName}>{reward.store_name}</Text>}
             <View style={styles.rewardMeta}>
-              <View style={styles.pointsBadge}>
-                <Text style={styles.pointsBadgeText}>{reward.points_used} pts</Text>
-              </View>
               {!isActive && (
                 <View style={[styles.statusBadge, { backgroundColor: meta.color }]}>
                   <Text style={[styles.statusText, { color: '#fff' }]}>{meta.label}</Text>
