@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, TextInput, Modal } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { launchImageLibrary } from 'react-native-image-picker';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
@@ -15,6 +15,9 @@ export default function ProfilePageScreen({ navigation }) {
   const [tempFirstName, setTempFirstName] = useState('');
   const [tempLastName, setTempLastName] = useState('');
   const [updatingName, setUpdatingName] = useState(false);
+
+  // New state for logout modal
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
   const displayName =
     (profile &&
@@ -32,7 +35,6 @@ export default function ProfilePageScreen({ navigation }) {
       (profile.email || profile.user_email || profile.userEmail || profile.username)) ||
     'N/A';
 
-  // Function to get initials from first and last name
   const getUserInitials = () => {
     const firstName = profile?.first_name?.trim() || '';
     const lastName = profile?.last_name?.trim() || '';
@@ -44,16 +46,12 @@ export default function ProfilePageScreen({ navigation }) {
     } else if (lastName) {
       return lastName.charAt(0).toUpperCase();
     } else {
-      // Fallback to username if no first/last name
       const username = profile?.username || profile?.name || 'U';
-      if (username.length >= 2) {
-        return username.substring(0, 2).toUpperCase();
-      }
+      if (username.length >= 2) return username.substring(0, 2).toUpperCase();
       return username.charAt(0).toUpperCase();
     }
   };
 
-  // 📝 Name editing functions
   const handleEditName = () => {
     setTempFirstName(profile?.first_name || '');
     setTempLastName(profile?.last_name || '');
@@ -88,10 +86,7 @@ export default function ProfilePageScreen({ navigation }) {
         
         setProfile(updatedProfile);
         setIsEditingName(false);
-        
-        // Update AsyncStorage to keep local data in sync
         await AsyncStorage.setItem('@app_user', JSON.stringify(updatedProfile));
-        
         Alert.alert('Success', 'Name updated successfully');
       } else {
         Alert.alert('Error', response.message || 'Failed to update name');
@@ -120,57 +115,35 @@ export default function ProfilePageScreen({ navigation }) {
           if (userId) {
             try {
               const fresh = await apiService.getUserProfile(userId);
-              if (fresh) {
-                setProfile(fresh);
-                setProfileError(null);
-              }
+              if (fresh) setProfile(fresh);
             } catch (refreshErr) {
               console.warn('Failed to refresh profile from server:', refreshErr.message || refreshErr);
             }
           }
           return;
         }
-        // No stored user found; show error instead of calling a non-existent API
         setProfileError('User not found. Please sign in again.');
       } catch (error) {
-        const msg = error?.message || 'Failed to fetch profile';
-        setProfileError(msg);
+        setProfileError(error?.message || 'Failed to fetch profile');
       }
     };
     fetchProfile();
   }, []);
 
   const handleSelectImage = async () => {
-    if (uploading) return; // Prevent multiple taps during upload
-    
+    if (uploading) return;
     const hasImage = profile?.profile_image && !profile.profile_image.includes('placeholder');
     
     Alert.alert(
       'Profile Photo',
       hasImage ? 'Update profile picture' : 'Add profile picture',
       hasImage ? [
-        {
-          text: 'Change Photo',
-          onPress: () => selectImageFromLibrary()
-        },
-        {
-          text: 'Remove Photo',
-          style: 'destructive',
-          onPress: () => removeProfileImage()
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        }
+        { text: 'Change Photo', onPress: () => selectImageFromLibrary() },
+        { text: 'Remove Photo', style: 'destructive', onPress: () => removeProfileImage() },
+        { text: 'Cancel', style: 'cancel' }
       ] : [
-        {
-          text: 'Choose Photo',
-          onPress: () => selectImageFromLibrary()
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        }
+        { text: 'Choose Photo', onPress: () => selectImageFromLibrary() },
+        { text: 'Cancel', style: 'cancel' }
       ]
     );
   };
@@ -178,67 +151,43 @@ export default function ProfilePageScreen({ navigation }) {
   const selectImageFromLibrary = async () => {
     const options = {
       mediaType: 'photo',
-      quality: 0.5, // Reduced quality to decrease file size
-      maxWidth: 500, // Smaller dimensions
+      quality: 0.5,
+      maxWidth: 500,
       maxHeight: 500,
       includeBase64: true,
     };
 
     try {
       const result = await launchImageLibrary(options);
-      
-      if (result.didCancel) {
-        return;
-      }
-
+      if (result.didCancel) return;
       if (result.errorCode) {
-      Alert.alert('Selection Error', result.errorMessage || 'Unable to select image. Please try again.');
+        Alert.alert('Selection Error', result.errorMessage || 'Unable to select image.');
         return;
       }
-
-      if (result.assets && result.assets[0]) {
-        const asset = result.assets[0];
-        if (!asset.base64) {
-        Alert.alert('Image Error', 'Unable to select image. Please try choosing a different photo.');
-          return;
-        }
-        await handleUploadImage(asset);
-      }
+      if (result.assets && result.assets[0]) await handleUploadImage(result.assets[0]);
     } catch (error) {
       console.error('Image selection error:', error);
-      Alert.alert('Selection Error', 'Unable to access your photo library. Please try again.');
+      Alert.alert('Selection Error', 'Unable to access your photo library.');
     }
   };
 
   const removeProfileImage = async () => {
     try {
       setUploading(true);
-      
       const userId = profile?.user_id || profile?.userId;
-      console.log('Remove image - userId:', userId);
-      console.log('Remove image - profile:', profile);
-      
       if (!userId) {
-        Alert.alert('Error', 'User information not found. Please sign in again.');
+        Alert.alert('Error', 'User information not found.');
         return;
       }
-
-      // Remove image from server
-      console.log('Calling removeProfileImage API...');
       await apiService.removeProfileImage(userId);
-      
-      // Update local profile state to remove image
       setProfile(prev => ({ ...prev, profile_image: null }));
-      
-      // Update AsyncStorage
       const stored = await AsyncStorage.getItem('@app_user');
       if (stored) {
         const userData = JSON.parse(stored);
         userData.profile_image = null;
         await AsyncStorage.setItem('@app_user', JSON.stringify(userData));
       }
-      
-      Alert.alert('Photo Removed', 'Profile removed successfully!');
+      Alert.alert('Photo Removed', 'Profile photo removed successfully!');
     } catch (error) {
       console.error('Remove image error:', error);
       Alert.alert('Error', 'Couldn\'t remove photo.');
@@ -250,10 +199,9 @@ export default function ProfilePageScreen({ navigation }) {
   const handleUploadImage = async (asset) => {
     try {
       setUploading(true);
-
       const userId = profile?.user_id || profile?.userId;
       if (!userId) {
-        Alert.alert('Error', 'User information not found. Please sign in again.');
+        Alert.alert('Error', 'User information not found.');
         return;
       }
 
@@ -266,73 +214,45 @@ export default function ProfilePageScreen({ navigation }) {
       const response = await apiService.uploadProfileImage(userId, imageBase64, fileName);
 
       if (response.imageUrl) {
-        // Update local profile state
         const bust = `${response.imageUrl}${response.imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
         setProfile(prev => ({ ...prev, profile_image: bust }));
-        
-        // Update AsyncStorage
         const stored = await AsyncStorage.getItem('@app_user');
         if (stored) {
           const userData = JSON.parse(stored);
           userData.profile_image = bust;
           await AsyncStorage.setItem('@app_user', JSON.stringify(userData));
         }
-
-      Alert.alert('✅ Success', 'Your profile photo has been updated successfully!');
+        Alert.alert('✅ Success', 'Your profile photo has been updated successfully!');
       }
     } catch (error) {
       console.error('Upload error:', error);
-      Alert.alert('Upload Failed', 'Couldn\'t upload your photo right now. Please check your connection and try again.');
+      Alert.alert('Upload Failed', 'Couldn\'t upload your photo right now.');
     } finally {
       setUploading(false);
     }
   };
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await apiService.logout();
-              await AsyncStorage.removeItem('@app_user');
-              navigation.replace('SignIn');
-            } catch (error) {
-              console.error('Logout error:', error);
-              Alert.alert('Error', 'Failed to logout');
-            }
-          },
-        },
-      ]
-    );
+  // New logout handler to show modal
+  const handleLogout = () => {
+    setLogoutModalVisible(true);
   };
 
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.pageContent}>
-        {/* Header matching StoresScreen: centered title with spacers */}
         <View style={styles.headerTop}>
           <View style={{ width: 24 }} />
           <Text style={styles.headerTitle}>Profile</Text>
           <View style={styles.headerRight} />
         </View>
 
-        {/* Body content */}
         <View style={styles.bodyContent}>
           <Text style={styles.sectionHeader}>Profile Settings</Text>
 
           <View style={styles.avatarContainer}>
             <View style={styles.avatarWrapper}>
               {profile?.profile_image ? (
-                <Image 
-                  source={{ uri: profile.profile_image }} 
-                  style={styles.avatarLarge} 
-                />
+                <Image source={{ uri: profile.profile_image }} style={styles.avatarLarge} />
               ) : (
                 <View style={[styles.avatarLarge, styles.avatarPlaceholder]}>
                   <Text style={styles.avatarInitials}>{getUserInitials()}</Text>
@@ -346,17 +266,13 @@ export default function ProfilePageScreen({ navigation }) {
                   </View>
                 </View>
               )}
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.editBadge, uploading && styles.editBadgeDisabled]}
                 onPress={handleSelectImage}
                 disabled={uploading}
                 activeOpacity={0.7}
               >
-                <FontAwesome 
-                  name={uploading ? "clock-o" : "camera"} 
-                  size={14} 
-                  color={Colors.white} 
-                />
+                <FontAwesome name={uploading ? "clock-o" : "camera"} size={14} color={Colors.white} />
               </TouchableOpacity>
             </View>
           </View>
@@ -387,34 +303,18 @@ export default function ProfilePageScreen({ navigation }) {
                   placeholderTextColor={Colors.textSecondary}
                 />
                 <View style={styles.editButtonsRow}>
-                  <TouchableOpacity 
-                    style={styles.cancelButton}
-                    onPress={handleCancelEditName}
-                    disabled={updatingName}
-                  >
+                  <TouchableOpacity style={styles.cancelButton} onPress={handleCancelEditName} disabled={updatingName}>
                     <Text style={styles.cancelButtonText}>Cancel</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.saveButton, updatingName && styles.saveButtonDisabled]}
-                    onPress={handleSaveName}
-                    disabled={updatingName}
-                  >
-                    {updatingName ? (
-                      <ActivityIndicator size="small" color={Colors.white} />
-                    ) : (
-                      <Text style={styles.saveButtonText}>Save</Text>
-                    )}
+                  <TouchableOpacity style={[styles.saveButton, updatingName && styles.saveButtonDisabled]} onPress={handleSaveName} disabled={updatingName}>
+                    {updatingName ? <ActivityIndicator size="small" color={Colors.white} /> : <Text style={styles.saveButtonText}>Save</Text>}
                   </TouchableOpacity>
                 </View>
               </View>
             ) : (
               <View style={styles.infoValueBox}>
                 <Text style={styles.infoValue}>{displayName}</Text>
-                <TouchableOpacity 
-                  style={styles.editTextButton}
-                  onPress={handleEditName}
-                  activeOpacity={0.7}
-                >
+                <TouchableOpacity style={styles.editTextButton} onPress={handleEditName} activeOpacity={0.7}>
                   <Text style={styles.editButtonText}>Edit</Text>
                 </TouchableOpacity>
               </View>
@@ -429,21 +329,13 @@ export default function ProfilePageScreen({ navigation }) {
           </View>
 
           <Text style={styles.blockTitle}>Security</Text>
-          <TouchableOpacity 
-            style={styles.settingsRow} 
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('ChangePassword', { email: displayEmail })}
-          >
+          <TouchableOpacity style={styles.settingsRow} activeOpacity={0.8} onPress={() => navigation.navigate('ChangePassword', { email: displayEmail })}>
             <Text style={styles.settingsText}>Change Password</Text>
             <FontAwesome name="chevron-right" size={14} color={Colors.textSecondary} />
           </TouchableOpacity>
 
-          <Text style={[styles.blockTitle, styles.logoutTitle]}>Logout</Text>
-          <TouchableOpacity
-            style={styles.logoutRow}
-            activeOpacity={0.8}
-            onPress={handleLogout}
-          >
+          <Text style={[styles.blockTitle, styles.logoutTitle]}></Text>
+          <TouchableOpacity style={styles.logoutRow} activeOpacity={0.8} onPress={handleLogout}>
             <Text style={styles.logoutText}>Logout</Text>
             <View style={styles.logoutIconPill}>
               <FontAwesome name="arrow-right" size={14} color={Colors.textSecondary} />
@@ -451,6 +343,41 @@ export default function ProfilePageScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Logout Confirmation Modal */}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={logoutModalVisible}
+        onRequestClose={() => setLogoutModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Logout</Text>
+            <Text style={styles.modalMessage}>Are you sure you want to logout?</Text>
+            <View style={styles.modalButtonsRow}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setLogoutModalVisible(false)}>
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalLogoutButton}
+                onPress={async () => {
+                  setLogoutModalVisible(false);
+                  try {
+                    await apiService.logout();
+                    await AsyncStorage.removeItem('@app_user');
+                    navigation.replace('SignIn');
+                  } catch (error) {
+                    console.error('Logout error:', error);
+                  }
+                }}
+              >
+                <Text style={styles.modalLogoutButtonText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
@@ -487,16 +414,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scroll: { flex: 1 },
   pageContent: { flexGrow: 1 },
-  topSection: {
-    backgroundColor: Colors.primary,
-    // keep some vertical padding so the header has presence similar to Stores
-    paddingTop: Spacing.quad + 6,
-    paddingBottom: Spacing.lg,
-    borderBottomLeftRadius: Radii.lg,
-    borderBottomRightRadius: Radii.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   headerTop: {
     backgroundColor: Colors.primary,
     paddingTop: Spacing.sm,
@@ -523,10 +440,7 @@ const styles = StyleSheet.create({
     position: 'relative', 
     marginBottom: Spacing.sm,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 8,
@@ -544,184 +458,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarInitials: {
-    color: Colors.white,
-    fontSize: 42,
-    fontWeight: 'bold',
-  },
-  uploadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    borderRadius: 65,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  uploadingContent: {
-    alignItems: 'center',
-  },
-  uploadingText: {
-    color: Colors.white,
-    fontSize: Typography.small,
-    fontWeight: '600',
-    marginTop: Spacing.sm,
-  },
-  editBadge: {
-    position: 'absolute',
-    right: 4,
-    bottom: 4,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: Colors.white,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  editBadgeDisabled: {
-    backgroundColor: Colors.textSecondary,
-  },
-  changePhotoHint: {
-    fontSize: Typography.small,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  blockTitle: { marginTop: Spacing.xl, fontSize: Typography.h3, fontWeight: '600', color: Colors.textPrimary },
-  infoRow: { marginTop: Spacing.md, marginBottom: Spacing.sm },
-  infoLabel: { fontSize: Typography.small, color: Colors.textSecondary, marginBottom: Spacing.xs },
-  infoValueBox: {
-    backgroundColor: '#f3f3f3',
-    borderRadius: Radii.md,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  infoValue: { fontSize: Typography.body, color: Colors.textSecondary, flex: 1 },
-  editNameContainer: {
-    flex: 1,
-  },
-  nameInput: {
-    backgroundColor: '#fff',
-    borderRadius: Radii.md,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    fontSize: Typography.body,
-    color: Colors.textPrimary,
-    marginBottom: Spacing.sm,
-  },
-  editButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-  cancelButton: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radii.sm,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    backgroundColor: '#fff',
-  },
-  cancelButtonText: {
-    color: '#666',
-    fontSize: Typography.small,
-    fontWeight: '500',
-  },
-  saveButton: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radii.sm,
-    backgroundColor: Colors.primary,
-    minWidth: 60,
-    alignItems: 'center',
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  saveButtonText: {
-    color: Colors.white,
-    fontSize: Typography.small,
-    fontWeight: '600',
-  },
-  editTextButton: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-  },
-  editButtonText: {
-    fontSize: Typography.small,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  errorBanner: {
-    backgroundColor: '#ffe6e6',
-    borderRadius: Radii.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  errorText: { color: '#b00020', fontSize: Typography.small },
-  settingsRow: {
-    marginTop: Spacing.md,
-    backgroundColor: Colors.white,
-    borderRadius: Radii.md,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    ...Shadows.light,
-  },
+  avatarInitials: { color: Colors.white, fontSize: 42, fontWeight: 'bold' },
+  uploadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 65, alignItems: 'center', justifyContent: 'center' },
+  uploadingContent: { alignItems: 'center' },
+  uploadingText: { color: Colors.white, fontSize: Typography.small, fontWeight: '600', marginTop: Spacing.sm },
+  editBadge: { position: 'absolute', right: 4, bottom: 4, backgroundColor: Colors.primary, padding: 6, borderRadius: 16, borderWidth: 2, borderColor: Colors.white },
+  editBadgeDisabled: { backgroundColor: Colors.textSecondary },
+  blockTitle: { fontSize: Typography.h4, fontWeight: '600', marginTop: Spacing.lg, marginBottom: Spacing.md, color: Colors.textPrimary },
+  infoRow: { marginBottom: Spacing.md },
+  infoLabel: { fontSize: Typography.body, color: Colors.textSecondary, marginBottom: 4 },
+  infoValueBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.sm, backgroundColor: '#f7f7f7', borderRadius: Radii.md },
+  infoValue: { fontSize: Typography.body, color: Colors.textPrimary },
+  editTextButton: { marginLeft: Spacing.sm },
+  editButtonText: { color: Colors.primary, fontWeight: '600', fontSize: Typography.body },
+  editNameContainer: { backgroundColor: '#f7f7f7', padding: Spacing.sm, borderRadius: Radii.md },
+  nameInput: { backgroundColor: Colors.white, padding: Spacing.sm, borderRadius: Radii.sm, marginBottom: Spacing.sm, borderWidth: 1, borderColor: '#ddd' },
+  editButtonsRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm },
+  cancelButton: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderRadius: Radii.md, backgroundColor: '#ddd' },
+  cancelButtonText: { fontSize: Typography.body, fontWeight: '600', color: Colors.textSecondary },
+  saveButton: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderRadius: Radii.md, backgroundColor: Colors.primary },
+  saveButtonText: { color: Colors.white, fontWeight: '600' },
+  saveButtonDisabled: { backgroundColor: '#aaa' },
+  settingsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.sm, backgroundColor: '#f7f7f7', borderRadius: Radii.md, marginBottom: Spacing.md },
   settingsText: { fontSize: Typography.body, color: Colors.textPrimary },
-  logoutTitle: { marginTop: Spacing.lg },
-  logoutRow: {
-    marginTop: Spacing.md,
-    backgroundColor: '#f3f3f3',
-    borderRadius: Radii.md,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  logoutText: { fontSize: Typography.body, color: Colors.textPrimary },
-  logoutIconPill: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#e9eaec',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    height: 65,
-    backgroundColor: Colors.white,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  navItem: { alignItems: 'center' },
-  navText: { fontSize: 11, marginTop: 2, color: '#555' },
+  logoutTitle: { marginTop: Spacing.xl },
+  logoutRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.sm, backgroundColor: '#fdecea', borderRadius: Radii.md },
+  logoutText: { fontSize: Typography.body, color: '#d32f2f', fontWeight: '600' },
+  logoutIconPill: { backgroundColor: '#fcdcdc', borderRadius: 12, padding: 4, alignItems: 'center', justifyContent: 'center' },
+
+  bottomNav: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', height: 64, backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: '#eee' },
+  navItem: { alignItems: 'center', justifyContent: 'center' },
+  navText: { fontSize: Typography.small, color: '#555' },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: '85%', backgroundColor: Colors.white, borderRadius: Radii.lg, padding: Spacing.xl, alignItems: 'center', ...Shadows.light },
+  modalTitle: { fontSize: Typography.h3, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.sm },
+  modalMessage: { fontSize: Typography.body, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.lg },
+  modalButtonsRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', gap: Spacing.md },
+  modalCancelButton: { flex: 1, paddingVertical: Spacing.sm, borderRadius: Radii.md, backgroundColor: '#f0f0f0', alignItems: 'center' },
+  modalCancelButtonText: { fontSize: Typography.body, fontWeight: '600', color: Colors.textSecondary },
+  modalLogoutButton: { flex: 1, paddingVertical: Spacing.sm, borderRadius: Radii.md, backgroundColor: Colors.primary, alignItems: 'center' },
+  modalLogoutButtonText: { fontSize: Typography.body, fontWeight: '600', color: Colors.white },
 });

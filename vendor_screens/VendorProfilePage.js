@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { 
   View, Text, StyleSheet, Image, TouchableOpacity, 
-  SafeAreaView, ScrollView, ActivityIndicator, Alert, TextInput 
+  SafeAreaView, ScrollView, ActivityIndicator, Alert, TextInput, Modal
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -20,6 +20,7 @@ export default function VendorProfilePage({ navigation }) {
   const [tempFirstName, setTempFirstName] = useState('');
   const [tempLastName, setTempLastName] = useState('');
   const [updatingName, setUpdatingName] = useState(false);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
 
   // 🧩 Display helpers
   const displayName = profile?.full_name ||
@@ -170,28 +171,8 @@ export default function VendorProfilePage({ navigation }) {
   }, [profile]);
 
   // 🧹 Logout
-  const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await apiService.logout();
-              await AsyncStorage.removeItem('@app_user');
-              navigation.replace('SignIn');
-            } catch (error) {
-              console.error('Logout error:', error);
-              Alert.alert('Error', 'Failed to logout');
-            }
-          },
-        },
-      ]
-    );
+  const handleLogout = () => {
+    setLogoutModalVisible(true);
   };
 
   // 🛠 Placeholder actions
@@ -558,10 +539,7 @@ export default function VendorProfilePage({ navigation }) {
             <View style={styles.infoValueBox}>
               <Text style={styles.infoValue}>{displayName}</Text>
               <TouchableOpacity 
-                style={styles.editTextButton}
-                onPress={handleEditName}
-                activeOpacity={0.7}
-              >
+                style={styles.editTextButton} onPress={handleEditName} activeOpacity={0.7}>
                 <Text style={styles.editButtonText}>Edit</Text>
               </TouchableOpacity>
             </View>
@@ -583,17 +561,45 @@ export default function VendorProfilePage({ navigation }) {
 
         <Text style={[styles.blockTitle, styles.logoutTitle]}>Logout</Text>
         <TouchableOpacity
-          style={styles.logoutRow}
-          activeOpacity={0.8}
-          onPress={handleLogout}
-        >
+          style={styles.logoutRow} activeOpacity={0.8} onPress={handleLogout}>
           <Text style={styles.logoutText}>Logout</Text>
           <View style={styles.logoutIconPill}>
-            <FontAwesome name="arrow-right" size={14} color={Colors.textSecondary} />
-          </View>
+            <FontAwesome name="arrow-right" size={14} color={Colors.textSecondary}/></View>
         </TouchableOpacity>
-        <View style={{ height: 100 }} />
+        <View style={{ height: 100 }}/>
       </ScrollView>
+
+      {/* Logout Confirmation Modal */}
+      <Modal
+        transparent animationType="fade" visible={logoutModalVisible} onRequestClose={() => setLogoutModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Logout</Text>
+            <Text style={styles.modalMessage}>Are you sure you want to logout?</Text>
+            <View style={styles.modalButtonsRow}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setLogoutModalVisible(false)}>
+                <Text style={styles.modalCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalLogoutButton}
+                onPress={async () => {
+                  setLogoutModalVisible(false);
+                  try {
+                    await apiService.logout();
+                    await AsyncStorage.removeItem('@app_user');
+                    navigation.replace('SignIn');
+                  } catch (error) {
+                    console.error('Logout error:', error);
+                    Alert.alert('Error', 'Failed to logout');
+                  }
+                }}
+              >
+                <Text style={styles.modalLogoutButtonText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
@@ -922,4 +928,60 @@ const styles = StyleSheet.create({
   errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
   retryButton: { backgroundColor: Colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
   retryButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.5)', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  modalContent: { 
+    width: '85%', 
+    backgroundColor: Colors.white, 
+    borderRadius: Radii.lg, 
+    padding: Spacing.xl, 
+    alignItems: 'center', 
+    ...Shadows.light 
+  },
+  modalTitle: { 
+    fontSize: Typography.h3, 
+    fontWeight: '700', 
+    color: Colors.textPrimary, 
+    marginBottom: Spacing.sm 
+  },
+  modalMessage: { 
+    fontSize: Typography.body, 
+    color: Colors.textSecondary, 
+    textAlign: 'center', 
+    marginBottom: Spacing.lg 
+  },
+  modalButtonsRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    width: '100%', 
+    gap: Spacing.md 
+  },
+  modalCancelButton: { 
+    flex: 1, 
+    paddingVertical: Spacing.sm, 
+    borderRadius: Radii.md, 
+    backgroundColor: '#f0f0f0', 
+    alignItems: 'center' 
+  },
+  modalCancelButtonText: { 
+    fontSize: Typography.body, 
+    fontWeight: '600', 
+    color: Colors.textSecondary 
+  },
+  modalLogoutButton: { 
+    flex: 1, 
+    paddingVertical: Spacing.sm, 
+    borderRadius: Radii.md, 
+    backgroundColor: Colors.primary, 
+    alignItems: 'center' 
+  },
+  modalLogoutButtonText: { 
+    fontSize: Typography.body, 
+    fontWeight: '600', 
+    color: Colors.white 
+  },
 });

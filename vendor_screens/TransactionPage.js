@@ -123,29 +123,57 @@ const TransactionPage = ({ navigation }) => {
       const userData = await AsyncStorage.getItem('@app_user');
       const parsedUser = JSON.parse(userData);
 
-      if (!parsedUser || parsedUser.role !== 'vendor' || !parsedUser.store_id) {
-        Alert.alert('Error', 'Vendor or Store ID not found. Please relog.');
+      if (!parsedUser || parsedUser.role !== 'vendor' || !parsedUser.user_id) {
+        Alert.alert('Error', 'Vendor or User ID not found. Please relog.');
         setLoading(false);
         return;
       }
 
-      // Temporary workaround: Use a mock response until server restart
-      // TODO: Replace with apiService.getStoreTransactions(parsedUser.store_id) after server restart
+      const userId = parsedUser.user_id;
+      let response = null;
+      let txns = [];
+
+      // 1) Primary: try user-specific endpoint (common signature)
       try {
-        const response = await apiService.getStoreTransactions(parsedUser.store_id);
-        if (!response || !response.transactions) {
-          throw new Error('Invalid response structure from API.');
+        response = await apiService.getUserTransactions(userId, 'vendor');
+        if (response && Array.isArray(response.transactions) && response.transactions.length > 0) {
+          txns = response.transactions;
         }
-        const cleanedAndGroupedData = formatAndGroupTransactions(response.transactions);
-        setTransactions(cleanedAndGroupedData);
-      } catch (error) {
-        console.log('Store transactions endpoint not available, using empty data');
-        // Temporary: Set empty transactions until endpoint is fixed
-        setTransactions([]);
+      } catch (err) {
+        console.log('getUserTransactions(userId, "vendor") failed:', err?.message || err);
       }
+
+      // 2) Secondary: try user-specific without role (some apiService variants)
+      if (txns.length === 0) {
+        try {
+          response = await apiService.getUserTransactions(userId);
+          if (response && Array.isArray(response.transactions) && response.transactions.length > 0) {
+            txns = response.transactions;
+          }
+        } catch (err) {
+          console.log('getUserTransactions(userId) failed:', err?.message || err);
+        }
+      }
+
+      // 3) Fallback: fetch store transactions and filter by Vendor_ID === userId
+      if (txns.length === 0 && parsedUser.store_id) {
+        try {
+          const storeResp = await apiService.getStoreTransactions(parsedUser.store_id);
+          if (storeResp && Array.isArray(storeResp.transactions)) {
+            txns = storeResp.transactions.filter(t => String(t.Vendor_ID) === String(userId));
+          }
+        } catch (err) {
+          console.log('getStoreTransactions fallback failed:', err?.message || err);
+        }
+      }
+
+      // If still empty, show empty list (no need to throw)
+      const cleanedAndGroupedData = formatAndGroupTransactions(txns || []);
+      setTransactions(cleanedAndGroupedData);
     } catch (error) {
       console.error('Error fetching transactions:', error.message);
-      Alert.alert('Error', 'Failed to load store transactions. Please check your connection.');
+      Alert.alert('Error', 'Failed to load vendor transactions. Please check your connection.');
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
