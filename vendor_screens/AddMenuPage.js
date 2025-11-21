@@ -176,12 +176,14 @@ const CreateOrderScreen = ({ navigation }) => {
         quantity: item.quantity,
         price: parseFloat(item.price)
       }));
-      // Pass reward code if applied
+      // Include reward code if user entered one (backend will validate it).
+      // Previously we only sent the code when `appliedReward` was truthy (after client-side validation),
+      // which could cause the server to never receive the code if validation endpoint failed.
       const payload = {
         vendor_id: vendorId,
         store_id: storeId,
         items,
-        reward_code: appliedReward ? rewardCode.trim() : undefined
+        reward_code: rewardCode && rewardCode.trim() ? rewardCode.trim() : undefined
       };
       const response = await apiService.generateTransactionQR(payload);
       if (response && response.qr_string && response.short_code) {
