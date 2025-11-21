@@ -24,6 +24,7 @@ const SalesPage = ({ navigation }) => {
   const [activeMonth, setActiveMonth] = useState(currentMonth);
   const [loading, setLoading] = useState(true);
   const [storeId, setStoreId] = useState(null);
+  const [transactions, setTransactions] = useState([]);
   const [analyticsData, setAnalyticsData] = useState({
     todayRevenue: 0,
     todayOrders: 0,
@@ -39,7 +40,7 @@ const SalesPage = ({ navigation }) => {
 
   useEffect(() => {
     if (storeId) {
-      loadAnalyticsData();
+      loadTransactions();
     }
   }, [activeMonth, storeId]);
 
@@ -62,25 +63,156 @@ const SalesPage = ({ navigation }) => {
       }
 
       setStoreId(vendorStoreId);
-      const data = await apiService.getSalesAnalytics(vendorStoreId, activeMonth, currentYear);
-      setAnalyticsData(data);
     } catch (error) {
-      console.error('Error loading analytics:', error);
-      Alert.alert('Error', 'Failed to load analytics data.');
+      console.error('Error loading initial data:', error);
+      Alert.alert('Error', 'Failed to load initial data.');
     } finally {
       setLoading(false);
     }
   };
 
-  const loadAnalyticsData = async () => {
+  const loadTransactions = async () => {
     if (!storeId) return;
-    
+
     try {
-      const data = await apiService.getSalesAnalytics(storeId, activeMonth, currentYear);
-      setAnalyticsData(data);
+      setLoading(true);
+
+      const userData = await AsyncStorage.getItem('@app_user');
+      const parsedUser = JSON.parse(userData);
+
+      if (!parsedUser || parsedUser.role !== 'vendor' || !parsedUser.user_id) {
+        Alert.alert('Error', 'Vendor or User ID not found. Please relog.');
+        setLoading(false);
+        return;
+      }
+
+      const userId = parsedUser.user_id;
+      let response = null;
+      let txns = [];
+
+      // 1) Primary: try user-specific endpoint (common signature)
+      try {
+        response = await apiService.getUserTransactions(userId, 'vendor');
+        if (response && Array.isArray(response.transactions) && response.transactions.length > 0) {
+          txns = response.transactions;
+        }
+      } catch (err) {
+        console.log('getUserTransactions(userId, "vendor") failed:', err?.message || err);
+      }
+
+      // 2) Secondary: try user-specific without role (some apiService variants)
+      if (txns.length === 0) {
+        try {
+          response = await apiService.getUserTransactions(userId);
+          if (response && Array.isArray(response.transactions) && response.transactions.length > 0) {
+            txns = response.transactions;
+          }
+        } catch (err) {
+          console.log('getUserTransactions(userId) failed:', err?.message || err);
+        }
+      }
+
+      // 3) Fallback: fetch store transactions and filter by Vendor_ID === userId
+      if (txns.length === 0 && parsedUser.store_id) {
+        try {
+          const storeResp = await apiService.getStoreTransactions(parsedUser.store_id);
+          if (storeResp && Array.isArray(storeResp.transactions)) {
+            txns = storeResp.transactions.filter(t => String(t.Vendor_ID) === String(userId));
+          }
+        } catch (err) {
+          console.log('getStoreTransactions fallback failed:', err?.message || err);
+        }
+      }
+
+      // Filter transactions by selected month and year
+      const filteredTxns = txns.filter(txn => {
+        const txnDate = new Date(txn.transaction_date);
+        return txnDate.getMonth() === activeMonth && txnDate.getFullYear() === currentYear;
+      });
+
+      setTransactions(filteredTxns);
+      computeAnalytics(filteredTxns);
     } catch (error) {
-      console.error('Error loading analytics data:', error);
+      console.error('Error loading transactions:', error);
+      Alert.alert('Error', 'Failed to load transactions.');
+      setTransactions([]);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const computeAnalytics = (txns) => {
+    const today = new Date();
+    const todayStr = today.toDateString();
+    let todayRevenue = 0;
+    let todayOrders = new Set();
+
+    // Group transactions by week and product type for salesByType
+    const weeklySalesByType = { 0: {}, 1: {}, 2: {}, 3: {} }; // Weeks 1-4
+    const productRevenue = {};
+    let totalOrders = 0;
+
+    txns.forEach(txn => {
+      const txnDate = new Date(txn.transaction_date);
+      const txnDateStr = txnDate.toDateString();
+      const week = Math.floor((txnDate.getDate() - 1) / 7); // 0-3 for weeks
+      const productType = txn.products?.category || txn.category || 'Other';
+      const revenue = parseFloat(txn.price || 0) * parseFloat(txn.quantity || 1);
+
+      // Today's metrics
+      if (txnDateStr === todayStr) {
+        todayRevenue += revenue;
+        todayOrders.add(txn.reference_number);
+      }
+
+      // Weekly sales by type
+      if (!weeklySalesByType[week]) weeklySalesByType[week] = {};
+      weeklySalesByType[week][productType] = (weeklySalesByType[week][productType] || 0) + revenue;
+
+      // Top products
+      const productName = txn.products?.product_name || txn.product_name || 'Unknown Product';
+      productRevenue[productName] = (productRevenue[productName] || 0) + revenue;
+
+      totalOrders += 1; // Assuming each txn is an order item, but for progress, count unique reference_numbers
+    });
+
+    const todayOrdersCount = todayOrders.size;
+
+    // Prepare salesByType as array of weekly revenues per type
+    const salesByType = {};
+    Object.keys(productTypeColors).forEach(type => {
+      salesByType[type] = [0, 0, 0, 0];
+    });
+    Object.keys(weeklySalesByType).forEach(week => {
+      Object.keys(weeklySalesByType[week]).forEach(type => {
+        salesByType[type][week] = weeklySalesByType[week][type];
+      });
+    });
+
+    // Top products
+    const topProducts = Object.entries(productRevenue)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, revenue]) => ({ name, revenue }));
+
+    // Weekly performance (total revenue per week)
+    const weeklyPerformance = [0, 0, 0, 0];
+    Object.keys(weeklySalesByType).forEach(week => {
+      weeklyPerformance[week] = Object.values(weeklySalesByType[week]).reduce((sum, val) => sum + val, 0);
+    });
+
+    // Transaction progress: current is total unique orders in month, target is arbitrary (e.g., 100)
+    const uniqueOrders = new Set(txns.map(t => t.reference_number)).size;
+    const target = 100; // Example target, can be adjusted
+
+    setAnalyticsData({
+      todayRevenue,
+      todayOrders: todayOrdersCount,
+      weeklyPerformance,
+      topProducts,
+      salesByType,
+      transactionProgress: { current: uniqueOrders, target }
+    });
   };
 
   // Prepare line chart data for weekly performance by product type

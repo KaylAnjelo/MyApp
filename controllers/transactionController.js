@@ -256,6 +256,11 @@ class TransactionController {
         return sendError(res, 'User ID is required', 400);
       }
 
+      // Coerce numeric IDs when possible to avoid eq type mismatch
+      const coercedId = Number.isNaN(Number(userId)) ? userId : Number(userId);
+      console.log('[getUserTransactions] userId:', userId, 'coercedId:', coercedId, 'role:', role);
+
+      // Select related customer/vendor and product/store info so frontend can display names
       let query = supabase
         .from('transactions')
         .select(`
@@ -266,22 +271,36 @@ class TransactionController {
           ),
           stores (
             store_name
+          ),
+          customer:user_id ( 
+            first_name,
+            last_name,
+            username,
+            user_email
+          ),
+          vendor:Vendor_ID (
+            user_id,
+            first_name,
+            last_name,
+            username
           )
         `)
         .order('transaction_date', { ascending: false });
 
       if (role === 'vendor') {
-        query = query.eq('Vendor_ID', userId);
+        query = query.eq('Vendor_ID', coercedId);
       } else {
-        query = query.eq('user_id', userId);
+        query = query.eq('user_id', coercedId);
       }
 
       const { data, error } = await query;
 
       if (error) {
+        console.error('[getUserTransactions] Supabase error:', error);
         return sendError(res, error.message, 400);
       }
 
+      console.log('[getUserTransactions] returned', Array.isArray(data) ? data.length : 0, 'records');
       return sendSuccess(res, { transactions: data });
     } catch (error) {
       console.error('Error fetching transactions:', error);
