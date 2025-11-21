@@ -13,10 +13,23 @@ const TransactionPage = ({ navigation }) => {
   const [transactions, setTransactions] = useState([]);
   const [activeFilter, setActiveFilter] = useState('All');
   const [loading, setLoading] = useState(true);
+  const [selectedVoucher, setSelectedVoucher] = useState(null);
 
   useEffect(() => {
     fetchTransactions();
+    loadSelectedVoucher();
   }, []);
+
+  const loadSelectedVoucher = async () => {
+    try {
+      const voucher = await AsyncStorage.getItem('@selected_voucher');
+      if (voucher) {
+        setSelectedVoucher(JSON.parse(voucher));
+      }
+    } catch (error) {
+      console.error('Error loading selected voucher:', error);
+    }
+  };
 
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);
@@ -108,12 +121,18 @@ const TransactionPage = ({ navigation }) => {
     // 2. Convert to array, sort by timestamp (newest first), and finalize formatting
     return Object.values(grouped)
       .sort((a, b) => b.transaction_timestamp - a.transaction_timestamp) // Sort by timestamp descending
-      .map(txn => ({
-        ...txn,
-        transaction_date: formatDate(txn.transaction_date),
-        total: txn.total.toFixed(2), // Format total for display
-        items_count: txn.items.length, // Add count for display
-      }));
+      .map(txn => {
+        let discount = 0;
+        if (selectedVoucher && txn.type === 'Purchase' && new Date(txn.transaction_date) > new Date(selectedVoucher.claimed_at)) {
+          discount = 50; // Assume fixed discount of 50 pesos; adjust based on voucher details
+        }
+        const adjustedTotal = txn.total - discount;
+        return {
+          ...txn,
+          total: adjustedTotal.toFixed(2), // Format total for display with discount applied
+          discountApplied: discount > 0, // Optional: flag for UI indication
+        };
+      });
   };
 
   const fetchTransactions = async () => {
@@ -170,6 +189,11 @@ const TransactionPage = ({ navigation }) => {
       // If still empty, show empty list (no need to throw)
       const cleanedAndGroupedData = formatAndGroupTransactions(txns || []);
       setTransactions(cleanedAndGroupedData);
+      // Remove the voucher after applying discount to prevent repeated application
+      if (selectedVoucher) {
+        await AsyncStorage.removeItem('@selected_voucher');
+        setSelectedVoucher(null);
+      }
     } catch (error) {
       console.error('Error fetching transactions:', error.message);
       Alert.alert('Error', 'Failed to load vendor transactions. Please check your connection.');
@@ -199,6 +223,9 @@ const TransactionPage = ({ navigation }) => {
         <Text style={styles.transactionRef}>Ref: {item.reference_number}</Text>
         {item.items_count > 1 && (
           <Text style={styles.itemsCount}>{item.items_count} items</Text>
+        )}
+        {item.discountApplied && (
+          <Text style={styles.discountText}>Discount Applied</Text>
         )}
       </View>
       <View style={{alignItems: 'flex-end'}}>
@@ -395,6 +422,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.primary,
     marginLeft: 10,
+  },
+  discountText: {
+    fontSize: 11,
+    color: '#4caf50',
+    marginTop: 2,
+    fontWeight: 'bold',
   },
   divider: {
     height: 1,
