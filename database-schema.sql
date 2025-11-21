@@ -35,7 +35,7 @@ create table public.user_logs (
   constraint user_logs_username_fkey foreign KEY (username) references users (username) on delete CASCADE
 ) TABLESPACE pg_default;
 
-create table public.transactions (
+ccreate table public.transactions (
   id serial not null,
   transaction_date timestamp without time zone not null default now(),
   user_id integer null,
@@ -48,11 +48,13 @@ create table public.transactions (
   reference_number character varying(100) null,
   transaction_type text not null default 'Purchase'::text,
   "Vendor_ID" integer null,
+  reward_id integer null,
   constraint transactions_pkey primary key (id),
+  constraint fk_transactions_reward foreign KEY (reward_id) references rewards (reward_id) on delete set null,
   constraint fk_transactions_store foreign KEY (store_id) references stores (store_id) on delete set null,
   constraint fk_transactions_user foreign KEY (user_id) references users (user_id) on delete set null,
-  constraint fk_transactions_product foreign KEY (product_id) references products (id) on delete RESTRICT,
   constraint transactions_Vendor_ID_fkey foreign KEY ("Vendor_ID") references users (user_id) on update CASCADE on delete set null,
+  constraint fk_transactions_product foreign KEY (product_id) references products (id) on delete RESTRICT,
   constraint transactions_quantity_check check ((quantity > 0)),
   constraint transactions_transaction_type_check check (
     (
@@ -178,4 +180,15 @@ create table public.notifications (
   created_at timestamp without time zone null default CURRENT_TIMESTAMP,
   constraint notifications_pkey primary key (id),
   constraint notifications_user_id_fkey foreign KEY (user_id) references users (user_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.claimed_rewards (
+  id serial not null,
+  user_id integer not null,
+  reward_id integer not null,
+  claimed_at timestamp with time zone null default now(),
+  is_redeemed boolean null default false,
+  constraint claimed_rewards_pkey primary key (id),
+  constraint claimed_rewards_reward_id_fkey foreign KEY (reward_id) references rewards (reward_id) on delete CASCADE,
+  constraint claimed_rewards_user_id_fkey foreign KEY (user_id) references users (user_id) on delete CASCADE
 ) TABLESPACE pg_default;
