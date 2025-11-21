@@ -91,27 +91,35 @@ class TransactionController {
       let rewardInfo = null;
 
       // If reward_code is provided, validate and apply reward
+      let rewardPointsCost = 0;
       if (reward_code && reward_code.trim().length > 0) {
-        // Find the claimed reward by code (assuming code is unique or maps to claimed_rewards)
-        // You may need to adjust this lookup based on your code logic
-        const { data: claimed, error: claimedError } = await supabase
-          .from('claimed_rewards')
-          .select('*, rewards:reward_id(*)')
-          .eq('id', reward_code.replace(/[^0-9]/g, '')) // e.g., code is RWD-123 => 123
+        // Normalize reward code and fetch reward by promotion_code (case-insensitive)
+        const normalizedCode = reward_code.trim().toUpperCase();
+        // Fetch reward by promotion_code from rewards
+        const { data: reward, error: rewardError } = await supabase
+          .from('rewards')
+          .select('*')
+          .eq('promotion_code', normalizedCode)
+          .eq('is_active', true)
           .single();
 
-        if (claimedError || !claimed) {
-          return sendError(res, 'Invalid or already used reward code', 400);
+        if (rewardError || !reward) {
+          console.warn('[createTransaction] Reward lookup failed for code:', reward_code, 'normalized:', normalizedCode, 'error:', rewardError);
+          return sendError(res, 'Invalid or inactive promotion code', 400);
         }
-        if (claimed.is_redeemed) {
-          return sendError(res, 'Reward already redeemed', 400);
+
+        appliedReward = reward;
+
+        console.log('[createTransaction] Applied reward found:', { reward_id: appliedReward.reward_id, reward_name: appliedReward.reward_name, promotion_code: appliedReward.promotion_code });
+
+        // Add reward_points (points_cost) to QR data if present
+        // Use points_required (schema) if present, fall back to points_cost if named differently
+        if (appliedReward && (appliedReward.points_required || appliedReward.points_cost)) {
+          rewardPointsCost = appliedReward.points_required || appliedReward.points_cost;
         }
-        appliedReward = claimed.rewards;
-        rewardInfo = claimed;
 
         // Apply reward logic
         if (appliedReward.reward_type === 'free_item' && appliedReward.free_item_product_id) {
-          // Add the free item to the cart with price 0
           cart.push({
             product_id: appliedReward.free_item_product_id,
             quantity: 1,
@@ -119,11 +127,10 @@ class TransactionController {
             is_reward: true
           });
         }
+
         if (appliedReward.reward_type === 'buy_x_get_y' && appliedReward.buy_x_product_id && appliedReward.get_y_product_id) {
-          // Check if cart has enough of the buy_x product
           const buyXItem = cart.find(item => item.product_id === appliedReward.buy_x_product_id);
           if (buyXItem && buyXItem.quantity >= (appliedReward.buy_x_quantity || 1)) {
-            // Add the get_y product as free
             cart.push({
               product_id: appliedReward.get_y_product_id,
               quantity: appliedReward.get_y_quantity || 1,
@@ -132,11 +139,34 @@ class TransactionController {
             });
           }
         }
+
+        // (Discount application moved to after totals calculation)
       }
 
-      // Calculate totals
-      const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const totalPoints = parseFloat((totalAmount * 0.1).toFixed(2)); // 10% of total as points
+      // Calculate totals after reward logic
+      let totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+      // If reward is a Discount, apply discount_value to totalAmount
+      if (appliedReward && appliedReward.reward_type && appliedReward.reward_type.toLowerCase() === 'discount') {
+        const discountRaw = parseFloat(appliedReward.discount_value) || 0;
+        let discountFraction = 0;
+        // Treat values between 0 and 1 as fractional (e.g. 0.15 = 15%)
+        // Treat values between 1 and 100 as percentage (e.g. 15 = 15%)
+        if (discountRaw > 0 && discountRaw <= 1) {
+          discountFraction = discountRaw;
+        } else if (discountRaw > 1 && discountRaw <= 100) {
+          discountFraction = discountRaw / 100;
+        } else if (discountRaw > 100) {
+          // If absurdly large, clamp to 100%
+          discountFraction = 1;
+        }
+        if (discountFraction > 0) {
+          totalAmount = totalAmount * (1 - discountFraction);
+        }
+        totalAmount = parseFloat(totalAmount.toFixed(2));
+      }
+
+      let totalPoints = parseFloat((totalAmount * 0.1).toFixed(2));
 
       const transactionDate = new Date().toISOString();
 
@@ -161,14 +191,21 @@ class TransactionController {
           product_id: item.product_id,
           product_name: item.product_name,
           quantity: item.quantity,
-          price: parseFloat(item.price).toFixed(2),
+          price: parseFloat(item.price),
           is_reward: item.is_reward || false
         })),
-        total_amount: parseFloat(totalAmount).toFixed(2),
+        total_amount: parseFloat(totalAmount),
         total_points: totalPoints,
         transaction_type: 'Purchase',
-        reward_id: appliedReward ? appliedReward.reward_id : null
+        reward_id: appliedReward ? Number(appliedReward.reward_id) : null,
+        reward_points: rewardPointsCost,
+        reward_type: appliedReward && appliedReward.reward_type ? appliedReward.reward_type.toLowerCase() : null,
+        discount_value: appliedReward && (appliedReward.discount_value != null) ? Number(appliedReward.discount_value) : null,
+        free_item_product_id: appliedReward && (appliedReward.free_item_product_id != null) ? appliedReward.free_item_product_id : null
       };
+
+      // Debug: log the prepared qrData so we can inspect reward fields during testing
+      console.log('[createTransaction] Prepared qrData for shortCode', shortCode, ':', JSON.stringify(qrData));
 
       // Store transaction data in database with 10 min expiry
       // This allows manual code entry and persists across server restarts
@@ -464,19 +501,68 @@ class TransactionController {
         return sendError(res, 'Transaction already processed', 400);
       }
 
-      // Insert transaction rows (one per item)
-      const transactionRows = qr_data.items.map(item => ({
-        reference_number: qr_data.reference_number,
-        transaction_date: qr_data.transaction_date,
-        user_id: customer_id,
-        Vendor_ID: qr_data.vendor_id,
-        store_id: qr_data.store_id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        price: item.price,
-        points: parseFloat((item.price * item.quantity * 0.1).toFixed(2)),
-        transaction_type: qr_data.transaction_type || 'Purchase'
-      }));
+
+      // Add reward_id and deduction row for reward points
+      // Coerce reward_id and reward_points to Numbers to ensure DB receives correct types
+      const reward_id = qr_data.reward_id != null ? Number(qr_data.reward_id) : null;
+      const reward_points = qr_data.reward_points != null ? Number(qr_data.reward_points) : 0;
+      console.log('[processScannedQRInternal] reward_id/raw:', qr_data.reward_id, '-> coerced:', reward_id, 'reward_points:', reward_points);
+
+      // Insert transaction rows (one per item), always include reward_id
+      // If reward_type is 'discount', apply discount_value to item prices when computing stored price and points
+      const rewardType = (qr_data.reward_type || '').toLowerCase();
+      const discountValue = qr_data.discount_value != null ? Number(qr_data.discount_value) : 0;
+
+      let transactionRows = qr_data.items.map(item => {
+        const rawPrice = parseFloat(item.price || 0);
+        let effectivePrice = rawPrice;
+        if (rewardType === 'discount' && discountValue > 0) {
+          effectivePrice = parseFloat((rawPrice * (1 - (discountValue / 100))).toFixed(2));
+        }
+
+        return {
+          reference_number: qr_data.reference_number,
+          transaction_date: qr_data.transaction_date,
+          user_id: customer_id,
+          Vendor_ID: qr_data.vendor_id,
+          store_id: qr_data.store_id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          price: effectivePrice,
+          points: parseFloat((effectivePrice * item.quantity * 0.1).toFixed(2)),
+          transaction_type: qr_data.transaction_type || 'Purchase',
+          reward_id: reward_id
+        };
+      });
+
+      // If qr_data.total_amount was provided, ensure it matches computed total after discounts
+      try {
+        const computedTotal = transactionRows.reduce((s, r) => s + (parseFloat(r.price || 0) * parseInt(r.quantity || 0)), 0);
+        const providedTotal = qr_data.total_amount != null ? parseFloat(qr_data.total_amount) : null;
+        if (providedTotal != null && Math.abs(providedTotal - computedTotal) > 0.01) {
+          console.log('[processScannedQRInternal] Adjusting qr_data.total_amount from', providedTotal, 'to computed', computedTotal);
+          qr_data.total_amount = computedTotal;
+        }
+      } catch (e) {
+        // ignore total reconciliation errors
+      }
+
+      // Only add deduction row if the reward is NOT discount (use normalized rewardType)
+      if (reward_id && rewardType !== 'discount' && qr_data.reward_points) {
+        transactionRows.push({
+          product_id: null,
+          quantity: 1,
+          price: 0,
+          points: -(Number(qr_data.reward_points) || 0),
+          reference_number: qr_data.reference_number,
+          Vendor_ID: qr_data.vendor_id,
+          store_id: qr_data.store_id,
+          user_id: customer_id,
+          reward_id: reward_id,
+          transaction_type: 'Redemption',
+          transaction_date: qr_data.transaction_date
+        });
+      }
 
       const { data: transactions, error: transactionError } = await supabase
         .from('transactions')
@@ -488,24 +574,53 @@ class TransactionController {
         return sendError(res, transactionError.message, 400);
       }
 
-      // Get current user points
-      const { data: userData } = await supabase
-        .from('users')
-        .select('user_points')
+      // Only add points for 'Purchase' transactions
+      const isPurchase = (qr_data.transaction_type || 'Purchase').toLowerCase() === 'purchase';
+      // Get current user points from user_points table
+      const { data: userPointsRow, error: userPointsError } = await supabase
+        .from('user_points')
+        .select('total_points')
         .eq('user_id', customer_id)
+        .eq('store_id', qr_data.store_id)
         .single();
 
-      const currentPoints = userData?.user_points || 0;
-      const newPoints = currentPoints + qr_data.total_points;
-
-      // Update customer points
-      const { error: pointsError } = await supabase
-        .from('users')
-        .update({ user_points: newPoints })
-        .eq('user_id', customer_id);
-
-      if (pointsError) {
-        console.error('Points update error:', pointsError);
+      let currentPoints = 0;
+      if (userPointsRow && typeof userPointsRow.total_points === 'number') {
+        currentPoints = userPointsRow.total_points;
+      }
+      let newPoints = currentPoints;
+      let pointsError = null;
+      if (isPurchase) {
+        newPoints = currentPoints + qr_data.total_points;
+        if (userPointsRow) {
+          // Update existing row
+          const { error } = await supabase
+            .from('user_points')
+            .update({ total_points: newPoints })
+            .eq('user_id', customer_id)
+            .eq('store_id', qr_data.store_id);
+          pointsError = error;
+        } else {
+          // Insert new row if not exists
+          const { error } = await supabase
+            .from('user_points')
+            .insert({ user_id: customer_id, store_id: qr_data.store_id, total_points: newPoints, redeemed_points: 0 });
+          pointsError = error;
+        }
+        if (pointsError) {
+          console.error('Points update error:', pointsError);
+        }
+      }
+      // Fix 4: Deduct user points if reward is redeemed
+      if (reward_id && reward_points > 0) {
+        const { error: rewardPointsError } = await supabase
+          .from('user_points')
+          .update({ total_points: currentPoints - reward_points })
+          .eq('user_id', customer_id)
+          .eq('store_id', qr_data.store_id);
+        if (rewardPointsError) {
+          console.error('Reward points deduction error:', rewardPointsError);
+        }
       }
 
       // Mark pending transaction as used in database

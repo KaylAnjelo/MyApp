@@ -144,7 +144,7 @@ export default function MyRewardsScreen({ navigation }) {
           </View>
           <View style={styles.rewardInfo}>
             <Text style={styles.rewardItemTitle}>{reward.reward_name || 'Reward'}</Text>
-            {reward.store_id && <Text style={styles.storeName}>Store ID: {reward.store_id}</Text>}
+            {reward.store_name && <Text style={styles.storeName}>{reward.store_name}</Text>}
             <View style={styles.rewardMeta}>
               {!canUse && (
                 <View style={[styles.statusBadge, { backgroundColor: meta.color }]}> 

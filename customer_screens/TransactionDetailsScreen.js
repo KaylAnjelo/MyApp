@@ -10,6 +10,7 @@ export default function TransactionDetailsScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [entries, setEntries] = useState([]); // all rows for this reference
+  const [rewardDetails, setRewardDetails] = useState(null);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -36,8 +37,31 @@ export default function TransactionDetailsScreen({ route, navigation }) {
     fetchDetails();
   }, [referenceNumber]);
 
+  // Fetch reward details if transaction includes reward_id
+  useEffect(() => {
+    const loadReward = async () => {
+      try {
+        setRewardDetails(null);
+        if (!entries || entries.length === 0) return;
+        const first = entries[0];
+        const rewardId = first.reward_id || (first.reward && first.reward.reward_id) || null;
+        if (rewardId) {
+          // apiService.getReward may return different shapes depending on the wrapper
+          // Normalize both `res.data` and raw object responses
+          const res = await apiService.getReward(rewardId);
+          const normalized = res && (res.data || res) ? (res.data || res) : null;
+          setRewardDetails(normalized || null);
+        }
+      } catch (err) {
+        console.warn('Failed to load reward details:', err);
+        setRewardDetails(null);
+      }
+    };
+    loadReward();
+  }, [entries]);
+
   const grouped = useMemo(() => {
-    // Aggregate within this reference: items, totals, store, date, points
+    // Aggregate within this reference: items, totals, store, date, points, reward info
     if ((entries || []).length === 0) {
       if (initial) {
         const total = initial.amount && typeof initial.amount === 'string' ? parseFloat(initial.amount.replace(/[^0-9.]/g, '')) : 0;
@@ -51,6 +75,9 @@ export default function TransactionDetailsScreen({ route, navigation }) {
           total: isNaN(total) ? 0 : total,
           points: isNaN(pts) ? 0 : pts,
           type: initial.type || 'Purchase',
+          reward: initial.reward || null,
+          reward_name: initial.reward_name || null,
+          promo_code: initial.promo_code || null,
         };
       }
       return null;
@@ -73,6 +100,18 @@ export default function TransactionDetailsScreen({ route, navigation }) {
 
     const points = entries.reduce((sum, t) => sum + parseFloat(t.points || 0), 0);
 
+    // Check for reward/voucher info across entries and normalized rewardDetails
+    const foundRewardRow = (entries || []).find(r => r.promo_code || r.promotion_code || r.reward_name || r.reward || r.rewards || r.reward_id);
+    const reward = rewardDetails || (foundRewardRow && (foundRewardRow.reward || foundRewardRow.rewards || foundRewardRow)) || null;
+    const reward_name = first.reward_name
+      || (reward && (reward.reward_name || reward.name))
+      || (foundRewardRow && (foundRewardRow.reward_name || (foundRewardRow.reward && (foundRewardRow.reward.reward_name || foundRewardRow.reward.name))))
+      || null;
+    const promo_code = first.promo_code
+      || (reward && (reward.promo_code || reward.promotion_code))
+      || (foundRewardRow && (foundRewardRow.promo_code || foundRewardRow.promotion_code))
+      || null;
+
     return {
       store: first.stores?.store_name || 'Unknown Store',
       reference_number: first.reference_number,
@@ -82,6 +121,9 @@ export default function TransactionDetailsScreen({ route, navigation }) {
       total,
       points, // do not round – show exact
       type: first.transaction_type || 'Purchase',
+      reward,
+      reward_name,
+      promo_code,
     };
   }, [entries, initial]);
 
@@ -106,6 +148,16 @@ export default function TransactionDetailsScreen({ route, navigation }) {
           <View style={styles.card}>
             <View style={styles.section}>
               <Text style={styles.store}>{grouped.store}</Text>
+              {/* Voucher Used badge */}
+              {((grouped.type && grouped.type.toLowerCase().includes('voucher')) || grouped.reward_name || grouped.promo_code || (entries && entries.some(e => e.transaction_type && e.transaction_type.toLowerCase().includes('redemption'))) ) ? (
+                <View style={styles.voucherBadge}>
+                  <FontAwesome name="ticket" size={16} color={Colors.primary} style={{ marginRight: 6 }} />
+                  <Text style={styles.voucherBadgeText}>Voucher Used{grouped.reward_name ? `: ${grouped.reward_name}` : ''}</Text>
+                  {grouped.promo_code ? (
+                    <Text style={styles.voucherPromoCode}>Code: {grouped.promo_code}</Text>
+                  ) : null}
+                </View>
+              ) : null}
               <Text style={styles.label}>Reference</Text>
               <Text style={styles.value}>{grouped.reference_number || 'N/A'}</Text>
               <View style={styles.rowBetween}>
@@ -187,4 +239,26 @@ const styles = StyleSheet.create({
   itemSubtotal: { fontWeight: '700', color: Colors.textPrimary },
   totalLabel: { fontSize: Typography.body, color: Colors.textSecondary },
   totalValue: { fontSize: Typography.h3, fontWeight: '700', color: Colors.textPrimary },
+  voucherBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF7E6',
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  voucherBadgeText: {
+    color: Colors.primary,
+    fontWeight: 'bold',
+    fontSize: Typography.body,
+    marginRight: 8,
+  },
+  voucherPromoCode: {
+    color: Colors.textSecondary,
+    fontSize: Typography.small,
+    marginLeft: 4,
+    fontStyle: 'italic',
+  },
 });
