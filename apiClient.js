@@ -1,8 +1,7 @@
 // API Client for React Native app to communicate with the backend
 
-//'http://10.0.2.2:3000/api' for Android emulator
-//'http://localhost:3000/api' for USB-connected devices
-const API_BASE_URL = 'http://localhost:3000/api';
+// Use centralized API config (edit `config/api.js` to change hosts)
+import { API_BASE_URL } from './config/api';
 
 
 class ApiClient {
