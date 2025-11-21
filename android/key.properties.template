@@ -1,0 +1,8 @@
+# Copy this file to android/key.properties and fill in the values.
+# Do NOT commit the real key.properties file. Add it to .gitignore.
+
+# Example absolute path to keystore file on your machine
+storeFile=C:\\Users\\<username>\\.android\\my-release-key.jks
+storePassword=your_store_password
+keyAlias=my-key-alias
+keyPassword=your_key_password
