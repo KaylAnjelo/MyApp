@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet,
   ActivityIndicator,TouchableOpacity,
   Image, ScrollView, FlatList, Alert, Platform, InteractionManager,
+  Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
@@ -19,6 +20,19 @@ export default function SpecificStoreScreen({ route, navigation }) {
   const [rewards, setRewards] = useState([]);
   const [redeeming, setRedeeming] = useState(null); // Track which reward is being redeemed
   const [isMounted, setIsMounted] = useState(true);
+  const [confirmModal, setConfirmModal] = useState({
+    visible: false,
+    product: null,
+    pointsRequired: 0,
+    ownerId: null,
+    userId: null,
+  });
+  const [transactionCodeModal, setTransactionCodeModal] = useState({
+    visible: false,
+    code: '',
+    product: null,
+    points: 0,
+  });
 
   console.log('=== COMPONENT INITIALIZED ===');
   console.log('Route params:', route.params);
@@ -268,32 +282,14 @@ export default function SpecificStoreScreen({ route, navigation }) {
         return;
       }
 
-      // Process redemption directly without confirmation dialog
-      try {
-        console.log('Processing redemption with:', { userId, productId: product.id, storeId, ownerId, pointsRequired });
-        
-        // Call API to redeem product
-        const response = await apiService.redeemProduct(
-          userId,
-          product.id,
-          storeId,
-          ownerId,
-          pointsRequired
-        );
-
-        console.log('Redemption response:', response);
-
-        // Update points in state
-        if (response.remainingPoints !== undefined) {
-          setUserPoints(response.remainingPoints);
-        }
-
-        console.log('✅ Product redeemed successfully!');
-        console.log(`Points used: ${pointsRequired}, Remaining: ${response.remainingPoints}`);
-      } catch (error) {
-        console.error('Error processing redemption:', error);
-        console.error('Error message:', error.message);
-      }
+      // Show themed confirmation modal
+      setConfirmModal({
+        visible: true,
+        product,
+        pointsRequired,
+        ownerId,
+        userId,
+      });
     } catch (error) {
       console.error('Error in handleBuyProduct:', error);
       if (isMounted) {
@@ -301,6 +297,57 @@ export default function SpecificStoreScreen({ route, navigation }) {
       }
     }
   };
+
+  const handleConfirmRedemption = async () => {
+    const { product, pointsRequired, ownerId, userId } = confirmModal;
+    try {
+      // Try both id and product_id for maximum compatibility
+      const productId = product?.id ?? product?.product_id;
+      console.log('handleConfirmRedemption: sending', {
+        user_id: userId,
+        product_id: productId,
+        store_id: storeId,
+        owner_id: ownerId,
+        points_required: pointsRequired,
+        productObj: product,
+      });
+
+      const response = await apiService.request('/redemptions/generate-code', {
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: userId,
+          product_id: productId,
+          store_id: storeId,
+          owner_id: ownerId,
+          points_required: pointsRequired,
+        }),
+      });
+
+      console.log('generate-code API response:', response);
+
+      // Always read from 'redemption_code' or fallback to 'code'
+      const code = response?.redemption_code || response?.code || '';
+      if (!code) {
+        // Show backend error details if present
+        throw new Error(response?.error || response?.message || 'Failed to generate redemption code');
+      }
+
+      setTransactionCodeModal({
+        visible: true,
+        code,
+        product,
+        points: pointsRequired,
+      });
+
+      setConfirmModal({ ...confirmModal, visible: false });
+    } catch (error) {
+      console.error('Error generating redemption code:', error);
+      if (isMounted) {
+        Alert.alert('Error', error.message || 'Failed to generate redemption code');
+      }
+      setConfirmModal({ ...confirmModal, visible: false });
+    }
+  };  
 
   const handleRedeemReward = async (reward) => {
     try {
@@ -388,6 +435,71 @@ export default function SpecificStoreScreen({ route, navigation }) {
 
   return (
     <View style={styles.screen}>
+      {/* Themed Confirmation Modal */}
+      <Modal
+        visible={confirmModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmModal({ ...confirmModal, visible: false })}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Confirm Redemption</Text>
+            <Text style={styles.modalMessage}>
+              Redeem "{confirmModal.product?.product_name || confirmModal.product?.name || confirmModal.product?.title}" for {confirmModal.pointsRequired} points?
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCancel]}
+                onPress={() => setConfirmModal({ ...confirmModal, visible: false })}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalConfirm]}
+                onPress={handleConfirmRedemption}
+              >
+                <Text style={styles.modalConfirmText}>Redeem</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Transaction Code Modal */}
+      <Modal
+        visible={transactionCodeModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setTransactionCodeModal({ ...transactionCodeModal, visible: false })}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Ionicons name="key-outline" size={40} color={Colors.primary} style={{ marginBottom: 12 }} />
+            <Text style={styles.modalTitle}>Show This Code to Vendor</Text>
+            <Text style={styles.modalMessage}>
+              Your transaction code for redeeming{' '}
+              <Text style={{ fontWeight: 'bold' }}>
+                {transactionCodeModal.product?.product_name || transactionCodeModal.product?.name || transactionCodeModal.product?.title}
+              </Text>{' '}
+              ({transactionCodeModal.points} points):
+            </Text>
+            <View style={styles.transactionCodeBox}>
+              <Text selectable style={styles.transactionCodeText}>{transactionCodeModal.code}</Text>
+            </View>
+            <Text style={styles.transactionCodeNote}>
+              Vendor will verify this code to complete your redemption.
+            </Text>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalConfirm, { marginTop: 18 }]}
+              onPress={() => setTransactionCodeModal({ ...transactionCodeModal, visible: false })}
+            >
+              <Text style={styles.modalConfirmText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.navigate('Stores')} accessibilityLabel="Back">
@@ -813,5 +925,84 @@ const styles = StyleSheet.create({
     fontSize: Typography.body,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: Radii.lg,
+    padding: Spacing.lg,
+    width: '80%',
+    alignItems: 'center',
+    ...Shadows.medium,
+  },
+  modalTitle: {
+    fontSize: Typography.h3,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: Typography.body,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: Radii.md,
+    alignItems: 'center',
+    marginHorizontal: Spacing.sm / 2,
+  },
+  modalCancel: {
+    backgroundColor: '#f4f4f4',
+    borderWidth: 1,
+    borderColor: Colors.textSecondary,
+  },
+  modalConfirm: {
+    backgroundColor: Colors.primary,
+  },
+  modalCancelText: {
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    fontSize: Typography.body,
+  },
+  modalConfirmText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: Typography.body,
+  },
+  transactionCodeBox: {
+    backgroundColor: '#f4f4f4',
+    borderRadius: Radii.md,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    marginVertical: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  transactionCodeText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    letterSpacing: 2,
+  },
+  transactionCodeNote: {
+    fontSize: Typography.small,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 8,
   },
 });
