@@ -99,7 +99,7 @@ export default function SignUpUserTypeScreen() {
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: Colors.secondary }]}
+                style={[styles.modalButton, { backgroundColor: Colors.primary }]}
                 onPress={() => { setShowCaptcha(false); setError(''); }}>
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>

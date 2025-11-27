@@ -6,7 +6,7 @@ import { LineChart } from 'react-native-chart-kit';
 import { Colors } from '../styles/theme';
 import apiService from '../services/apiService';
 
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
 
 const chartConfig = {
   backgroundGradientFrom: "#fff",
