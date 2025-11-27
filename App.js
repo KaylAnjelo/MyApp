@@ -27,6 +27,9 @@ import TransactionDetailsScreen from './customer_screens/TransactionDetailsScree
 import ChangePasswordScreen from './customer_screens/ChangePasswordScreen';
 import VendorTransactionDetail from './vendor_screens/VendorTransactionDetailScreen';
 import NotificationsScreen from './customer_screens/NotificationsScreen';
+import ForgotPasswordScreen from './customer_screens/ForgotPasswordScreen';
+import VerifyOTPScreen from './customer_screens/VerifyOTPScreen';
+import ResetPasswordScreen from './customer_screens/ResetPasswordScreen';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -57,6 +60,9 @@ export default function App() {
         <Stack.Screen name="TransactionDetails" component={TransactionDetailsScreen} />
         <Stack.Screen name="VTransactionDetail" component={VendorTransactionDetail} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
+        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
 
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
       </Stack.Navigator>

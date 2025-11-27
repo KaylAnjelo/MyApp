@@ -114,7 +114,7 @@ export default function SignInScreen() {
               <Text style={styles.rememberMeText}>Remember me</Text>
             </View>
 
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
               <Text style={styles.forgotPassword}>Forgot Password?</Text>
             </TouchableOpacity>
           </View>

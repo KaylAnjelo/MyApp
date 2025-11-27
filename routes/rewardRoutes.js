@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const redemptionController = require('../controllers/redemptionController');
@@ -17,5 +16,6 @@ router.post('/redeem-product', (req, res) => redemptionController.redeemProduct(
 router.get('/customer/:customerId/history', (req, res) => redemptionController.getRedemptionHistory(req, res));
 router.patch('/redemptions/:redemptionId/status', (req, res) => redemptionController.updateRedemptionStatus(req, res));
 router.get('/owner/:ownerId/redemptions', (req, res) => redemptionController.getStoreRedemptions(req, res));
+router.post('/redemptions/generate-code', (req, res) => redemptionController.generateRedemptionCode(req, res));
 
 module.exports = router;

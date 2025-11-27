@@ -52,8 +52,55 @@ export default function NotificationsScreen({ navigation }) {
     }
   };
 
+  const getNotificationIcon = (item) => {
+    // You may need to adjust the type field based on your backend
+    switch (item.type) {
+      case 'transaction':
+        return { name: 'checkmark-done-circle', color: '#388e3c' }; // green
+      case 'points_earned':
+        return { name: 'star', color: '#fbc02d' }; // yellow
+      case 'reward_redeemed':
+        return { name: 'gift', color: Colors.primary };
+      case 'reward_applied':
+        return { name: 'ribbon', color: '#1976d2' };
+      default:
+        return { name: item.is_read ? 'notifications-outline' : 'notifications', color: item.is_read ? Colors.primary : '#d32f2f' };
+    }
+  };
+
+  const getNotificationTitle = (item) => {
+    switch (item.type) {
+      case 'transaction':
+        return 'Transaction Complete';
+      case 'points_earned':
+        return 'Points Earned';
+      case 'reward_redeemed':
+        return 'Reward Redeemed';
+      case 'reward_applied':
+        return 'Reward Applied';
+      default:
+        return item.title || 'Notification';
+    }
+  };
+
+  const getNotificationMessage = (item) => {
+    switch (item.type) {
+      case 'transaction':
+        return item.message || 'Your transaction was completed successfully.';
+      case 'points_earned':
+        return item.message || `You earned ${item.points || ''} points!`;
+      case 'reward_redeemed':
+        return item.message || `You redeemed: ${item.reward_name || 'a reward'}.`;
+      case 'reward_applied':
+        return item.message || `A reward was applied to your order.`;
+      default:
+        return item.message || '';
+    }
+  };
+
   const renderItem = ({ item }) => {
     console.log('Notification item:', item);
+    const icon = getNotificationIcon(item);
     return (
       <TouchableOpacity
         style={[styles.notificationItem, !item.is_read && styles.unreadNotification]}
@@ -61,11 +108,11 @@ export default function NotificationsScreen({ navigation }) {
         activeOpacity={0.7}
       >
         <View style={styles.iconArea}>
-          <Ionicons name={item.is_read ? 'notifications-outline' : 'notifications'} size={24} color={item.is_read ? Colors.primary : '#d32f2f'} />
+          <Ionicons name={icon.name} size={24} color={icon.color} />
         </View>
         <View style={styles.textArea}>
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.message}>{item.message}</Text>
+          <Text style={styles.title}>{getNotificationTitle(item)}</Text>
+          <Text style={styles.message}>{getNotificationMessage(item)}</Text>
           <Text style={styles.date}>{new Date(item.created_at).toLocaleString()}</Text>
         </View>
       </TouchableOpacity>

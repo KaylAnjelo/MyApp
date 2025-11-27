@@ -17,7 +17,7 @@ class RedemptionController {
           .from('claimed_rewards')
           .select('*')
           .eq('id', claimedRewardId)
-          .single();
+          .maybeSingle();
 
         if (fetchError || !claimed) {
           return sendError(res, 'Claimed reward not found', 404, fetchError?.message);
@@ -36,7 +36,7 @@ class RedemptionController {
         const { data: updated, error: updateError } = await supabase
           .from('claimed_rewards')
           .update({ is_redeemed: true })
-          .eq('id', claimedRewardId)
+          .eq('id', parseInt(claimedRewardId))
           .select()
           .single();
 
@@ -727,6 +727,61 @@ class RedemptionController {
       });
     } catch (err) {
       console.error('Server error redeeming product:', err);
+      return sendError(res, 'Server error', 500, err.message);
+    }
+  }
+
+  // Generate a unique redemption code for a product (no points deducted yet)
+  async generateRedemptionCode(req, res) {
+    try {
+      const { user_id, product_id, store_id, owner_id, points_required } = req.body;
+      // Add debug logging
+      console.log('generateRedemptionCode called with:', req.body);
+
+      // Collect missing fields for better error reporting
+      const missingFields = [];
+      if (!user_id) missingFields.push('user_id');
+      if (!product_id) missingFields.push('product_id');
+      if (!store_id) missingFields.push('store_id');
+      if (!owner_id) missingFields.push('owner_id');
+      if (!points_required) missingFields.push('points_required');
+
+      if (missingFields.length > 0) {
+        console.warn('Missing required fields:', missingFields, req.body);
+        return sendError(
+          res,
+          `Missing required fields: ${missingFields.join(', ')}`,
+          400,
+          `Payload: ${JSON.stringify(req.body)}`
+        );
+      }
+
+      // Generate a unique code (6-digit alphanumeric)
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+      // Save to pending_transactions table (instead of pending_redemptions)
+      const { data, error } = await supabase
+        .from('pending_transactions')
+        .insert({
+          user_id,
+          product_id,
+          store_id,
+          owner_id,
+          points_required,
+          code,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return sendError(res, 'Failed to save redemption code', 500, error.message);
+      }
+
+      // Always return both 'redemption_code' and 'code'
+      return sendSuccess(res, { redemption_code: code, code });
+    } catch (err) {
       return sendError(res, 'Server error', 500, err.message);
     }
   }
