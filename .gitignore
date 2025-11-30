@@ -76,3 +76,5 @@ yarn-error.log
 
 
 .env
+key.properties
+/android/key.properties

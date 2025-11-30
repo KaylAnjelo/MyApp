@@ -1,0 +1,13 @@
+## key.properties.template
+# Copy this file to `key.properties` in the project root and fill in the values.
+# DO NOT commit `key.properties` with real secrets.
+
+# Example absolute path to the keystore file (use double backslashes on Windows)
+storeFile=C:\\Users\\<username>\\Desktop\\MyApp\\android\\app\\my-release-key.jks
+storePassword=your_store_password_here
+keyAlias=my-key-alias
+keyPassword=your_key_password_here
+
+# After you create the real file, run the Gradle release build:
+# cd android
+# .\\gradlew bundleRelease
