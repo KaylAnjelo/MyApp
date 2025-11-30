@@ -6,6 +6,14 @@ const API_BASE_URL = CONFIG_API_BASE_URL;
 const TOKEN_KEY = '@app_auth_token';
 
 class ApiService {
+      // Direct password change for admin-created accounts
+      async changePasswordDirect(userId, newPassword) {
+        // Backend should update password and set must_change_password to false
+        return this.request(`/auth/change-password-direct`, {
+          method: 'POST',
+          body: JSON.stringify({ userId, newPassword }),
+        });
+      }
     // Mark a claimed reward as used
     async useClaimedReward(claimedRewardId, userId = null) {
       return this.request(`/rewards/claimed/${claimedRewardId}/use`, {

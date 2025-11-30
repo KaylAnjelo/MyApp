@@ -237,6 +237,18 @@ export default function ProfilePageScreen({ navigation }) {
     setLogoutModalVisible(true);
   };
 
+  const handleChangePassword = async () => {
+    try {
+      const userData = await AsyncStorage.getItem('@app_user');
+      const user = userData ? JSON.parse(userData) : {};
+      const userId = user.user_id || user.id;
+      const email = user.email || user.user_email;
+      navigation.navigate('ChangePassword', { userId, email });
+    } catch (e) {
+      navigation.navigate('ChangePassword'); // fallback
+    }
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.pageContent}>
@@ -329,7 +341,7 @@ export default function ProfilePageScreen({ navigation }) {
           </View>
 
           <Text style={styles.blockTitle}>Security</Text>
-          <TouchableOpacity style={styles.settingsRow} activeOpacity={0.8} onPress={() => navigation.navigate('ChangePassword', { email: displayEmail })}>
+          <TouchableOpacity style={styles.settingsRow} activeOpacity={0.8} onPress={handleChangePassword}>
             <Text style={styles.settingsText}>Change Password</Text>
             <FontAwesome name="chevron-right" size={14} color={Colors.textSecondary} />
           </TouchableOpacity>
