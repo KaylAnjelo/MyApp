@@ -1,6 +1,3 @@
-// API Client for React Native app to communicate with the backend
-
-// Use centralized API config (edit `config/api.js` to change hosts)
 import { API_BASE_URL } from './config/api';
 
 
