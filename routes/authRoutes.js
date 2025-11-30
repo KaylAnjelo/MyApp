@@ -15,5 +15,6 @@ router.get('/auth/profile', (req, res) => authController.getProfile(req, res));
 router.post('/auth/send-password-reset-otp', (req, res) => authController.sendPasswordResetOTP(req, res));
 router.post('/auth/verify-password-reset-otp', (req, res) => authController.verifyPasswordResetOTP(req, res));
 router.post('/auth/change-password', (req, res) => authController.changePassword(req, res));
+router.post('/auth/change-password-direct', (req, res) => authController.changePasswordDirect(req, res));
 
 module.exports = router;

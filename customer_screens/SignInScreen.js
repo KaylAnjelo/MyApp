@@ -14,35 +14,41 @@ export default function SignInScreen() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSignIn = async () => {
-  if (!username || !password) {
-    Alert.alert('Missing Fields', 'Please enter both username and password');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const response = await apiService.login(username, password);
-    console.log('Login successful:', response);
-
-    // Save user data to AsyncStorage for profile screen
-    if (response.user) {
-      await AsyncStorage.setItem('@app_user', JSON.stringify(response.user));
+    if (!username || !password) {
+      Alert.alert('Missing Fields', 'Please enter both username and password');
+      return;
     }
 
-    // Get role from response (adjust if API sends it differently)
-    const userRole = response.user?.role;
+    setLoading(true);
+    try {
+      const response = await apiService.login(username, password);
+      console.log('Login successful:', response);
 
-    if (userRole === 'vendor') {
-      navigation.replace('VendorHomePage', { user: response.user });
-    } else {
-      navigation.replace('HomePage', { user: response.user });
+      // Save user data to AsyncStorage for profile screen
+      if (response.user) {
+        await AsyncStorage.setItem('@app_user', JSON.stringify(response.user));
+      }
+
+      // Check must_change_password flag
+      if (response.user?.must_change_password) {
+        navigation.replace('ChangePassword', { userId: response.user.user_id });
+        return;
+      }
+
+      // Get role from response (adjust if API sends it differently)
+      const userRole = response.user?.role;
+
+      if (userRole === 'vendor') {
+        navigation.replace('VendorHomePage', { user: response.user });
+      } else {
+        navigation.replace('HomePage', { user: response.user });
+      }
+    } catch (error) {
+      Alert.alert('Login Failed', error.message || 'Invalid username or password');
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    Alert.alert('Login Failed', error.message || 'Invalid username or password');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
   <KeyboardAvoidingView 

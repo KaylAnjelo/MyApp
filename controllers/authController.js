@@ -7,6 +7,31 @@ const emailService = require('../services/emailService');
 const otpStore = new Map();
 
 class AuthController {
+    // DIRECT PASSWORD CHANGE for admin-created accounts
+    async changePasswordDirect(req, res) {
+      try {
+        const { userId, newPassword } = req.body;
+        if (!userId || !newPassword) {
+          return sendError(res, 'Missing userId or newPassword', 400);
+        }
+        if (newPassword.length < 6) {
+          return sendError(res, 'Password must be at least 6 characters long', 400);
+        }
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        // Update password and clear must_change_password flag
+        const { error } = await supabase
+          .from('users')
+          .update({ password: hashedPassword, must_change_password: false })
+          .eq('user_id', userId);
+        if (error) {
+          return sendError(res, 'Failed to update password', 500);
+        }
+        return sendSuccess(res, { message: 'Password changed successfully' });
+      } catch (error) {
+        console.error('Direct change password error:', error);
+        return sendError(res, 'Failed to change password', 500);
+      }
+    }
   // LOGIN
   async login(req, res) {
     try {
@@ -47,11 +72,12 @@ class AuthController {
           user_id: users.user_id,
           username: users.username,
           role: users.role,
-          store_id: users.store_id || null,  
+          store_id: users.store_id || null,
           first_name: users.first_name || null,
           last_name: users.last_name || null,
           contact_number: users.contact_number || null,
-          user_email: users.user_email || null
+          user_email: users.user_email || null,
+          must_change_password: users.must_change_password || false
         }
         // You can add JWT token generation here if needed
       });
