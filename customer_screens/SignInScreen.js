@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Image, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Image, Alert, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
@@ -11,6 +11,7 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSignIn = async () => {
   if (!username || !password) {
@@ -44,73 +45,105 @@ export default function SignInScreen() {
 };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.logoContainer}>
-        <Image source={require('../assets/logo_maroon.png')} style={styles.logoImage} resizeMode="contain" />
-      </View>
+  <KeyboardAvoidingView 
+    style={{ flex: 1 }}
+    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <ScrollView 
+      contentContainerStyle={{ flexGrow: 1 }}
+      keyboardShouldPersistTaps="handled">
 
-      <View style={styles.formContainer}>
-        <Text style={styles.title}>Welcome!</Text>
-        <Text style={styles.subtitle}>Login to your account</Text>
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            placeholder="Username"
-            placeholderTextColor="#888"
-            style={styles.input}
-            autoCapitalize="none"
-            value={username}
-            onChangeText={setUsername}
-          />
+      <View style={styles.container}>
+        <View style={styles.logoContainer}>
+          <Image 
+            source={require('../assets/logo_maroon.png')}
+            style={styles.logoImage}
+            resizeMode="contain"/>
         </View>
 
-        <View style={styles.inputContainer}>
-          <TextInput
-            placeholder="Password"
-            placeholderTextColor="#888"
-            secureTextEntry
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-          />
-        </View>
+        <View style={styles.formContainer}>
+          <Text style={styles.title}>Welcome!</Text>
+          <Text style={styles.subtitle}>Login to your account</Text>
 
-        <View style={styles.optionsRow}>
-          <View style={styles.rememberMeContainer}>
-            <Switch
-              value={rememberMe}
-              onValueChange={setRememberMe}
-              trackColor={{ false: "#fff", true: "#fff" }}
-              thumbColor={rememberMe ? "#7D0006" : "#7D0006"}
-            />
-            <Text style={styles.rememberMeText}>Remember me</Text>
+          <View style={styles.inputContainer}><TextInput
+              placeholder="Username"
+              placeholderTextColor="#888"
+              style={styles.input}
+              autoCapitalize="none"
+              value={username}
+              onChangeText={setUsername}/>
           </View>
-          <TouchableOpacity onPress={() => console.log('Forgot Password Pressed')}>
-            <Text style={styles.forgotPassword}>Forgot Password?</Text>
+
+          <View style={styles.inputContainer}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', position: 'relative' }}><TextInput
+                placeholder={`Password (${showPassword ? 'hide' : 'show'})`}
+                placeholderTextColor="#888"
+                secureTextEntry={!showPassword}
+                style={[
+                  styles.input,
+                  { color: '#222', fontFamily: undefined, flex: 1, paddingRight: 40 }
+                ]}
+
+                value={password}
+                onChangeText={setPassword}/><TouchableOpacity
+
+                onPress={() => setShowPassword((prev) => !prev)}
+                style={{
+                  position: 'absolute',
+                  right: 10,
+                  height: '100%',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  padding: 4,
+                }}
+
+                accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+
+                <Text style={{ color: Colors.primary, fontWeight: 'bold', fontSize: 18 }}>{showPassword ? '🙈' : '👀'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.optionsRow}>
+            <View style={styles.rememberMeContainer}>
+              <Switch
+                value={rememberMe}
+                onValueChange={setRememberMe}
+                trackColor={{ false: "#fff", true: "#fff" }}
+                thumbColor="#7D0006"/>
+              <Text style={styles.rememberMeText}>Remember me</Text>
+            </View>
+
+            <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+              <Text style={styles.forgotPassword}>Forgot Password?</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.continueButton, loading && styles.continueButtonDisabled]} 
+            onPress={handleSignIn}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color={Colors.white} />
+            ) : (
+              <Text style={styles.continueButtonText}>Continue</Text>
+            )}
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity 
-          style={[styles.continueButton, loading && styles.continueButtonDisabled]} 
-          onPress={handleSignIn}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={Colors.white} />
-          ) : (
-            <Text style={styles.continueButtonText}>Continue</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+        <View style={styles.signupContainer}>
+          <Text style={styles.signupText}>Don't have an account?</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+            <Text style={styles.signupLink}> Sign up here</Text>
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.signupContainer}>
-        <Text style={styles.signupText}>Don't have an account?</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-          <Text style={styles.signupLink}> Sign up here</Text>
-        </TouchableOpacity>
       </View>
-    </View>
-  );
+    </ScrollView>
+  </KeyboardAvoidingView>
+);
+
 }
 
 const styles = StyleSheet.create({
