@@ -735,10 +735,8 @@ class RedemptionController {
   async generateRedemptionCode(req, res) {
     try {
       const { user_id, product_id, store_id, owner_id, points_required } = req.body;
-      // Add debug logging
       console.log('generateRedemptionCode called with:', req.body);
 
-      // Collect missing fields for better error reporting
       const missingFields = [];
       if (!user_id) missingFields.push('user_id');
       if (!product_id) missingFields.push('product_id');
@@ -756,21 +754,49 @@ class RedemptionController {
         );
       }
 
-      // Generate a unique code (6-digit alphanumeric)
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      // Generate a short alphanumeric code compatible with pending_transactions.short_code
+      const short_code = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-      // Save to pending_transactions table (instead of pending_redemptions)
+      // Build a human-friendly reference number similar to transactions
+      const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      let storePart = 'STORE';
+      try {
+        const { data: storeData } = await supabase
+          .from('stores')
+          .select('store_name')
+          .eq('store_id', store_id)
+          .single();
+        storePart = (storeData?.store_name || 'STORE')
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .toUpperCase()
+          .slice(0, 4)
+          .padEnd(4, 'X');
+      } catch (e) {
+        console.warn('Could not fetch store for reference number, using default');
+      }
+      const random = Math.floor(1000 + Math.random() * 9000);
+      const reference_number = `${storePart}-${datePart}-${random}`;
+
+      // Wrap request payload in transaction_data JSONB per migration schema
+      const transaction_data = {
+        user_id: parseInt(user_id),
+        product_id: parseInt(product_id),
+        store_id: parseInt(store_id),
+        owner_id: parseInt(owner_id),
+        points_required: parseInt(points_required)
+      };
+
+      // Set expiry (e.g., 15 minutes from now)
+      const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
       const { data, error } = await supabase
         .from('pending_transactions')
         .insert({
-          user_id,
-          product_id,
-          store_id,
-          owner_id,
-          points_required,
-          code,
-          status: 'pending',
-          created_at: new Date().toISOString()
+          short_code,
+          reference_number,
+          transaction_data,
+          expires_at,
+          used: false
         })
         .select()
         .single();
@@ -779,8 +805,8 @@ class RedemptionController {
         return sendError(res, 'Failed to save redemption code', 500, error.message);
       }
 
-      // Always return both 'redemption_code' and 'code'
-      return sendSuccess(res, { redemption_code: code, code });
+      // Return both for client compatibility
+      return sendSuccess(res, { redemption_code: short_code, code: short_code, reference_number });
     } catch (err) {
       return sendError(res, 'Server error', 500, err.message);
     }

@@ -312,7 +312,8 @@ export default function SpecificStoreScreen({ route, navigation }) {
         productObj: product,
       });
 
-      const response = await apiService.request('/redemptions/generate-code', {
+      // Use canonical route mounted under /api/rewards
+      const response = await apiService.request('/rewards/redemptions/generate-code', {
         method: 'POST',
         body: JSON.stringify({
           user_id: userId,
@@ -325,8 +326,14 @@ export default function SpecificStoreScreen({ route, navigation }) {
 
       console.log('generate-code API response:', response);
 
-      // Always read from 'redemption_code' or fallback to 'code'
-      const code = response?.redemption_code || response?.code || '';
+      // Read code from plain or sendSuccess-wrapped response
+      const code = response?.redemption_code
+        || response?.code
+        || response?.short_code
+        || response?.data?.redemption_code
+        || response?.data?.code
+        || response?.data?.short_code
+        || '';
       if (!code) {
         // Show backend error details if present
         throw new Error(response?.error || response?.message || 'Failed to generate redemption code');

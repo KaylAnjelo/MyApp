@@ -10,6 +10,7 @@ const productRoutes = require("./routes/productRoutes"); // import product route
 const userRoutes = require("./routes/userRoutes"); // import user/profile routes
 const transactionRoutes = require("./routes/transactionRoutes"); // import transaction routes
 const rewardRoutes = require("./routes/rewardRoutes"); // import reward routes
+const redemptionController = require('./controllers/redemptionController');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,6 +39,11 @@ app.use("/api", productRoutes); // for /api/products
 app.use("/api", userRoutes); // for /api/user/profile
 app.use("/api/transactions", transactionRoutes); // for /api/transactions
 app.use("/api/rewards", rewardRoutes); // for /api/rewards
+
+// Direct endpoint to match client path (non-/api prefix)
+app.post('/redemptions/generate-code', (req, res) => redemptionController.generateRedemptionCode(req, res));
+// Also mount under /api to match API_BASE_URL usage
+app.post('/api/redemptions/generate-code', (req, res) => redemptionController.generateRedemptionCode(req, res));
 
 // Optional: print local network IP for testing from other devices
 const os = require("os");
