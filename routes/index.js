@@ -7,6 +7,7 @@ const authRoutes = require('./authRoutes');
 const userRoutes = require('./userRoutes');
 const promotionRoutes = require('./promotionRoutes');
 const rewardRoutes = require('./rewardRoutes');
+const redemptionController = require('../controllers/redemptionController');
 
 const router = express.Router();
 
@@ -37,5 +38,8 @@ router.use('/auth', authRoutes);
 router.use('/promotions', promotionRoutes);
 router.use('/rewards', rewardRoutes);
 router.use('/', userRoutes);
+
+// Top-level redemption code generation to match client path
+router.post('/redemptions/generate-code', (req, res) => redemptionController.generateRedemptionCode(req, res));
 
 module.exports = router;

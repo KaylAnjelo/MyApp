@@ -42,7 +42,7 @@ export default function ResetPasswordScreen() {
         style={styles.input}
         placeholder="New Password"
         placeholderTextColor="#888"
-        secureTextEntry
+        secureTextEntry={!showPassword}
         value={password}
         onChangeText={setPassword}
       />
@@ -50,7 +50,7 @@ export default function ResetPasswordScreen() {
         style={styles.input}
         placeholder="Confirm Password"
         placeholderTextColor="#888"
-        secureTextEntry
+        secureTextEntry={!showPassword}
         value={confirmPassword}
         onChangeText={setConfirmPassword}
       />

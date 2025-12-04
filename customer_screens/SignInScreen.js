@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
+import Fontawesome from 'react-native-vector-icons/FontAwesome';
 
 export default function SignInScreen() {
   const navigation = useNavigation();
@@ -81,7 +82,7 @@ export default function SignInScreen() {
 
           <View style={styles.inputContainer}>
             <View style={{ flexDirection: 'row', alignItems: 'center', position: 'relative' }}><TextInput
-                placeholder={`Password (${showPassword ? 'hide' : 'show'})`}
+                placeholder={`Password`}
                 placeholderTextColor="#888"
                 secureTextEntry={!showPassword}
                 style={[
@@ -105,7 +106,11 @@ export default function SignInScreen() {
                 accessibilityLabel={showPassword ? "Hide password" : "Show password"}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
 
-                <Text style={{ color: Colors.primary, fontWeight: 'bold', fontSize: 18 }}>{showPassword ? '🙈' : '👀'}</Text>
+                <Fontawesome 
+                  name={showPassword ? 'eye-slash' : 'eye'} 
+                  size={20} 
+                  color={"#000"} 
+                />
               </TouchableOpacity>
             </View>
           </View>
