@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet,
   SafeAreaView, TouchableOpacity, FlatList,
-  ActivityIndicator, Alert, } from 'react-native';
+  ActivityIndicator, } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
+import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 
 export default function ActivityScreen({ navigation }) {
   const [filter, setFilter] = useState('All');
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
 
   useEffect(() => {
     fetchTransactions();
@@ -25,7 +27,7 @@ export default function ActivityScreen({ navigation }) {
       // Get customer from AsyncStorage
       const userDataStr = await AsyncStorage.getItem('@app_user');
       if (!userDataStr) {
-        Alert.alert('Error', 'User not found. Please login again.');
+        showThemedAlert(setAlert, 'Error', 'User not found. Please login again.');
         navigation.navigate('SignIn');
         return;
       }
@@ -43,7 +45,7 @@ export default function ActivityScreen({ navigation }) {
       }
     } catch (error) {
       console.error('Error fetching transactions:', error);
-      Alert.alert('Error', 'Failed to load transactions. Please try again.');
+      showThemedAlert(setAlert, 'Error', 'Failed to load transactions. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -88,7 +90,9 @@ export default function ActivityScreen({ navigation }) {
     return Object.values(grouped).map(txn => ({
       ...txn,
       amount: `₱${txn.total.toFixed(2)}`,
-      pointsEarned: `+${txn.points} pts`,
+      pointsEarned: txn.type === 'Redemption' 
+        ? `-${Math.round(Math.abs(txn.points))} pts` 
+        : `+${Math.round(Math.abs(txn.points))} pts`,
       items: [{ quantity: txn.itemCount }] // Keep for compatibility
     }));
   };
@@ -216,6 +220,13 @@ export default function ActivityScreen({ navigation }) {
         </TouchableOpacity>
       </View>
       <View style={{ height: 80 }} />
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert({ ...alert, visible: false })}
+      />
     </SafeAreaView>
   );
 }
@@ -232,17 +243,22 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   title: { color: '#fff', fontSize: Typography.h3, fontWeight: '700' },
-  segmentRow: { flexDirection: 'row', padding: Spacing.lg, justifyContent: 'space-between' },
+  segmentRow: { flexDirection: 'row', padding: Spacing.lg, justifyContent: 'center', gap: 45 },
   segment: {
     borderRadius: Radii.xl || 20,
     borderWidth: 1,
     borderColor: Colors.primary,
     paddingVertical: 8,
     paddingHorizontal: 20,
+    backgroundColor: '#fff',
   },
-  segmentActive: { backgroundColor: '#fff', elevation: 2, shadowColor: '#000' },
+  segmentActive: { 
+    backgroundColor: Colors.primary, 
+    elevation: 2, 
+    shadowColor: '#000' 
+  },
   segmentText: { color: Colors.primary, fontWeight: '600' },
-  segmentTextActive: { color: Colors.primary },
+  segmentTextActive: { color: '#fff' },
   listContent: { paddingHorizontal: Spacing.lg, paddingBottom: 20 },
   row: { flexDirection: 'row', paddingVertical: 16, alignItems: 'center', justifyContent: 'space-between' },
   left: { flex: 1 },

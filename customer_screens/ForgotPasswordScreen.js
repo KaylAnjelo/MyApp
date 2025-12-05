@@ -1,26 +1,32 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii } from '../styles/theme';
 import apiService from '../services/apiService';
+import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 
 export default function ForgotPasswordScreen() {
   const navigation = useNavigation();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
 
   const handleSendOTP = async () => {
     if (!email) {
-      Alert.alert('Missing Email', 'Please enter your email address.');
+      showThemedAlert(setAlert, 'Missing Email', 'Please enter your email address.');
       return;
     }
     setLoading(true);
     try {
       await apiService.sendPasswordResetOTP(email);
-      Alert.alert('OTP Sent', 'Check your email for the OTP.');
-      navigation.navigate('VerifyOTP', { email });
+      showThemedAlert(setAlert, 'OTP Sent', 'Check your email for the OTP.', [
+        {
+          text: 'OK',
+          onPress: () => navigation.navigate('VerifyOTP', { email, isPasswordReset: true }),
+        },
+      ]);
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to send OTP.');
+      showThemedAlert(setAlert, 'Error', error.message || 'Failed to send OTP.');
     } finally {
       setLoading(false);
     }
@@ -46,6 +52,14 @@ export default function ForgotPasswordScreen() {
       >
         {loading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.buttonText}>Send OTP</Text>}
       </TouchableOpacity>
+
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert({ ...alert, visible: false })}
+      />
     </View>
   );
 }

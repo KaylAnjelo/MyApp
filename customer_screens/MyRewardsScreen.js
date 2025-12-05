@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, Pressable, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Modal, Pressable, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
+import ThemedAlert, { showThemedAlert } from '../components/ThemedAlert';
 
 export default function MyRewardsScreen({ navigation }) {
   const [activeRewards, setActiveRewards] = useState([]);
   const [usedRewards, setUsedRewards] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
 
   // modal states for themed alerts
   const [modalVisible, setModalVisible] = useState(false);
@@ -62,7 +64,7 @@ export default function MyRewardsScreen({ navigation }) {
       setActiveRewards(active);
       setUsedRewards(used);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load rewards');
+      showThemedAlert(setAlert, 'Error', 'Failed to load rewards');
     } finally {
       setLoading(false);
     }
@@ -105,7 +107,7 @@ export default function MyRewardsScreen({ navigation }) {
         // Store the selected voucher for automatic discount application in TransactionPage
         await AsyncStorage.setItem('@selected_voucher', JSON.stringify(selectedReward));
       } catch (err) {
-        Alert.alert('Error', 'Failed to mark voucher as used.');
+        showThemedAlert(setAlert, 'Error', 'Failed to mark voucher as used.');
       }
     } else {
       // fallback: just show code
@@ -237,6 +239,13 @@ export default function MyRewardsScreen({ navigation }) {
           </View>
         </View>
       </ScrollView>
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert({ ...alert, visible: false })}
+      />
     </View>
   );
 }

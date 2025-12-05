@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Alert,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -13,6 +12,7 @@ import {
 import { Camera, CameraType } from "react-native-camera-kit";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiService from '../services/apiService';
+import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 
 export default function ScannerScreen({ navigation }) {
   const [showCamera, setShowCamera] = useState(true);
@@ -20,6 +20,7 @@ export default function ScannerScreen({ navigation }) {
   const [scanned, setScanned] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [hasPermission, setHasPermission] = useState(null);
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
 
   useEffect(() => {
     requestCameraPermission();
@@ -43,7 +44,7 @@ export default function ScannerScreen({ navigation }) {
           setHasPermission(true);
         } else {
           setHasPermission(false);
-          Alert.alert('Permission Denied', 'Camera permission is required to scan QR codes');
+          showThemedAlert(setAlert, 'Permission Denied', 'Camera permission is required to scan QR codes');
         }
       } catch (err) {
         console.error('Permission error:', err);
@@ -62,8 +63,9 @@ export default function ScannerScreen({ navigation }) {
     try {
       const userDataStr = await AsyncStorage.getItem('@app_user');
       if (!userDataStr) {
-        Alert.alert('Error', 'Please log in first');
-        navigation.navigate('SignIn');
+        showThemedAlert(setAlert, 'Error', 'Please log in first', [
+          { text: 'OK', onPress: () => navigation.navigate('SignIn') }
+        ]);
         return;
       }
 
@@ -74,7 +76,7 @@ export default function ScannerScreen({ navigation }) {
       try {
         transactionData = typeof qrData === 'string' ? JSON.parse(qrData) : qrData;
       } catch (e) {
-        Alert.alert('Error', 'Invalid QR code format');
+        showThemedAlert(setAlert, 'Error', 'Invalid QR code format');
         setProcessing(false);
         setScanned(false);
         return;
@@ -83,7 +85,8 @@ export default function ScannerScreen({ navigation }) {
       const response = await apiService.processScannedQR(customerId, transactionData);
 
       if (response.success) {
-        Alert.alert(
+        showThemedAlert(
+          setAlert,
           'Transaction Successful! 🎉',
           `Total: ₱${response.transaction.total_amount}\n` +
           `Points Earned: ${response.transaction.total_points}\n` +
@@ -107,14 +110,14 @@ export default function ScannerScreen({ navigation }) {
           ]
         );
       } else {
-        Alert.alert('Error', response.message || 'Transaction failed');
+        showThemedAlert(setAlert, 'Error', response.message || 'Transaction failed');
         setScanned(false);
         setProcessing(false);
       }
 
     } catch (error) {
       console.error('QR Processing Error:', error);
-      Alert.alert('Error', error.message || 'Failed to process transaction');
+      showThemedAlert(setAlert, 'Error', error.message || 'Failed to process transaction');
       setScanned(false);
       setProcessing(false);
     }
@@ -127,7 +130,7 @@ export default function ScannerScreen({ navigation }) {
     try {
       const scannedDataString = event?.nativeEvent?.codeStringValue;
       if (!scannedDataString) {
-        Alert.alert('Error', 'Invalid or unreadable QR code.');
+        showThemedAlert(setAlert, 'Error', 'Invalid or unreadable QR code.');
         setScanned(false);
         return;
       }
@@ -142,7 +145,7 @@ export default function ScannerScreen({ navigation }) {
 
   const handleManualSubmit = async () => {
     if (!manualCode.trim()) {
-      Alert.alert("Error", "Please enter a code");
+      showThemedAlert(setAlert, "Error", "Please enter a code");
       return;
     }
 
@@ -152,7 +155,7 @@ export default function ScannerScreen({ navigation }) {
       const userDataStr = await AsyncStorage.getItem('@app_user');
       if (!userDataStr) {
         setProcessing(false);
-        Alert.alert('Error', 'Please log in first', [
+        showThemedAlert(setAlert, 'Error', 'Please log in first', [
           { text: 'OK', onPress: () => navigation.navigate('SignIn') }
         ]);
         return;
@@ -164,7 +167,8 @@ export default function ScannerScreen({ navigation }) {
       const response = await apiService.processManualCode(customerId, manualCode.trim());
 
       if (response.success) {
-        Alert.alert(
+        showThemedAlert(
+          setAlert,
           'Transaction Successful! 🎉',
           `Total: ₱${response.transaction.total_amount}\n` +
           `Points Earned: ${response.transaction.total_points}\n` +
@@ -181,12 +185,12 @@ export default function ScannerScreen({ navigation }) {
           ]
         );
       } else {
-        Alert.alert('Error', response.message || 'Transaction failed');
+        showThemedAlert(setAlert, 'Error', response.message || 'Transaction failed');
         setProcessing(false);
       }
     } catch (error) {
       console.error('Manual code error:', error);
-      Alert.alert('Error', error.message || 'Failed to process code');
+      showThemedAlert(setAlert, 'Error', error.message || 'Failed to process code');
       setProcessing(false);
     }
   };
@@ -196,6 +200,13 @@ export default function ScannerScreen({ navigation }) {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>Requesting camera permission...</Text>
+        <ThemedAlert
+          visible={alert.visible}
+          title={alert.title}
+          message={alert.message}
+          buttons={alert.buttons}
+          onDismiss={() => setAlert({ ...alert, visible: false })}
+        />
       </View>
     );
   }
@@ -207,6 +218,13 @@ export default function ScannerScreen({ navigation }) {
         <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
           <Text style={styles.closeButtonText}>Go Back</Text>
         </TouchableOpacity>
+        <ThemedAlert
+          visible={alert.visible}
+          title={alert.title}
+          message={alert.message}
+          buttons={alert.buttons}
+          onDismiss={() => setAlert({ ...alert, visible: false })}
+        />
       </View>
     );
   }
@@ -254,6 +272,13 @@ export default function ScannerScreen({ navigation }) {
             </TouchableOpacity>
           </View>
         </View>
+        <ThemedAlert
+          visible={alert.visible}
+          title={alert.title}
+          message={alert.message}
+          buttons={alert.buttons}
+          onDismiss={() => setAlert({ ...alert, visible: false })}
+        />
       </View>
     );
   }
@@ -285,6 +310,13 @@ export default function ScannerScreen({ navigation }) {
       <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
         <Text style={styles.closeButtonText}>Close</Text>
       </TouchableOpacity>
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert({ ...alert, visible: false })}
+      />
     </View>
   );
 }

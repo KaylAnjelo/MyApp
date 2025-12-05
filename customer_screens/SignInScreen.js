@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Image, Alert, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Image, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
 import Fontawesome from 'react-native-vector-icons/FontAwesome';
+import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 
 export default function SignInScreen() {
   const navigation = useNavigation();
@@ -13,10 +14,11 @@ export default function SignInScreen() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
 
   const handleSignIn = async () => {
     if (!username || !password) {
-      Alert.alert('Missing Fields', 'Please enter both username and password');
+      showThemedAlert(setAlert, 'Missing Fields', 'Please enter both username and password');
       return;
     }
 
@@ -45,7 +47,7 @@ export default function SignInScreen() {
         navigation.replace('HomePage', { user: response.user });
       }
     } catch (error) {
-      Alert.alert('Login Failed', error.message || 'Invalid username or password');
+      showThemedAlert(setAlert, 'Login Failed', error.message || 'Invalid username or password');
     } finally {
       setLoading(false);
     }
@@ -53,11 +55,12 @@ export default function SignInScreen() {
 
   return (
   <KeyboardAvoidingView 
-    style={{ flex: 1 }}
+    style={{ flex: 1, backgroundColor: Colors.background }}
     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <ScrollView 
-      contentContainerStyle={{ flexGrow: 1 }}
-      keyboardShouldPersistTaps="handled">
+      contentContainerStyle={{ paddingVertical: 0, paddingBottom: 10 }}
+      keyboardShouldPersistTaps="handled"
+      style={{ backgroundColor: Colors.background }}>
 
       <View style={styles.container}>
         <View style={styles.logoContainer}>
@@ -151,6 +154,14 @@ export default function SignInScreen() {
         </View>
 
       </View>
+      
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert({ ...alert, visible: false })}
+      />
     </ScrollView>
   </KeyboardAvoidingView>
 );
@@ -159,14 +170,13 @@ export default function SignInScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: Colors.background,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingBottom: 80,
   },
   logoContainer: {
-    position: 'absolute',
-    top: 50,
+    marginBottom: Spacing.xl,
     alignSelf: 'center',
   },
   logoImage: {
@@ -239,8 +249,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 40,
-    position: 'absolute',
-    bottom: 50,
   },
   signupText: {
     fontSize: Typography.body,
