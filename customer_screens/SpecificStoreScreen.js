@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet,
   ActivityIndicator,TouchableOpacity,
-  Image, ScrollView, FlatList, Alert, Platform, InteractionManager,
+  Image, ScrollView, FlatList, Platform, InteractionManager,
   Modal,
 } from 'react-native';
+import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
@@ -33,6 +34,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
     product: null,
     points: 0,
   });
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
 
   console.log('=== COMPONENT INITIALIZED ===');
   console.log('Route params:', route.params);
@@ -223,7 +225,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
       if (!userId) {
         console.log('❌ No user ID found');
         if (isMounted) {
-          Alert.alert('Error', 'Please log in to redeem products');
+          showThemedAlert(setAlert, 'Error', 'Please log in to redeem products');
         }
         return;
       }
@@ -246,14 +248,14 @@ export default function SpecificStoreScreen({ route, navigation }) {
           } else {
             console.log('❌ Could not get owner_id from API');
             if (isMounted) {
-              Alert.alert('Error', 'Store information not available. Please try again.');
+              showThemedAlert(setAlert, 'Error', 'Store information not available. Please try again.');
             }
             return;
           }
         } catch (err) {
           console.error('Error fetching store data:', err);
           if (isMounted) {
-            Alert.alert('Error', 'Failed to load store information');
+            showThemedAlert(setAlert, 'Error', 'Failed to load store information');
           }
           return;
         }
@@ -274,7 +276,8 @@ export default function SpecificStoreScreen({ route, navigation }) {
 
       // Check if user has enough points
       if (userPoints < pointsRequired) {
-        Alert.alert(
+        showThemedAlert(
+          setAlert,
           'Insufficient Points',
           `You need ${pointsRequired} points to redeem this product.\n\nYou currently have ${userPoints} points.`,
           [{ text: 'OK' }]
@@ -293,7 +296,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
     } catch (error) {
       console.error('Error in handleBuyProduct:', error);
       if (isMounted) {
-        Alert.alert('Error', 'Failed to process redemption');
+        showThemedAlert(setAlert, 'Error', 'Failed to process redemption');
       }
     }
   };
@@ -350,7 +353,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
     } catch (error) {
       console.error('Error generating redemption code:', error);
       if (isMounted) {
-        Alert.alert('Error', error.message || 'Failed to generate redemption code');
+        showThemedAlert(setAlert, 'Error', error.message || 'Failed to generate redemption code');
       }
       setConfirmModal({ ...confirmModal, visible: false });
     }
@@ -373,7 +376,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
 
       if (!userId) {
         if (isMounted) {
-          Alert.alert('Error', 'Please log in to redeem rewards');
+          showThemedAlert(setAlert, 'Error', 'Please log in to redeem rewards');
         }
         setRedeeming(null);
         return;
@@ -387,7 +390,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
 
       if (!ownerId) {
         if (isMounted) {
-          Alert.alert('Error', 'Store information not available. Please try refreshing the page.');
+          showThemedAlert(setAlert, 'Error', 'Store information not available. Please try refreshing the page.');
         }
         setRedeeming(null);
         return;
@@ -405,7 +408,8 @@ export default function SpecificStoreScreen({ route, navigation }) {
       }
 
       if (isMounted) {
-        Alert.alert(
+        showThemedAlert(
+          setAlert,
           'Success!',
           `You've redeemed: ${reward.reward_name || reward.title || reward.name}\n\nCheck "My Rewards" to use it at the store.`,
           [
@@ -423,7 +427,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
     } catch (error) {
       console.error('Error redeeming reward:', error);
       if (isMounted) {
-        Alert.alert('Error', error.message || 'Failed to redeem reward. Please try again.');
+        showThemedAlert(setAlert, 'Error', error.message || 'Failed to redeem reward. Please try again.');
       }
     } finally {
       setRedeeming(null);
@@ -684,6 +688,13 @@ export default function SpecificStoreScreen({ route, navigation }) {
           })
         )}
       </ScrollView>
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onClose={() => setAlert({ ...alert, visible: false })}
+      />
     </View>
   );
 }

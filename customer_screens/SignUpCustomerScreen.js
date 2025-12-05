@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Switch, Alert, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Switch, ActivityIndicator, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ThemedAlert, { showThemedAlert } from '../components/ThemedAlert';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii } from '../styles/theme';
@@ -14,6 +15,7 @@ export default function SignUpCustomerScreen() {
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -28,12 +30,12 @@ export default function SignUpCustomerScreen() {
 
   const handleSendOTP = async () => {
     if (!formData.firstName || !formData.lastName || !formData.phone || !formData.email || !formData.password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showThemedAlert(setAlert, 'Error', 'Please fill in all fields');
       return;
     }
 
     if (!agree) {
-      Alert.alert('Error', 'Please agree to the terms and conditions');
+      showThemedAlert(setAlert, 'Error', 'Please agree to the terms and conditions');
       return;
     }
 
@@ -41,9 +43,9 @@ export default function SignUpCustomerScreen() {
     try {
       await apiService.sendOTP(formData.email.trim().toLowerCase());
       setOtpSent(true);
-      Alert.alert('Success', 'Verification code sent to your email!');
+      showThemedAlert(setAlert, 'Success', 'Verification code sent to your email!');
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to send verification code');
+      showThemedAlert(setAlert, 'Error', error.message || 'Failed to send verification code');
     } finally {
       setLoading(false);
     }
@@ -51,7 +53,7 @@ export default function SignUpCustomerScreen() {
 
   const handleVerifyAndSignUp = async () => {
     if (!otp || otp.length !== 6) {
-      Alert.alert('Error', 'Please enter the 6-digit verification code');
+      showThemedAlert(setAlert, 'Error', 'Please enter the 6-digit verification code');
       return;
     }
 
@@ -82,7 +84,7 @@ export default function SignUpCustomerScreen() {
         await AsyncStorage.setItem('@app_user', JSON.stringify(response.user));
       }
       
-      Alert.alert('Success', 'Account created successfully!', [
+      showThemedAlert(setAlert, 'Success', 'Account created successfully!', [
         { 
           text: 'OK', 
           onPress: () => navigation.replace("HomePage", { user: response.user }) 
@@ -90,7 +92,7 @@ export default function SignUpCustomerScreen() {
       ]);
 
     } catch (error) {
-      Alert.alert('Verification Failed', error.message || 'Invalid verification code');
+      showThemedAlert(setAlert, 'Verification Failed', error.message || 'Invalid verification code');
     } finally {
       setLoading(false);
     }
@@ -243,6 +245,13 @@ export default function SignUpCustomerScreen() {
           )}
         </View>
       </View>
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert({ visible: false, title: '', message: '', buttons: [] })}
+      />
     </KeyboardAwareScrollView>
   );
 }

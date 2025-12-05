@@ -5,13 +5,13 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import ThemedAlert, { showThemedAlert } from '../components/ThemedAlert';
 import { Colors, Typography, Spacing, Radii } from '../styles/theme';
 import apiService from '../services/apiService';
 
@@ -35,6 +35,7 @@ export default function ChangePasswordScreen({ navigation, route }) {
     const passwordStrength = getPasswordStrength(newPassword);
   const userId = route.params?.userId;
   const userEmail = route.params?.email || '';
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
 
   // If userId is present, skip OTP flow
   const isDirectChange = !!userId;
@@ -47,46 +48,46 @@ export default function ChangePasswordScreen({ navigation, route }) {
   // Direct password change for admin-created accounts
   const handleDirectChangePassword = async () => {
     if (!newPassword || newPassword.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters long');
+      showThemedAlert(setAlert, 'Error', 'Password must be at least 8 characters long');
       return;
     }
     if (passwordStrength.label === 'Weak') {
-      Alert.alert('Weak Password', 'Please choose a stronger password.');
+      showThemedAlert(setAlert, 'Weak Password', 'Please choose a stronger password.');
       return;
     }
     // Enforce requirements
     if (!/[A-Z]/.test(newPassword)) {
-      Alert.alert('Error', 'Password must contain at least one uppercase letter.');
+      showThemedAlert(setAlert, 'Error', 'Password must contain at least one uppercase letter.');
       return;
     }
     if (!/[a-z]/.test(newPassword)) {
-      Alert.alert('Error', 'Password must contain at least one lowercase letter.');
+      showThemedAlert(setAlert, 'Error', 'Password must contain at least one lowercase letter.');
       return;
     }
     if (!/[0-9]/.test(newPassword)) {
-      Alert.alert('Error', 'Password must contain at least one number.');
+      showThemedAlert(setAlert, 'Error', 'Password must contain at least one number.');
       return;
     }
     if (!/[^A-Za-z0-9]/.test(newPassword)) {
-      Alert.alert('Error', 'Password must contain at least one special character.');
+      showThemedAlert(setAlert, 'Error', 'Password must contain at least one special character.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      showThemedAlert(setAlert, 'Error', 'Passwords do not match');
       return;
     }
     try {
       setLoading(true);
       // Call API to change password and clear must_change_password
       await apiService.changePasswordDirect(userId, newPassword);
-      Alert.alert('Success', 'Password changed successfully!', [
+      showThemedAlert(setAlert, 'Success', 'Password changed successfully!', [
         {
           text: 'OK',
           onPress: () => navigation.replace('HomePage')
         }
       ]);
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to change password');
+      showThemedAlert(setAlert, 'Error', error.message || 'Failed to change password');
     } finally {
       setLoading(false);
     }
@@ -181,6 +182,13 @@ export default function ChangePasswordScreen({ navigation, route }) {
           </View>
         )}
       </ScrollView>
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert({ ...alert, visible: false })}
+      />
     </KeyboardAvoidingView>
   );
 }

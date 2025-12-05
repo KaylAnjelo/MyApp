@@ -1,27 +1,34 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii } from '../styles/theme';
 import apiService from '../services/apiService';
+import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 
 export default function VerifyOTPScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { email } = route.params || {};
+  const { email, isPasswordReset } = route.params || {};
   const [otp, setOTP] = useState('');
   const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
 
   const handleVerifyOTP = async () => {
     if (!otp) {
-      Alert.alert('Missing OTP', 'Please enter the OTP sent to your email.');
+      showThemedAlert(setAlert, 'Missing OTP', 'Please enter the OTP sent to your email.');
       return;
     }
     setLoading(true);
     try {
-      await apiService.verifyPasswordResetOTP(email, otp);
-      navigation.navigate('ResetPassword', { email, otp });
+      if (isPasswordReset) {
+        const response = await apiService.verifyPasswordResetOTP(email, otp);
+        navigation.navigate('ResetPassword', { email, resetToken: response.resetToken });
+      } else {
+        await apiService.verifyPasswordResetOTP(email, otp);
+        navigation.navigate('ResetPassword', { email, otp });
+      }
     } catch (error) {
-      Alert.alert('Invalid OTP', error.message || 'The OTP you entered is incorrect.');
+      showThemedAlert(setAlert, 'Invalid OTP', error.message || 'The OTP you entered is incorrect.');
     } finally {
       setLoading(false);
     }
@@ -46,6 +53,14 @@ export default function VerifyOTPScreen() {
       >
         {loading ? <ActivityIndicator color={Colors.white} /> : <Text style={styles.buttonText}>Verify</Text>}
       </TouchableOpacity>
+
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert({ ...alert, visible: false })}
+      />
     </View>
   );
 }

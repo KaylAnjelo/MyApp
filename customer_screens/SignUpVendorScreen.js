@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Switch, Alert, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Switch, ActivityIndicator, Platform } from 'react-native';
+import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
@@ -9,6 +10,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 
 export default function SignUpVendorScreen() {
   const navigation = useNavigation();
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
   const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
@@ -29,12 +31,12 @@ export default function SignUpVendorScreen() {
 
   const handleSendOTP = async () => {
     if (!formData.storeCode || !formData.firstName || !formData.lastName || !formData.phone || !formData.email || !formData.password) {
-      Alert.alert('Error', 'Please fill in all fields including store code');
+      showThemedAlert(setAlert, 'Error', 'Please fill in all fields including store code');
       return;
     }
 
     if (!agree) {
-      Alert.alert('Error', 'Please agree to the terms and conditions');
+      showThemedAlert(setAlert, 'Error', 'Please agree to the terms and conditions');
       return;
     }
 
@@ -42,9 +44,9 @@ export default function SignUpVendorScreen() {
     try {
       await apiService.sendOTP(formData.email.trim().toLowerCase());
       setOtpSent(true);
-      Alert.alert('Success', 'Verification code sent to your email!');
+      showThemedAlert(setAlert, 'Success', 'Verification code sent to your email!');
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to send verification code');
+      showThemedAlert(setAlert, 'Error', error.message || 'Failed to send verification code');
     } finally {
       setLoading(false);
     }
@@ -52,7 +54,7 @@ export default function SignUpVendorScreen() {
 
   const handleVerifyAndSignUp = async () => {
     if (!otp || otp.length !== 6) {
-      Alert.alert('Error', 'Please enter the 6-digit verification code');
+      showThemedAlert(setAlert, 'Error', 'Please enter the 6-digit verification code');
       return;
     }
 
@@ -79,21 +81,21 @@ export default function SignUpVendorScreen() {
         await AsyncStorage.setItem('@app_user', JSON.stringify(response.user));
       }
       
-      Alert.alert('Success', `Account created successfully! You are now registered for ${response.user?.store_name || 'the store'}.`, [
+      showThemedAlert(setAlert, 'Success', `Account created successfully! You are now registered for ${response.user?.store_name || 'the store'}.`, [
         { text: 'OK', onPress: () => navigation.replace("VendorHomePage", { user: response.user }) }
       ]);
 
     } catch (error) {
       if (error.message.includes("Invalid store code")) {
-        Alert.alert("Registration Failed", "The store code you entered is invalid. Please check with your store manager.");
+        showThemedAlert(setAlert, "Registration Failed", "The store code you entered is invalid. Please check with your store manager.");
       } else if (error.message.includes("Invalid verification code") || error.message.includes("OTP")) {
-        Alert.alert("Verification Failed", "Invalid or expired verification code. Please try again.");
+        showThemedAlert(setAlert, "Verification Failed", "Invalid or expired verification code. Please try again.");
       } else if (error.message.includes("duplicate key") || error.message.includes("already")) {
-        Alert.alert("Registration Failed", "This email or username is already registered.");
+        showThemedAlert(setAlert, "Registration Failed", "This email or username is already registered.");
       } else if (error.message.includes("inactive")) {
-        Alert.alert("Registration Failed", "This store is currently inactive. Please contact support.");
+        showThemedAlert(setAlert, "Registration Failed", "This store is currently inactive. Please contact support.");
       } else {
-        Alert.alert("Registration Failed", error.message || "Failed to create account");
+        showThemedAlert(setAlert, "Registration Failed", error.message || "Failed to create account");
       }
     } finally {
       setLoading(false);
@@ -250,10 +252,17 @@ export default function SignUpVendorScreen() {
               <Text style={styles.signupText}>
                 {otpSent ? 'Verify & Sign Up' : 'Send Verification Code'}
               </Text>
-            )}
-          </TouchableOpacity>
+          )}
+        </TouchableOpacity>
         </View>
       </View>
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert({ ...alert, visible: false })}
+      />
     </KeyboardAwareScrollView>
   );
 }

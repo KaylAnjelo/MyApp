@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, TextInput, Modal } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 import { launchImageLibrary } from 'react-native-image-picker';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -18,6 +19,9 @@ export default function ProfilePageScreen({ navigation }) {
 
   // New state for logout modal
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+
+  // Alert state
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
 
   const displayName =
     (profile &&
@@ -66,7 +70,7 @@ export default function ProfilePageScreen({ navigation }) {
 
   const handleSaveName = async () => {
     if (!tempFirstName.trim() || !tempLastName.trim()) {
-      Alert.alert('Error', 'Both first name and last name are required');
+      showThemedAlert(setAlert, 'Error', 'Both first name and last name are required');
       return;
     }
 
@@ -87,13 +91,13 @@ export default function ProfilePageScreen({ navigation }) {
         setProfile(updatedProfile);
         setIsEditingName(false);
         await AsyncStorage.setItem('@app_user', JSON.stringify(updatedProfile));
-        Alert.alert('Success', 'Name updated successfully');
+        showThemedAlert(setAlert, 'Success', 'Name updated successfully');
       } else {
-        Alert.alert('Error', response.message || 'Failed to update name');
+        showThemedAlert(setAlert, 'Error', response.message || 'Failed to update name');
       }
     } catch (error) {
       console.error('Update name error:', error);
-      Alert.alert('Error', 'Failed to update name. Please try again.');
+      showThemedAlert(setAlert, 'Error', 'Failed to update name. Please try again.');
     } finally {
       setUpdatingName(false);
     }
@@ -134,7 +138,8 @@ export default function ProfilePageScreen({ navigation }) {
     if (uploading) return;
     const hasImage = profile?.profile_image && !profile.profile_image.includes('placeholder');
     
-    Alert.alert(
+    showThemedAlert(
+      setAlert,
       'Profile Photo',
       hasImage ? 'Update profile picture' : 'Add profile picture',
       hasImage ? [
@@ -161,13 +166,13 @@ export default function ProfilePageScreen({ navigation }) {
       const result = await launchImageLibrary(options);
       if (result.didCancel) return;
       if (result.errorCode) {
-        Alert.alert('Selection Error', result.errorMessage || 'Unable to select image.');
+        showThemedAlert(setAlert, 'Selection Error', result.errorMessage || 'Unable to select image.');
         return;
       }
       if (result.assets && result.assets[0]) await handleUploadImage(result.assets[0]);
     } catch (error) {
       console.error('Image selection error:', error);
-      Alert.alert('Selection Error', 'Unable to access your photo library.');
+      showThemedAlert(setAlert, 'Selection Error', 'Unable to access your photo library.');
     }
   };
 
@@ -176,7 +181,7 @@ export default function ProfilePageScreen({ navigation }) {
       setUploading(true);
       const userId = profile?.user_id || profile?.userId;
       if (!userId) {
-        Alert.alert('Error', 'User information not found.');
+        showThemedAlert(setAlert, 'Error', 'User information not found.');
         return;
       }
       await apiService.removeProfileImage(userId);
@@ -187,10 +192,10 @@ export default function ProfilePageScreen({ navigation }) {
         userData.profile_image = null;
         await AsyncStorage.setItem('@app_user', JSON.stringify(userData));
       }
-      Alert.alert('Photo Removed', 'Profile photo removed successfully!');
+      showThemedAlert(setAlert, 'Photo Removed', 'Profile photo removed successfully!');
     } catch (error) {
       console.error('Remove image error:', error);
-      Alert.alert('Error', 'Couldn\'t remove photo.');
+      showThemedAlert(setAlert, 'Error', 'Couldn\'t remove photo.');
     } finally { 
       setUploading(false);
     }
@@ -201,7 +206,7 @@ export default function ProfilePageScreen({ navigation }) {
       setUploading(true);
       const userId = profile?.user_id || profile?.userId;
       if (!userId) {
-        Alert.alert('Error', 'User information not found.');
+        showThemedAlert(setAlert, 'Error', 'User information not found.');
         return;
       }
 
@@ -222,11 +227,11 @@ export default function ProfilePageScreen({ navigation }) {
           userData.profile_image = bust;
           await AsyncStorage.setItem('@app_user', JSON.stringify(userData));
         }
-        Alert.alert('✅ Success', 'Your profile photo has been updated successfully!');
+        showThemedAlert(setAlert, '✅ Success', 'Your profile photo has been updated successfully!');
       }
     } catch (error) {
       console.error('Upload error:', error);
-      Alert.alert('Upload Failed', 'Couldn\'t upload your photo right now.');
+      showThemedAlert(setAlert, 'Upload Failed', 'Couldn\'t upload your photo right now.');
     } finally {
       setUploading(false);
     }
@@ -418,6 +423,14 @@ export default function ProfilePageScreen({ navigation }) {
           <Text style={[styles.navText, { color: Colors.primary }]}>Profile</Text>
         </TouchableOpacity>
       </View>
+
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert({ visible: false, title: '', message: '', buttons: [] })}
+      />
     </View>
   );
 }
