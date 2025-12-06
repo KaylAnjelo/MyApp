@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import apiService from '../services/apiService';
-import ThemedAlert, { showThemedAlert } from '../components/ThemedAlert';
+import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 
 export default function MyRewardsScreen({ navigation }) {
   const [activeRewards, setActiveRewards] = useState([]);

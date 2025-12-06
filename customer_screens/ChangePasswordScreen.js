@@ -11,7 +11,7 @@ import {
   ScrollView
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import ThemedAlert, { showThemedAlert } from '../components/ThemedAlert';
+import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 import { Colors, Typography, Spacing, Radii } from '../styles/theme';
 import apiService from '../services/apiService';
 

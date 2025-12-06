@@ -227,7 +227,7 @@ export default function ProfilePageScreen({ navigation }) {
           userData.profile_image = bust;
           await AsyncStorage.setItem('@app_user', JSON.stringify(userData));
         }
-        showThemedAlert(setAlert, '✅ Success', 'Your profile photo has been updated successfully!');
+        showThemedAlert(setAlert, 'Success', 'Your profile photo has been updated successfully!');
       }
     } catch (error) {
       console.error('Upload error:', error);

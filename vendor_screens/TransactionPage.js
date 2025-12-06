@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet,
   TouchableOpacity, FlatList, SafeAreaView,
-  ActivityIndicator, Alert, } from 'react-native';
+  ActivityIndicator, } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/Ionicons';
+import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiService from '../services/apiService'; // ✅ adjust path if needed
 import { Colors } from '../styles/theme';
@@ -14,6 +15,7 @@ const TransactionPage = ({ navigation }) => {
   const [activeFilter, setActiveFilter] = useState('All');
   const [loading, setLoading] = useState(true);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
 
   useEffect(() => {
     fetchTransactions();
@@ -155,7 +157,7 @@ const TransactionPage = ({ navigation }) => {
       const parsedUser = JSON.parse(userData);
 
       if (!parsedUser || parsedUser.role !== 'vendor' || !parsedUser.user_id) {
-        Alert.alert('Error', 'Vendor or User ID not found. Please relog.');
+        showThemedAlert(setAlert, 'Error', 'Vendor or User ID not found. Please relog.');
         setLoading(false);
         return;
       }
@@ -208,7 +210,7 @@ const TransactionPage = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Error fetching transactions:', error.message);
-      Alert.alert('Error', 'Failed to load vendor transactions. Please check your connection.');
+      showThemedAlert(setAlert, 'Error', 'Failed to load vendor transactions. Please check your connection.');
       setTransactions([]);
     } finally {
       setLoading(false);
@@ -325,6 +327,14 @@ const TransactionPage = ({ navigation }) => {
         </TouchableOpacity>
         
       </View>
+
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert({ ...alert, visible: false })}
+      />
     </SafeAreaView>
   );
 };
