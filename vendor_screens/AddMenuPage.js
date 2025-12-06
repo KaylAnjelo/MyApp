@@ -55,8 +55,8 @@ const CreateOrderScreen = ({ navigation }) => {
   const [rewardCodeStatus, setRewardCodeStatus] = useState(null); // null | 'valid' | 'invalid' | 'checking'
   const [appliedReward, setAppliedReward] = useState(null);
   // Redemption codes for individual items
-  const [redemptionCodes, setRedemptionCodes] = useState({}); // { productId: 'CODE123' }
-  const [redemptionMode, setRedemptionMode] = useState({}); // { productId: true/false }
+  const [redemptionCodes, setRedemptionCodes] = useState({}); // { shared: 'CODE123' }
+  const [isRedemptionMode, setIsRedemptionMode] = useState(false); // Global redemption toggle
 
   useEffect(() => {
     loadVendorProducts();
@@ -106,39 +106,11 @@ const CreateOrderScreen = ({ navigation }) => {
             : item
         );
       }
-      return [...prevCart, { ...product, quantity: 1, is_redemption: false }];
+      return [...prevCart, { ...product, quantity: 1, is_redemption: isRedemptionMode }];
     });
   };
 
-  const toggleRedemptionMode = (productId) => {
-    setRedemptionMode(prev => ({
-      ...prev,
-      [productId]: !prev[productId]
-    }));
-    
-    // Update cart item
-    setCart(prevCart => prevCart.map(item =>
-      item.id === productId
-        ? { ...item, is_redemption: !redemptionMode[productId] }
-        : item
-    ));
-    
-    // If turning off redemption, clear the code
-    if (redemptionMode[productId]) {
-      setRedemptionCodes(prev => {
-        const newCodes = { ...prev };
-        delete newCodes[productId];
-        return newCodes;
-      });
-    }
-  };
 
-  const updateRedemptionCode = (productId, code) => {
-    setRedemptionCodes(prev => ({
-      ...prev,
-      [productId]: code.toUpperCase()
-    }));
-  };
 
   const removeFromCart = (productId) => {
     setCart(prevCart => {
@@ -199,17 +171,16 @@ const CreateOrderScreen = ({ navigation }) => {
       return;
     }
     
-    // Get the single redemption code if entered
-    const sharedRedemptionCode = redemptionCodes.shared || Object.values(redemptionCodes)[0];
+    // Get the single redemption code if in redemption mode
+    const sharedRedemptionCode = redemptionCodes.shared;
     
-    // Validate redemption code if any items are marked for redemption
-    const redemptionItems = cart.filter(item => item.is_redemption);
-    if (redemptionItems.length > 0 && (!sharedRedemptionCode || sharedRedemptionCode.length !== 6)) {
-      Alert.alert('Missing Redemption Code', 'Please enter a valid 6-character redemption code for the items being redeemed with points');
+    // Validate redemption code if redemption mode is active
+    if (isRedemptionMode && (!sharedRedemptionCode || sharedRedemptionCode.length !== 6)) {
+      Alert.alert('Missing Redemption Code', 'Please enter a valid 6-character redemption code for redemption transactions');
       return;
     }
     
-    // Validate that we have at least some items (purchase or redemption)
+    // Validate that we have at least some items
     if (cart.length === 0 && !rewardCode.trim()) {
       Alert.alert('Empty Cart', 'Please add items to the cart or enter a reward code');
       return;
@@ -257,7 +228,7 @@ const CreateOrderScreen = ({ navigation }) => {
         setShowCartModal(false);
         // Clear redemption states
         setRedemptionCodes({});
-        setRedemptionMode({});
+        setIsRedemptionMode(false);
       } else {
         Alert.alert('Error', 'Invalid response from server');
         console.error('Invalid response:', response);
@@ -276,7 +247,7 @@ const CreateOrderScreen = ({ navigation }) => {
     setShortCode(null);
     setCart([]);
     setRedemptionCodes({});
-    setRedemptionMode({});
+    setIsRedemptionMode(false);
     setRewardCode('');
     setRewardCodeStatus(null);
     setAppliedReward(null);
@@ -373,55 +344,16 @@ const CreateOrderScreen = ({ navigation }) => {
             <Text style={styles.modalTitle}>Review Cart</Text>
             <ScrollView style={{ maxHeight: 300, width: '100%' }}>
               {cart.map(item => (
-                <View key={item.id} style={{ 
-                  marginBottom: 15, 
-                  padding: 10, 
-                  backgroundColor: item.is_redemption ? '#fff3e0' : '#f5f5f5', 
-                  borderRadius: 8,
-                  borderLeftWidth: 4,
-                  borderLeftColor: item.is_redemption ? '#ff6f00' : '#4caf50'
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <View key={item.id} style={{ marginBottom: 15, padding: 10, backgroundColor: '#f5f5f5', borderRadius: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={{ flex: 1, fontWeight: '500' }}>{item.name || item.product_name} x{item.quantity}</Text>
                     <Text style={{ width: 80, textAlign: 'right', fontWeight: '600' }}>
-                      {item.is_redemption ? `${Math.round(item.price / 0.6)} pts` : `₱${(item.price * item.quantity).toFixed(2)}`}
+                      ₱{(item.price * item.quantity).toFixed(2)}
                     </Text>
                     <TouchableOpacity onPress={() => removeFromCart(item.id)} style={{ marginLeft: 10 }}>
                       <Icon name="remove-circle-outline" size={22} color="#d32f2f" />
                     </TouchableOpacity>
                   </View>
-                  <TouchableOpacity 
-                    onPress={() => {
-                      setCart(prevCart => prevCart.map(cartItem =>
-                        cartItem.id === item.id 
-                          ? { ...cartItem, is_redemption: !cartItem.is_redemption }
-                          : cartItem
-                      ));
-                    }}
-                    style={{ 
-                      flexDirection: 'row', 
-                      alignItems: 'center',
-                      backgroundColor: '#fff',
-                      padding: 6,
-                      borderRadius: 6,
-                      alignSelf: 'flex-start'
-                    }}
-                  >
-                    <Icon 
-                      name={item.is_redemption ? "gift" : "cash"} 
-                      size={14} 
-                      color={item.is_redemption ? "#ff6f00" : "#4caf50"} 
-                    />
-                    <Text style={{ 
-                      marginLeft: 6, 
-                      fontSize: 12, 
-                      color: item.is_redemption ? "#ff6f00" : "#4caf50",
-                      fontWeight: '600'
-                    }}>
-                      {item.is_redemption ? 'Redeeming with Points' : 'Purchasing with Cash'}
-                    </Text>
-                    <Icon name="swap-horizontal" size={12} color="#999" style={{ marginLeft: 6 }} />
-                  </TouchableOpacity>
                 </View>
               ))}
             </ScrollView>
@@ -464,17 +396,56 @@ const CreateOrderScreen = ({ navigation }) => {
                 <Text style={{ color: '#888', marginTop: 4 }}>Checking code...</Text>
               )}
             </View>
-            {/* Single Redemption Code Input - Only show if there are redemption items */}
-            {cart.some(item => item.is_redemption) && (
-              <View style={{ marginTop: 20, width: '100%' }}>
+            {/* Redemption Mode Toggle */}
+            <TouchableOpacity 
+              onPress={() => {
+                const newMode = !isRedemptionMode;
+                setIsRedemptionMode(newMode);
+                // Update all cart items
+                setCart(prevCart => prevCart.map(item => ({ ...item, is_redemption: newMode })));
+                // Clear redemption code if turning off
+                if (!newMode) {
+                  setRedemptionCodes({});
+                }
+              }}
+              style={{ 
+                marginTop: 20, 
+                width: '100%',
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: isRedemptionMode ? '#fff3e0' : '#f5f5f5',
+                padding: 12,
+                borderRadius: 10,
+                borderWidth: 2,
+                borderColor: isRedemptionMode ? '#ff6f00' : '#ddd'
+              }}
+            >
+              <Icon 
+                name={isRedemptionMode ? "gift" : "cash"} 
+                size={24} 
+                color={isRedemptionMode ? "#ff6f00" : "#4caf50"} 
+              />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={{ fontWeight: '600', fontSize: 14, color: '#333' }}>
+                  {isRedemptionMode ? 'Redemption Mode Active' : 'Purchase Mode Active'}
+                </Text>
+                <Text style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                  {isRedemptionMode ? 'Customer paying with points' : 'Customer paying with cash'}
+                </Text>
+              </View>
+              <Icon name="swap-horizontal" size={20} color="#999" />
+            </TouchableOpacity>
+            {/* Single Redemption Code Input - Only show in redemption mode */}
+            {isRedemptionMode && (
+              <View style={{ marginTop: 15, width: '100%' }}>
                 <Text style={{ fontWeight: '600', marginBottom: 6 }}>Customer Redemption Code (Required):</Text>
                 <Text style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
-                  Enter customer's 6-character redemption code for the items marked for redemption
+                  Enter customer's 6-character redemption code
                 </Text>
                 <TextInput
                   style={{
                     borderWidth: 1,
-                    borderColor: Object.keys(redemptionCodes).length > 0 ? '#4caf50' : '#ff6f00',
+                    borderColor: Object.keys(redemptionCodes).length > 0 && redemptionCodes.shared?.length === 6 ? '#4caf50' : '#ff6f00',
                     borderRadius: 8,
                     padding: 10,
                     fontSize: 14,
@@ -484,7 +455,7 @@ const CreateOrderScreen = ({ navigation }) => {
                     fontWeight: '600',
                   }}
                   placeholder="Enter 6-character code"
-                  value={Object.values(redemptionCodes)[0] || ''}
+                  value={redemptionCodes.shared || ''}
                   onChangeText={(text) => {
                     const code = text.toUpperCase();
                     if (code.length > 0) {
@@ -511,14 +482,16 @@ const CreateOrderScreen = ({ navigation }) => {
                 style={[
                   styles.modalConfirmButton,
                   (!!generatingQR ||
-                  ((cart.length === 0) && !(rewardCode && rewardCode.trim().length > 0)) ||
-                  (!!rewardCode && rewardCodeStatus !== 'valid' && rewardCodeStatus !== null)) && styles.modalConfirmButtonDisabled
+                  (cart.length === 0 && !rewardCode.trim()) ||
+                  (!!rewardCode && rewardCodeStatus !== 'valid' && rewardCodeStatus !== null) ||
+                  (isRedemptionMode && (!redemptionCodes.shared || redemptionCodes.shared.length !== 6))) && styles.modalConfirmButtonDisabled
                 ]}
                 onPress={finalizeTransaction}
                 disabled={
                   !!generatingQR ||
-                  ((cart.length === 0) && !(rewardCode && rewardCode.trim().length > 0)) ||
-                  (!!rewardCode && rewardCodeStatus !== 'valid' && rewardCodeStatus !== null)
+                  (cart.length === 0 && !rewardCode.trim()) ||
+                  (!!rewardCode && rewardCodeStatus !== 'valid' && rewardCodeStatus !== null) ||
+                  (isRedemptionMode && (!redemptionCodes.shared || redemptionCodes.shared.length !== 6))
                 }
               >
                 <Text style={styles.modalConfirmButtonText}>{generatingQR ? 'Processing...' : 'Confirm'}</Text>
