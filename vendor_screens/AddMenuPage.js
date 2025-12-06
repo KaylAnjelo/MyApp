@@ -205,7 +205,13 @@ const CreateOrderScreen = ({ navigation }) => {
     // Validate redemption code if any items are marked for redemption
     const redemptionItems = cart.filter(item => item.is_redemption);
     if (redemptionItems.length > 0 && (!sharedRedemptionCode || sharedRedemptionCode.length !== 6)) {
-      Alert.alert('Missing Code', 'Please enter a valid 6-character redemption code');
+      Alert.alert('Missing Redemption Code', 'Please enter a valid 6-character redemption code for the items being redeemed with points');
+      return;
+    }
+    
+    // Validate that we have at least some items (purchase or redemption)
+    if (cart.length === 0 && !rewardCode.trim()) {
+      Alert.alert('Empty Cart', 'Please add items to the cart or enter a reward code');
       return;
     }
     
@@ -367,16 +373,55 @@ const CreateOrderScreen = ({ navigation }) => {
             <Text style={styles.modalTitle}>Review Cart</Text>
             <ScrollView style={{ maxHeight: 300, width: '100%' }}>
               {cart.map(item => (
-                <View key={item.id} style={{ marginBottom: 15, padding: 10, backgroundColor: '#f5f5f5', borderRadius: 8 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View key={item.id} style={{ 
+                  marginBottom: 15, 
+                  padding: 10, 
+                  backgroundColor: item.is_redemption ? '#fff3e0' : '#f5f5f5', 
+                  borderRadius: 8,
+                  borderLeftWidth: 4,
+                  borderLeftColor: item.is_redemption ? '#ff6f00' : '#4caf50'
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                     <Text style={{ flex: 1, fontWeight: '500' }}>{item.name || item.product_name} x{item.quantity}</Text>
                     <Text style={{ width: 80, textAlign: 'right', fontWeight: '600' }}>
-                      ₱{(item.price * item.quantity).toFixed(2)}
+                      {item.is_redemption ? `${Math.round(item.price / 0.6)} pts` : `₱${(item.price * item.quantity).toFixed(2)}`}
                     </Text>
                     <TouchableOpacity onPress={() => removeFromCart(item.id)} style={{ marginLeft: 10 }}>
                       <Icon name="remove-circle-outline" size={22} color="#d32f2f" />
                     </TouchableOpacity>
                   </View>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      setCart(prevCart => prevCart.map(cartItem =>
+                        cartItem.id === item.id 
+                          ? { ...cartItem, is_redemption: !cartItem.is_redemption }
+                          : cartItem
+                      ));
+                    }}
+                    style={{ 
+                      flexDirection: 'row', 
+                      alignItems: 'center',
+                      backgroundColor: '#fff',
+                      padding: 6,
+                      borderRadius: 6,
+                      alignSelf: 'flex-start'
+                    }}
+                  >
+                    <Icon 
+                      name={item.is_redemption ? "gift" : "cash"} 
+                      size={14} 
+                      color={item.is_redemption ? "#ff6f00" : "#4caf50"} 
+                    />
+                    <Text style={{ 
+                      marginLeft: 6, 
+                      fontSize: 12, 
+                      color: item.is_redemption ? "#ff6f00" : "#4caf50",
+                      fontWeight: '600'
+                    }}>
+                      {item.is_redemption ? 'Redeeming with Points' : 'Purchasing with Cash'}
+                    </Text>
+                    <Icon name="swap-horizontal" size={12} color="#999" style={{ marginLeft: 6 }} />
+                  </TouchableOpacity>
                 </View>
               ))}
             </ScrollView>
@@ -419,44 +464,41 @@ const CreateOrderScreen = ({ navigation }) => {
                 <Text style={{ color: '#888', marginTop: 4 }}>Checking code...</Text>
               )}
             </View>
-            {/* Single Redemption Code Input */}
-            <View style={{ marginTop: 20, width: '100%' }}>
-              <Text style={{ fontWeight: '600', marginBottom: 6 }}>Customer Redemption Code (Optional):</Text>
-              <Text style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
-                If customer is redeeming products with their points, enter their 6-character code here
-              </Text>
-              <TextInput
-                style={{
-                  borderWidth: 1,
-                  borderColor: Object.keys(redemptionCodes).length > 0 ? '#4caf50' : '#ccc',
-                  borderRadius: 8,
-                  padding: 10,
-                  fontSize: 14,
-                  backgroundColor: '#fff',
-                  textAlign: 'center',
-                  letterSpacing: 2,
-                  fontWeight: '600',
-                }}
-                placeholder="Enter 6-character code"
-                value={Object.values(redemptionCodes)[0] || ''}
-                onChangeText={(text) => {
-                  const code = text.toUpperCase();
-                  // Store single redemption code
-                  if (code.length > 0) {
-                    // Mark all cart items as redemption
-                    setRedemptionCodes({ shared: code });
-                    setCart(prevCart => prevCart.map(item => ({ ...item, is_redemption: true })));
-                  } else {
-                    // Clear redemption for all items
-                    setRedemptionCodes({});
-                    setCart(prevCart => prevCart.map(item => ({ ...item, is_redemption: false })));
-                  }
-                }}
-                autoCapitalize="characters"
-                maxLength={6}
-                editable={!generatingQR}
-              />
-            </View>
+            {/* Single Redemption Code Input - Only show if there are redemption items */}
+            {cart.some(item => item.is_redemption) && (
+              <View style={{ marginTop: 20, width: '100%' }}>
+                <Text style={{ fontWeight: '600', marginBottom: 6 }}>Customer Redemption Code (Required):</Text>
+                <Text style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+                  Enter customer's 6-character redemption code for the items marked for redemption
+                </Text>
+                <TextInput
+                  style={{
+                    borderWidth: 1,
+                    borderColor: Object.keys(redemptionCodes).length > 0 ? '#4caf50' : '#ff6f00',
+                    borderRadius: 8,
+                    padding: 10,
+                    fontSize: 14,
+                    backgroundColor: '#fff',
+                    textAlign: 'center',
+                    letterSpacing: 2,
+                    fontWeight: '600',
+                  }}
+                  placeholder="Enter 6-character code"
+                  value={Object.values(redemptionCodes)[0] || ''}
+                  onChangeText={(text) => {
+                    const code = text.toUpperCase();
+                    if (code.length > 0) {
+                      setRedemptionCodes({ shared: code });
+                    } else {
+                      setRedemptionCodes({});
+                    }
+                  }}
+                  autoCapitalize="characters"
+                  maxLength={6}
+                  editable={!generatingQR}
+                />
+              </View>
+            )}
             <View style={{ flexDirection: 'row', marginTop: 30, width: '100%', gap: 10 }}>
               <TouchableOpacity
                 style={[styles.modalCancelButton]}
