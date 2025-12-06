@@ -17,5 +17,6 @@ router.get('/customer/:customerId/history', (req, res) => redemptionController.g
 router.patch('/redemptions/:redemptionId/status', (req, res) => redemptionController.updateRedemptionStatus(req, res));
 router.get('/owner/:ownerId/redemptions', (req, res) => redemptionController.getStoreRedemptions(req, res));
 router.post('/redemptions/generate-code', (req, res) => redemptionController.generateRedemptionCode(req, res));
+router.post('/redemptions/generate-cart-code', (req, res) => redemptionController.generateCartRedemptionCode(req, res));
 
 module.exports = router;

@@ -21,6 +21,8 @@ export default function SpecificStoreScreen({ route, navigation }) {
   const [rewards, setRewards] = useState([]);
   const [redeeming, setRedeeming] = useState(null); // Track which reward is being redeemed
   const [isMounted, setIsMounted] = useState(true);
+  const [cart, setCart] = useState([]); // Cart for product redemptions
+  const [cartModalVisible, setCartModalVisible] = useState(false);
   const [confirmModal, setConfirmModal] = useState({
     visible: false,
     product: null,
@@ -40,6 +42,86 @@ export default function SpecificStoreScreen({ route, navigation }) {
   console.log('Route params:', route.params);
   console.log('Store ID from params:', storeId);
   console.log('Store Name from params:', storeName);
+
+  // Cart management functions
+  const addToCart = (product) => {
+    console.log('=== ADD TO CART ===');
+    console.log('Product being added:', product);
+    console.log('Current cart before add:', cart);
+    
+    setCart(prevCart => {
+      const existingItem = prevCart.find(item => item.id === product.id);
+      console.log('Existing item in cart:', existingItem);
+      
+      if (existingItem) {
+        const updatedCart = prevCart.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+        console.log('Updated cart (incremented quantity):', updatedCart);
+        return updatedCart;
+      }
+      
+      const newCart = [...prevCart, { ...product, quantity: 1 }];
+      console.log('Updated cart (new item added):', newCart);
+      return newCart;
+    });
+  };
+
+  const removeFromCart = (productId) => {
+    console.log('=== REMOVE FROM CART ===');
+    console.log('Product ID to remove:', productId);
+    console.log('Current cart before removal:', cart);
+    
+    setCart(prevCart => {
+      const existingItem = prevCart.find(item => item.id === productId);
+      console.log('Existing item:', existingItem);
+      
+      if (existingItem && existingItem.quantity > 1) {
+        const updatedCart = prevCart.map(item =>
+          item.id === productId
+            ? { ...item, quantity: item.quantity - 1 }
+            : item
+        );
+        console.log('Updated cart (decremented quantity):', updatedCart);
+        return updatedCart;
+      }
+      
+      const filteredCart = prevCart.filter(item => item.id !== productId);
+      console.log('Updated cart (item removed):', filteredCart);
+      return filteredCart;
+    });
+  };
+
+  const getCartTotal = () => {
+    console.log('=== CALCULATING CART TOTAL ===');
+    console.log('Current cart:', cart);
+    
+    const total = cart.reduce((sum, item) => {
+      let points = Math.round(item.price / 0.6);
+      let lastDigit = points % 10;
+      if (lastDigit !== 0 && lastDigit !== 5) {
+        if (lastDigit < 5) {
+          points = points - lastDigit + 5;
+        } else {
+          points = points + (10 - lastDigit);
+        }
+      }
+      const itemTotal = points * item.quantity;
+      console.log(`Item: ${item.product_name || item.name}, Price: ${item.price}, Points: ${points}, Qty: ${item.quantity}, Subtotal: ${itemTotal}`);
+      return sum + itemTotal;
+    }, 0);
+    
+    console.log('Total points required:', total);
+    return total;
+  };
+
+  const getCartItemCount = () => {
+    const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+    console.log('Cart item count:', count, 'from cart:', cart);
+    return count;
+  };
 
   useEffect(() => {
     setIsMounted(true);
@@ -210,17 +292,55 @@ export default function SpecificStoreScreen({ route, navigation }) {
     return () => (mounted = false);
   }, [storeId]);
 
+  // Log cart state changes
+  useEffect(() => {
+    console.log('=== CART STATE CHANGED ===');
+    console.log('Cart length:', cart.length);
+    console.log('Cart contents:', cart);
+    console.log('Should show floating button:', cart.length > 0);
+  }, [cart]);
+
   const handleBuyProduct = async (product) => {
     try {
-      console.log('=== STARTING PRODUCT REDEMPTION ===');
+      console.log('=== ADDING PRODUCT TO CART ===');
       console.log('Product:', product);
-      console.log('Store state:', store);
-      console.log('Store ID:', storeId);
       
+      // Add product to cart
+      addToCart(product);
+      
+      // Show success message
+      if (isMounted) {
+        showThemedAlert(
+          setAlert,
+          'Added to Cart',
+          `${product.product_name || product.name} added to cart`,
+          [{ 
+            text: 'OK', 
+            onPress: () => {
+              console.log('Added to cart alert dismissed');
+              setAlert({ ...alert, visible: false });
+            }
+          }]
+        );
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      if (isMounted) {
+        showThemedAlert(setAlert, 'Error', 'Failed to add product to cart');
+      }
+    }
+  };
+
+  const handleRedeemCart = async () => {
+    console.log('=== HANDLE REDEEM CART ===');
+    console.log('Cart contents:', cart);
+    
+    try {
       // Get user ID from AsyncStorage
       const userString = await AsyncStorage.getItem('@app_user');
       const user = userString ? JSON.parse(userString) : null;
       const userId = user?.user_id;
+      console.log('User ID:', userId);
 
       if (!userId) {
         console.log('❌ No user ID found');
@@ -230,73 +350,56 @@ export default function SpecificStoreScreen({ route, navigation }) {
         return;
       }
 
-      // Get owner_id - try from store state or fetch from API
+      // Get owner_id
       let ownerId = store?.owner_id;
+      console.log('Store owner ID:', ownerId);
       
       if (!ownerId) {
-        console.log('⚠️ Owner ID not in store state, fetching from API...');
-        try {
-          // Fetch store data to get owner_id
-          const storeData = await apiService.getStore(storeId);
-          console.log('Fetched store data:', storeData);
-          
-          if (storeData && storeData.owner_id) {
-            ownerId = storeData.owner_id;
-            // Update store state with fetched data
-            setStore(storeData);
-            console.log('✓ Got owner_id from API:', ownerId);
-          } else {
-            console.log('❌ Could not get owner_id from API');
-            if (isMounted) {
-              showThemedAlert(setAlert, 'Error', 'Store information not available. Please try again.');
-            }
-            return;
-          }
-        } catch (err) {
-          console.error('Error fetching store data:', err);
+        console.log('⚠️ Fetching store data to get owner_id...');
+        const storeData = await apiService.getStore(storeId);
+        console.log('Fetched store data:', storeData);
+        
+        if (storeData && storeData.owner_id) {
+          ownerId = storeData.owner_id;
+          setStore(storeData);
+          console.log('✓ Got owner_id:', ownerId);
+        } else {
+          console.log('❌ Could not get owner_id');
           if (isMounted) {
-            showThemedAlert(setAlert, 'Error', 'Failed to load store information');
+            showThemedAlert(setAlert, 'Error', 'Store information not available. Please try again.');
           }
           return;
         }
-      } else {
-        console.log('✓ Owner ID from store state:', ownerId);
       }
 
-      // Calculate points required (price / 0.6 rounded to nearest 5)
-      let pointsRequired = Math.round(product.price / 0.6);
-      let lastDigit = pointsRequired % 10;
-      if (lastDigit !== 0 && lastDigit !== 5) {
-        if (lastDigit < 5) {
-          pointsRequired = pointsRequired - lastDigit + 5;
-        } else {
-          pointsRequired = pointsRequired + (10 - lastDigit);
-        }
-      }
+      const totalPoints = getCartTotal();
+      console.log('Total points needed:', totalPoints);
+      console.log('User points available:', userPoints);
 
       // Check if user has enough points
-      if (userPoints < pointsRequired) {
+      if (userPoints < totalPoints) {
         showThemedAlert(
           setAlert,
           'Insufficient Points',
-          `You need ${pointsRequired} points to redeem this product.\n\nYou currently have ${userPoints} points.`,
+          `You need ${totalPoints} points to redeem these products.\n\nYou currently have ${userPoints} points.`,
           [{ text: 'OK' }]
         );
         return;
       }
 
-      // Show themed confirmation modal
+      // Show confirmation modal with cart details
       setConfirmModal({
         visible: true,
-        product,
-        pointsRequired,
+        product: null, // Not a single product, but cart items
+        pointsRequired: totalPoints,
         ownerId,
         userId,
       });
+      setCartModalVisible(false);
     } catch (error) {
-      console.error('Error in handleBuyProduct:', error);
+      console.error('Error preparing cart redemption:', error);
       if (isMounted) {
-        showThemedAlert(setAlert, 'Error', 'Failed to process redemption');
+        showThemedAlert(setAlert, 'Error', 'Failed to process cart');
       }
     }
   };
@@ -304,50 +407,104 @@ export default function SpecificStoreScreen({ route, navigation }) {
   const handleConfirmRedemption = async () => {
     const { product, pointsRequired, ownerId, userId } = confirmModal;
     try {
-      // Try both id and product_id for maximum compatibility
-      const productId = product?.id ?? product?.product_id;
-      console.log('handleConfirmRedemption: sending', {
-        user_id: userId,
-        product_id: productId,
-        store_id: storeId,
-        owner_id: ownerId,
-        points_required: pointsRequired,
-        productObj: product,
-      });
+      // Handle cart redemption (multiple items)
+      if (!product && cart.length > 0) {
+        console.log('=== CONFIRMING CART REDEMPTION ===');
+        console.log('Cart items count:', cart.length);
+        console.log('Cart items:', cart);
+        console.log('handleConfirmRedemption: redeeming cart items', {
+          user_id: userId,
+          cart_items: cart,
+          store_id: storeId,
+          owner_id: ownerId,
+          total_points: pointsRequired,
+        });
 
-      // Use canonical route mounted under /api/rewards
-      const response = await apiService.request('/rewards/redemptions/generate-code', {
-        method: 'POST',
-        body: JSON.stringify({
+        // Generate redemption code for cart
+        console.log('Calling API: /rewards/redemptions/generate-cart-code');
+        const response = await apiService.request('/rewards/redemptions/generate-cart-code', {
+          method: 'POST',
+          body: JSON.stringify({
+            user_id: userId,
+            cart_items: cart.map(item => ({
+              product_id: item.id ?? item.product_id,
+              product_name: item.product_name || item.name,
+              quantity: item.quantity,
+              price: item.price,
+            })),
+            store_id: storeId,
+            owner_id: ownerId,
+            total_points: pointsRequired,
+          }),
+        });
+
+        console.log('generate-cart-code API response:', response);
+
+        const code = response?.redemption_code
+          || response?.code
+          || response?.short_code
+          || response?.data?.redemption_code
+          || response?.data?.code
+          || response?.data?.short_code
+          || '';
+        
+        if (!code) {
+          throw new Error(response?.error || response?.message || 'Failed to generate redemption code');
+        }
+
+        setTransactionCodeModal({
+          visible: true,
+          code,
+          product: { product_name: `${cart.length} items` },
+          points: pointsRequired,
+        });
+
+        // Clear cart after successful redemption
+        setCart([]);
+      } else if (product) {
+        // Handle single product redemption (backward compatibility)
+        const productId = product?.id ?? product?.product_id;
+        console.log('handleConfirmRedemption: sending', {
           user_id: userId,
           product_id: productId,
           store_id: storeId,
           owner_id: ownerId,
           points_required: pointsRequired,
-        }),
-      });
+          productObj: product,
+        });
 
-      console.log('generate-code API response:', response);
+        const response = await apiService.request('/rewards/redemptions/generate-code', {
+          method: 'POST',
+          body: JSON.stringify({
+            user_id: userId,
+            product_id: productId,
+            store_id: storeId,
+            owner_id: ownerId,
+            points_required: pointsRequired,
+          }),
+        });
 
-      // Read code from plain or sendSuccess-wrapped response
-      const code = response?.redemption_code
-        || response?.code
-        || response?.short_code
-        || response?.data?.redemption_code
-        || response?.data?.code
-        || response?.data?.short_code
-        || '';
-      if (!code) {
-        // Show backend error details if present
-        throw new Error(response?.error || response?.message || 'Failed to generate redemption code');
+        console.log('generate-code API response:', response);
+
+        const code = response?.redemption_code
+          || response?.code
+          || response?.short_code
+          || response?.data?.redemption_code
+          || response?.data?.code
+          || response?.data?.short_code
+          || '';
+        
+        if (!code) {
+          throw new Error(response?.error || response?.message || 'Failed to generate redemption code');
+        }
+
+        setTransactionCodeModal({
+          visible: true,
+          code,
+          product,
+          points: pointsRequired,
+        });
       }
-
-      setTransactionCodeModal({
-        visible: true,
-        code,
-        product,
-        points: pointsRequired,
-      });
 
       setConfirmModal({ ...confirmModal, visible: false });
     } catch (error) {
@@ -457,7 +614,10 @@ export default function SpecificStoreScreen({ route, navigation }) {
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Confirm Redemption</Text>
             <Text style={styles.modalMessage}>
-              Redeem "{confirmModal.product?.product_name || confirmModal.product?.name || confirmModal.product?.title}" for {confirmModal.pointsRequired} points?
+              {confirmModal.product 
+                ? `Redeem "${confirmModal.product?.product_name || confirmModal.product?.name || confirmModal.product?.title}" for ${confirmModal.pointsRequired} points?`
+                : `Redeem ${cart.length} item${cart.length > 1 ? 's' : ''} from cart for ${confirmModal.pointsRequired} points?`
+              }
             </Text>
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -470,7 +630,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
                 style={[styles.modalButton, styles.modalConfirm]}
                 onPress={handleConfirmRedemption}
               >
-                <Text style={styles.modalConfirmText}>Redeem</Text>
+                <Text style={styles.modalConfirmText}>Confirm</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -501,12 +661,63 @@ export default function SpecificStoreScreen({ route, navigation }) {
             <Text style={styles.transactionCodeNote}>
               Vendor will verify this code to complete your redemption.
             </Text>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.modalConfirm, { marginTop: 18 }]}
-              onPress={() => setTransactionCodeModal({ ...transactionCodeModal, visible: false })}
-            >
-              <Text style={styles.modalConfirmText}>OK</Text>
-            </TouchableOpacity>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCancel]}
+                onPress={async () => {
+                  console.log('Transaction code modal Cancel pressed');
+                  setTransactionCodeModal({ ...transactionCodeModal, visible: false });
+                  
+                  // Reload user points after redemption
+                  try {
+                    const userString = await AsyncStorage.getItem('@app_user');
+                    const user = userString ? JSON.parse(userString) : null;
+                    const userId = user?.user_id;
+                    
+                    if (userId && storeId) {
+                      const pointsData = await apiService.getUserPoints(userId, storeId);
+                      if (pointsData) {
+                        setUserPoints(Number(pointsData.total_points || 0));
+                        console.log('Updated points after redemption:', pointsData.total_points);
+                      }
+                    }
+                  } catch (error) {
+                    console.error('Error reloading points:', error);
+                  }
+                }}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalConfirm]}
+                onPress={async () => {
+                  console.log('Transaction code modal - Go to Scanner pressed');
+                  setTransactionCodeModal({ ...transactionCodeModal, visible: false });
+                  
+                  // Reload user points after redemption
+                  try {
+                    const userString = await AsyncStorage.getItem('@app_user');
+                    const user = userString ? JSON.parse(userString) : null;
+                    const userId = user?.user_id;
+                    
+                    if (userId && storeId) {
+                      const pointsData = await apiService.getUserPoints(userId, storeId);
+                      if (pointsData) {
+                        setUserPoints(Number(pointsData.total_points || 0));
+                        console.log('Updated points after redemption:', pointsData.total_points);
+                      }
+                    }
+                  } catch (error) {
+                    console.error('Error reloading points:', error);
+                  }
+                  
+                  // Navigate to scanner screen
+                  navigation.navigate('ScannerScreen');
+                }}
+              >
+                <Text style={styles.modalConfirmText}>Go to Scanner</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -688,6 +899,105 @@ export default function SpecificStoreScreen({ route, navigation }) {
           })
         )}
       </ScrollView>
+
+      {/* Floating Cart Button */}
+      {cart.length > 0 && (
+        <TouchableOpacity
+          style={styles.floatingCartButton}
+          onPress={() => setCartModalVisible(true)}
+        >
+          <Ionicons name="cart" size={24} color="#fff" />
+          <View style={styles.cartBadge}>
+            <Text style={styles.cartBadgeText}>{getCartItemCount()}</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Cart Modal */}
+      <Modal
+        visible={cartModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCartModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.cartModalContent}>
+            <View style={styles.cartModalHeader}>
+              <Text style={styles.cartModalTitle}>Your Cart</Text>
+              <TouchableOpacity onPress={() => setCartModalVisible(false)}>
+                <Ionicons name="close" size={28} color={Colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.cartItems}>
+              {cart.map((item) => {
+                let points = Math.round(item.price / 0.6);
+                let lastDigit = points % 10;
+                if (lastDigit !== 0 && lastDigit !== 5) {
+                  if (lastDigit < 5) {
+                    points = points - lastDigit + 5;
+                  } else {
+                    points = points + (10 - lastDigit);
+                  }
+                }
+                
+                return (
+                  <View key={item.id} style={styles.cartItem}>
+                    <View style={styles.cartItemLeft}>
+                      <View style={styles.cartItemInfo}>
+                        <Text style={styles.cartItemName} numberOfLines={2}>
+                          {item.product_name || item.name || 'Product'}
+                        </Text>
+                        <Text style={styles.cartItemPoints}>{points} pts each</Text>
+                      </View>
+                      <View style={styles.cartItemActions}>
+                        <TouchableOpacity
+                          style={styles.cartItemButton}
+                          onPress={() => removeFromCart(item.id)}
+                        >
+                          <Ionicons name="remove-circle" size={24} color={Colors.primary} />
+                        </TouchableOpacity>
+                        <Text style={styles.cartItemQuantity}>{item.quantity}</Text>
+                        <TouchableOpacity
+                          style={styles.cartItemButton}
+                          onPress={() => addToCart(item)}
+                        >
+                          <Ionicons name="add-circle" size={24} color={Colors.primary} />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <Text style={styles.cartItemTotal}>{points * item.quantity} pts</Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.cartModalFooter}>
+              <View style={styles.cartTotalRow}>
+                <Text style={styles.cartTotalLabel}>Total Points:</Text>
+                <Text style={styles.cartTotalValue}>{getCartTotal()}</Text>
+              </View>
+              <View style={styles.cartTotalRow}>
+                <Text style={styles.cartAvailableLabel}>Available:</Text>
+                <Text style={styles.cartAvailableValue}>{userPoints}</Text>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.cartRedeemButton,
+                  userPoints < getCartTotal() && styles.cartRedeemButtonDisabled
+                ]}
+                onPress={handleRedeemCart}
+                disabled={userPoints < getCartTotal()}
+              >
+                <Text style={styles.cartRedeemButtonText}>
+                  {userPoints < getCartTotal() ? 'Insufficient Points' : 'Redeem All'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <ThemedAlert
         visible={alert.visible}
         title={alert.title}
@@ -1022,5 +1332,149 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: 8,
+  },
+  // Cart styles
+  floatingCartButton: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    backgroundColor: Colors.primary,
+    borderRadius: 30,
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Shadows.large,
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#d32f2f',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cartBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  cartModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: Radii.lg,
+    width: '90%',
+    maxHeight: '70%',
+    ...Shadows.large,
+  },
+  cartModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  cartModalTitle: {
+    fontSize: Typography.h2,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  cartItems: {
+    maxHeight: 300,
+    padding: Spacing.lg,
+  },
+  cartItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  cartItemLeft: {
+    flex: 1,
+    marginRight: Spacing.sm,
+  },
+  cartItemInfo: {
+    marginBottom: Spacing.sm,
+  },
+  cartItemName: {
+    fontSize: Typography.body,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+    flexWrap: 'wrap',
+  },
+  cartItemPoints: {
+    fontSize: Typography.small,
+    color: Colors.textSecondary,
+  },
+  cartItemActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cartItemButton: {
+    padding: 4,
+  },
+  cartItemQuantity: {
+    fontSize: Typography.body,
+    fontWeight: '600',
+    marginHorizontal: Spacing.sm,
+    minWidth: 24,
+    textAlign: 'center',
+  },
+  cartItemTotal: {
+    fontSize: Typography.body,
+    fontWeight: '700',
+    color: Colors.primary,
+    minWidth: 60,
+    textAlign: 'right',
+  },
+  cartModalFooter: {
+    padding: Spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  cartTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
+  cartTotalLabel: {
+    fontSize: Typography.h5,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  cartTotalValue: {
+    fontSize: Typography.h4,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  cartAvailableLabel: {
+    fontSize: Typography.body,
+    color: Colors.textSecondary,
+  },
+  cartAvailableValue: {
+    fontSize: Typography.body,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  cartRedeemButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: Spacing.md,
+    borderRadius: Radii.md,
+    alignItems: 'center',
+    marginTop: Spacing.md,
+  },
+  cartRedeemButtonDisabled: {
+    backgroundColor: '#cccccc',
+  },
+  cartRedeemButtonText: {
+    color: '#fff',
+    fontSize: Typography.body,
+    fontWeight: '700',
   },
 });
