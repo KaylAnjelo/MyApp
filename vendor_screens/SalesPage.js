@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, SafeAreaView, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { Colors } from '../styles/theme';
@@ -25,6 +26,7 @@ const SalesPage = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [storeId, setStoreId] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
   const [analyticsData, setAnalyticsData] = useState({
     todayRevenue: 0,
     todayOrders: 0,
@@ -49,7 +51,7 @@ const SalesPage = ({ navigation }) => {
       setLoading(true);
       const userDataStr = await AsyncStorage.getItem('@app_user');
       if (!userDataStr) {
-        Alert.alert('Error', 'User not found. Please login again.');
+        showThemedAlert(setAlert, 'Error', 'User not found. Please login again.');
         navigation.replace('SignIn');
         return;
       }
@@ -58,14 +60,14 @@ const SalesPage = ({ navigation }) => {
       const vendorStoreId = userData.store_id;
 
       if (!vendorStoreId) {
-        Alert.alert('Error', 'Store not assigned to this vendor.');
+        showThemedAlert(setAlert, 'Error', 'Store not assigned to this vendor.');
         return;
       }
 
       setStoreId(vendorStoreId);
     } catch (error) {
       console.error('Error loading initial data:', error);
-      Alert.alert('Error', 'Failed to load initial data.');
+      showThemedAlert(setAlert, 'Error', 'Failed to load initial data.');
     } finally {
       setLoading(false);
     }
@@ -81,7 +83,7 @@ const SalesPage = ({ navigation }) => {
       const parsedUser = JSON.parse(userData);
 
       if (!parsedUser || parsedUser.role !== 'vendor' || !parsedUser.user_id) {
-        Alert.alert('Error', 'Vendor or User ID not found. Please relog.');
+        showThemedAlert(setAlert, 'Error', 'Vendor or User ID not found. Please relog.');
         setLoading(false);
         return;
       }
@@ -134,7 +136,7 @@ const SalesPage = ({ navigation }) => {
       computeAnalytics(filteredTxns);
     } catch (error) {
       console.error('Error loading transactions:', error);
-      Alert.alert('Error', 'Failed to load transactions.');
+      showThemedAlert(setAlert, 'Error', 'Failed to load transactions.');
       setTransactions([]);
     } finally {
       setLoading(false);
@@ -403,6 +405,13 @@ const SalesPage = ({ navigation }) => {
         </TouchableOpacity>
         
       </View>
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert({ ...alert, visible: false })}
+      />
     </SafeAreaView>
   );
 };

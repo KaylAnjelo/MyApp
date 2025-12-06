@@ -7,7 +7,6 @@ import {
   ScrollView,
   SafeAreaView,
   ActivityIndicator,
-  Alert,
   Modal,
   TextInput,
 } from 'react-native';
@@ -15,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import QRCode from 'react-native-qrcode-svg';
 import apiService from '../services/apiService';
+import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 
 // --- Constants ---
 const PRIMARY_RED = '#8B0000'; // Dark Red
@@ -57,6 +57,7 @@ const CreateOrderScreen = ({ navigation }) => {
   // Redemption codes for individual items
   const [redemptionCodes, setRedemptionCodes] = useState({}); // { shared: 'CODE123' }
   const [isRedemptionMode, setIsRedemptionMode] = useState(false); // Global redemption toggle
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
 
   useEffect(() => {
     loadVendorProducts();
@@ -67,7 +68,7 @@ const CreateOrderScreen = ({ navigation }) => {
       // Get vendor's store_id from AsyncStorage
       const userStr = await AsyncStorage.getItem('@app_user');
       if (!userStr) {
-        Alert.alert('Error', 'User data not found. Please login again.');
+        showThemedAlert(setAlert, 'Error', 'User data not found. Please login again.');
         navigation.replace('SignIn');
         return;
       }
@@ -77,7 +78,7 @@ const CreateOrderScreen = ({ navigation }) => {
       const vendorUserId = user.user_id || user._raw?.user_id;
 
       if (!vendorStoreId) {
-        Alert.alert('Error', 'No store assigned to your account. Please contact support.');
+        showThemedAlert(setAlert, 'Error', 'No store assigned to your account. Please contact support.');
         setLoading(false);
         return;
       }
@@ -90,7 +91,7 @@ const CreateOrderScreen = ({ navigation }) => {
       setProducts(productsData || []);
     } catch (error) {
       console.error('Error loading products:', error);
-      Alert.alert('Error', 'Failed to load products. Please try again.');
+      showThemedAlert(setAlert, 'Error', 'Failed to load products. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -166,7 +167,7 @@ const CreateOrderScreen = ({ navigation }) => {
   // Finalize transaction after cart review and reward code
   const finalizeTransaction = async () => {
     if (!vendorId || !storeId) {
-      Alert.alert('Error', 'Vendor or store information is missing. Please reload the page.');
+      showThemedAlert(setAlert, 'Error', 'Vendor or store information is missing. Please reload the page.');
       console.error('Missing vendorId or storeId:', { vendorId, storeId });
       return;
     }
@@ -176,13 +177,13 @@ const CreateOrderScreen = ({ navigation }) => {
     
     // Validate redemption code if redemption mode is active
     if (isRedemptionMode && (!sharedRedemptionCode || sharedRedemptionCode.length !== 6)) {
-      Alert.alert('Missing Redemption Code', 'Please enter a valid 6-character redemption code for redemption transactions');
+      showThemedAlert(setAlert, 'Missing Redemption Code', 'Please enter a valid 6-character redemption code for redemption transactions');
       return;
     }
     
     // Validate that we have at least some items
     if (cart.length === 0 && !rewardCode.trim()) {
-      Alert.alert('Empty Cart', 'Please add items to the cart or enter a reward code');
+      showThemedAlert(setAlert, 'Empty Cart', 'Please add items to the cart or enter a reward code');
       return;
     }
     
@@ -230,12 +231,12 @@ const CreateOrderScreen = ({ navigation }) => {
         setRedemptionCodes({});
         setIsRedemptionMode(false);
       } else {
-        Alert.alert('Error', 'Invalid response from server');
+        showThemedAlert(setAlert, 'Error', 'Invalid response from server');
         console.error('Invalid response:', response);
       }
     } catch (error) {
       console.error('Error generating QR code:', error);
-      Alert.alert('Error', `Failed to generate QR code: ${error.message || 'Unknown error'}`);
+      showThemedAlert(setAlert, 'Error', `Failed to generate QR code: ${error.message || 'Unknown error'}`);
     } finally {
       setGeneratingQR(false);
     }
@@ -576,6 +577,14 @@ const CreateOrderScreen = ({ navigation }) => {
         </TouchableOpacity>
         
       </View>
+
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert({ visible: false, title: '', message: '', buttons: [] })}
+      />
     </SafeAreaView>
   );
 };

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { 
   View, Text, StyleSheet, Image, TouchableOpacity, 
-  SafeAreaView, ScrollView, ActivityIndicator, Alert, TextInput, Modal
+  SafeAreaView, ScrollView, ActivityIndicator, TextInput, Modal
 } from 'react-native';
+import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Ionicons';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
@@ -21,6 +22,7 @@ export default function VendorProfilePage({ navigation }) {
   const [tempLastName, setTempLastName] = useState('');
   const [updatingName, setUpdatingName] = useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
 
   // 🧩 Display helpers
   const displayName = profile?.full_name ||
@@ -181,22 +183,23 @@ export default function VendorProfilePage({ navigation }) {
     
     const hasImage = profile?.profile_image && !profile.profile_image.includes('placeholder');
     
-    Alert.alert(
-      '📷 Profile Photo',
+    showThemedAlert(
+      setAlert,
+      'Profile Photo',
       hasImage ? 'Choose how you\'d like to update your profile picture' : 'Add a profile picture to personalize your account',
       hasImage ? [
         {
-          text: '🔄 Change Photo',
+          text: 'Change Photo',
           onPress: () => selectImageFromLibrary()
         },
         {
-          text: '🗑️ Remove Photo',
+          text: 'Remove Photo',
           style: 'destructive',
           onPress: () => removeProfileImage()
         }
       ] : [
         {
-          text: '📸 Choose Photo',
+          text: 'Choose Photo',
           onPress: () => selectImageFromLibrary()
         }
       ]
@@ -220,21 +223,21 @@ export default function VendorProfilePage({ navigation }) {
       }
 
       if (result.errorCode) {
-        Alert.alert('📷 Selection Error', result.errorMessage || 'Unable to select image. Please try again.');
+        showThemedAlert(setAlert, 'Selection Error', result.errorMessage || 'Unable to select image. Please try again.');
         return;
       }
 
       if (result.assets && result.assets[0]) {
         const asset = result.assets[0];
         if (!asset.base64) {
-          Alert.alert('📷 Image Error', 'We couldn\'t read the selected image. Please try choosing a different photo.');
+          showThemedAlert(setAlert, 'Image Error', 'We couldn\'t read the selected image. Please try choosing a different photo.');
           return;
         }
         await handleUploadImage(asset);
       }
     } catch (error) {
       console.error('Image selection error:', error);
-      Alert.alert('📷 Selection Error', 'Unable to access your photo library. Please try again.');
+      showThemedAlert(setAlert, 'Selection Error', 'Unable to access your photo library. Please try again.');
     }
   };
 
@@ -247,7 +250,7 @@ export default function VendorProfilePage({ navigation }) {
       console.log('🔍 Remove image - profile:', profile);
       
       if (!userId) {
-        Alert.alert('❌ Error', 'User information not found. Please sign in again.');
+        showThemedAlert(setAlert, 'Error', 'User information not found. Please sign in again.');
         return;
       }
 
@@ -266,10 +269,10 @@ export default function VendorProfilePage({ navigation }) {
         await AsyncStorage.setItem('@app_user', JSON.stringify(userData));
       }
       
-      Alert.alert('✅ Photo Removed', 'Your profile photo has been removed successfully!');
+      showThemedAlert(setAlert, 'Photo Removed', 'Your profile photo has been removed successfully!');
     } catch (error) {
       console.error('Remove image error:', error);
-      Alert.alert('❌ Error', 'We couldn\'t remove your photo right now. Please try again.');
+      showThemedAlert(setAlert, 'Error', 'We couldn\'t remove your photo right now. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -281,7 +284,7 @@ export default function VendorProfilePage({ navigation }) {
 
       const userId = profile?.user_id || profile?.userId;
       if (!userId) {
-        Alert.alert('❌ Error', 'User information not found. Please sign in again.');
+        showThemedAlert(setAlert, 'Error', 'User information not found. Please sign in again.');
         return;
       }
 
@@ -306,17 +309,17 @@ export default function VendorProfilePage({ navigation }) {
           await AsyncStorage.setItem('@app_user', JSON.stringify(userData));
         }
 
-        Alert.alert('✅ Success', 'Your profile photo has been updated successfully!');
+        showThemedAlert(setAlert, 'Success', 'Your profile photo has been updated successfully!');
       }
     } catch (error) {
       console.error('Upload error:', error);
-      Alert.alert('❌ Upload Failed', 'We couldn\'t upload your photo right now. Please check your connection and try again.');
+      showThemedAlert(setAlert, 'Upload Failed', 'We couldn\'t upload your photo right now. Please check your connection and try again.');
     } finally {
       setUploading(false);
     }
   };
 
-  const handleChangePassword = () => Alert.alert('Change Password', 'Password change will be implemented');
+  const handleChangePassword = () => showThemedAlert(setAlert, 'Change Password', 'Password change will be implemented');
 
   // 📝 Name editing functions
   const handleEditName = () => {
@@ -333,7 +336,7 @@ export default function VendorProfilePage({ navigation }) {
 
   const handleSaveName = async () => {
     if (!tempFirstName.trim() || !tempLastName.trim()) {
-      Alert.alert('Error', 'Both first name and last name are required');
+      showThemedAlert(setAlert, 'Error', 'Both first name and last name are required');
       return;
     }
 
@@ -357,13 +360,13 @@ export default function VendorProfilePage({ navigation }) {
         // Update AsyncStorage to keep local data in sync
         await AsyncStorage.setItem('@app_user', JSON.stringify(updatedProfile));
         
-        Alert.alert('Success', 'Name updated successfully');
+        showThemedAlert(setAlert, 'Success', 'Name updated successfully');
       } else {
-        Alert.alert('Error', response.message || 'Failed to update name');
+        showThemedAlert(setAlert, 'Error', response.message || 'Failed to update name');
       }
     } catch (error) {
       console.error('Update name error:', error);
-      Alert.alert('Error', 'Failed to update name. Please try again.');
+      showThemedAlert(setAlert, 'Error', 'Failed to update name. Please try again.');
     } finally {
       setUpdatingName(false);
     }
@@ -590,7 +593,7 @@ export default function VendorProfilePage({ navigation }) {
                     navigation.replace('SignIn');
                   } catch (error) {
                     console.error('Logout error:', error);
-                    Alert.alert('Error', 'Failed to logout');
+                    showThemedAlert(setAlert, 'Error', 'Failed to logout');
                   }
                 }}
               >
@@ -630,6 +633,14 @@ export default function VendorProfilePage({ navigation }) {
         </TouchableOpacity>
         
       </View>
+
+      <ThemedAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert({ visible: false, title: '', message: '', buttons: [] })}
+      />
     </SafeAreaView>
   );
 };
