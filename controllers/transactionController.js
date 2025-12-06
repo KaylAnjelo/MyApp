@@ -42,11 +42,12 @@ class TransactionController {
       const {
         vendor_id,
         store_id,
-        items, // Array of {product_id, product_name, quantity, price}
+        items, // Array of {product_id, product_name, quantity, price, is_redemption, redemption_code}
         reward_code, // Optional: reward code from modal
+        has_redemptions, // Flag indicating mixed transaction
       } = req.body;
 
-      console.log('Generate QR Request:', { vendor_id, store_id, itemCount: items?.length, reward_code });
+      console.log('Generate QR Request:', { vendor_id, store_id, itemCount: items?.length, reward_code, has_redemptions });
 
       if (!vendor_id || !store_id) {
         console.error('Missing required fields:', { vendor_id, store_id });
@@ -57,6 +58,39 @@ class TransactionController {
       if ((!items || items.length === 0) && !(reward_code && reward_code.trim().length > 0)) {
         console.error('Missing items and no reward code provided');
         return sendError(res, 'Items are required unless a valid reward code is provided', 400);
+      }
+      
+      // If has_redemptions, validate redemption codes
+      if (has_redemptions) {
+        const redemptionItems = items.filter(item => item.is_redemption);
+        console.log('Validating redemption items:', redemptionItems.length);
+        
+        for (const item of redemptionItems) {
+          if (!item.redemption_code || item.redemption_code.length !== 6) {
+            return sendError(res, `Missing or invalid redemption code for ${item.product_name}`, 400);
+          }
+          
+          // Verify redemption code exists and is valid
+          const { data: pending, error: pendingError } = await supabase
+            .from('pending_transactions')
+            .select('*')
+            .eq('short_code', item.redemption_code.toUpperCase())
+            .eq('used', false)
+            .single();
+          
+          if (pendingError || !pending) {
+            console.error('Invalid redemption code:', item.redemption_code, pendingError);
+            return sendError(res, `Invalid or expired redemption code: ${item.redemption_code}`, 400);
+          }
+          
+          // Check if code is expired
+          if (new Date(pending.expires_at) < new Date()) {
+            return sendError(res, `Redemption code ${item.redemption_code} has expired`, 400);
+          }
+          
+          // Store the pending transaction data for later use
+          item.pending_transaction = pending;
+        }
       }
 
       // Verify vendor belongs to the store
@@ -219,6 +253,36 @@ class TransactionController {
       const referenceNumber = generateReferenceNumber(transactionDate, storeInfo?.store_name || `S${String(store_id).slice(-3)}`);
       const shortCode = generateShortCode();
 
+      // Separate purchase and redemption items
+      const purchaseItems = cart.filter(item => !item.is_redemption);
+      const redemptionItems = cart.filter(item => item.is_redemption);
+      
+      // Calculate purchase total (excluding redemption items)
+      const purchaseTotal = purchaseItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const purchasePoints = parseFloat((purchaseTotal * 0.1).toFixed(2));
+      
+      // Calculate redemption points
+      let redemptionPoints = 0;
+      if (has_redemptions) {
+        redemptionPoints = redemptionItems.reduce((sum, item) => {
+          const pending = item.pending_transaction;
+          const points = pending.transaction_data.points_required || 
+                        pending.transaction_data.total_points || 
+                        Math.round(item.price / 0.6);
+          return sum + (points * item.quantity);
+        }, 0);
+      }
+      
+      const netPoints = purchasePoints - redemptionPoints;
+      
+      // Determine transaction type
+      let transactionType = 'Purchase';
+      if (has_redemptions && purchaseItems.length === 0) {
+        transactionType = 'Redemption';
+      } else if (has_redemptions && purchaseItems.length > 0) {
+        transactionType = 'Mixed';
+      }
+      
       // Prepare transaction data
       const qrData = {
         reference_number: referenceNumber,
@@ -231,11 +295,19 @@ class TransactionController {
           product_name: item.product_name,
           quantity: item.quantity,
           price: parseFloat(item.price),
-          is_reward: item.is_reward || false
+          is_reward: item.is_reward || false,
+          is_redemption: item.is_redemption || false,
+          redemption_code: item.redemption_code || null,
+          pending_transaction_id: item.pending_transaction?.id || null
         })),
         total_amount: parseFloat(totalAmount),
-        total_points: totalPoints,
-        transaction_type: 'Purchase',
+        total_points: totalPoints, // Keep for backwards compatibility
+        purchase_total: parseFloat(purchaseTotal.toFixed(2)),
+        purchase_points: purchasePoints,
+        redemption_points: redemptionPoints,
+        net_points: netPoints,
+        transaction_type: transactionType,
+        has_redemptions: has_redemptions || false,
         reward_id: appliedReward ? Number(appliedReward.reward_id) : null,
         reward_points: rewardPointsCost,
         reward_type: appliedReward && appliedReward.reward_type ? appliedReward.reward_type.toLowerCase() : null,
@@ -540,6 +612,36 @@ class TransactionController {
       if (existingTransaction && existingTransaction.length > 0) {
         return sendError(res, 'Transaction already processed', 400);
       }
+      
+      // Handle mixed transactions (has redemption items)
+      if (qr_data.has_redemptions) {
+        console.log('[processScannedQRInternal] Processing mixed transaction');
+        
+        // Validate redemption codes belong to this customer
+        const redemptionItems = (qr_data.items || []).filter(item => item.is_redemption);
+        
+        for (const item of redemptionItems) {
+          const { data: pending, error: pendingError } = await supabase
+            .from('pending_transactions')
+            .select('*')
+            .eq('short_code', item.redemption_code)
+            .eq('used', false)
+            .single();
+          
+          if (pendingError || !pending) {
+            return sendError(res, `Invalid redemption code: ${item.redemption_code}`, 400);
+          }
+          
+          // Verify code belongs to this customer
+          const pendingCustomerId = pending.transaction_data.user_id;
+          if (pendingCustomerId !== customer_id) {
+            return sendError(res, `Redemption code ${item.redemption_code} doesn't belong to this customer`, 403);
+          }
+          
+          // Store for later processing
+          item.pending_data = pending;
+        }
+      }
 
 
       // Add reward_id and deduction row for reward points
@@ -559,8 +661,29 @@ class TransactionController {
       let transactionRows = (qr_data.items || []).map(item => {
         const rawPrice = parseFloat(item.price || 0);
         let effectivePrice = rawPrice;
-        if (rewardType === 'discount' && discountValue > 0) {
-          effectivePrice = parseFloat((rawPrice * (1 - (discountValue / 100))).toFixed(2));
+        let itemPoints = 0;
+        let itemType = qr_data.transaction_type || 'Purchase';
+        
+        // Handle redemption items
+        if (item.is_redemption) {
+          // Points are negative for redemptions
+          const pending = item.pending_data;
+          if (pending) {
+            const redemptionPoints = pending.transaction_data.points_required || 
+                                    pending.transaction_data.total_points || 
+                                    Math.round(rawPrice / 0.6);
+            itemPoints = -Math.abs(redemptionPoints * item.quantity);
+          } else {
+            itemPoints = -Math.abs(Math.round(rawPrice / 0.6) * item.quantity);
+          }
+          effectivePrice = 0; // No money exchanged for redemptions
+          itemType = 'Redemption';
+        } else {
+          // Regular purchase item
+          if (rewardType === 'discount' && discountValue > 0) {
+            effectivePrice = parseFloat((rawPrice * (1 - (discountValue / 100))).toFixed(2));
+          }
+          itemPoints = parseFloat((effectivePrice * item.quantity * 0.1).toFixed(2));
         }
 
         // Coerce product_id when possible, fall back to fallbackProductId
@@ -578,8 +701,8 @@ class TransactionController {
           product_id: productId,
           quantity: item.quantity,
           price: effectivePrice,
-          points: parseFloat((effectivePrice * item.quantity * 0.1).toFixed(2)),
-          transaction_type: qr_data.transaction_type || 'Purchase',
+          points: itemPoints,
+          transaction_type: itemType,
           reward_id: reward_id
         };
       });
@@ -628,7 +751,9 @@ class TransactionController {
       }
 
       // Compute and persist final points balance for this store
-      const isPurchase = (qr_data.transaction_type || 'Purchase').toLowerCase() === 'purchase';
+      // For mixed transactions, use net_points; otherwise use the old logic
+      const transactionType = (qr_data.transaction_type || 'Purchase').toLowerCase();
+      
       // Get current user points from user_points table
       const { data: userPointsRow, error: userPointsError } = await supabase
         .from('user_points')
@@ -642,14 +767,36 @@ class TransactionController {
         currentPoints = userPointsRow.total_points;
       }
 
-      // Compute final points: start with current, add purchase points (if purchase), then subtract reward_points (if any)
+      // Compute final points based on transaction type
       let finalPoints = currentPoints;
-      if (isPurchase) {
-        finalPoints = finalPoints + (parseFloat(qr_data.total_points) || 0);
+      let pointsChange = 0;
+      
+      if (qr_data.has_redemptions && qr_data.net_points !== undefined) {
+        // Mixed transaction - use net_points directly
+        pointsChange = qr_data.net_points;
+        finalPoints = currentPoints + pointsChange;
+        console.log('[processScannedQRInternal] Mixed transaction - net points:', pointsChange);
+      } else if (transactionType === 'purchase') {
+        // Regular purchase
+        pointsChange = parseFloat(qr_data.total_points) || 0;
+        finalPoints = currentPoints + pointsChange;
+        // Subtract reward points if any
+        if (reward_id && reward_points > 0) {
+          pointsChange -= reward_points;
+          finalPoints -= reward_points;
+        }
+      } else if (transactionType === 'redemption') {
+        // Pure redemption
+        pointsChange = -(reward_points || parseFloat(qr_data.redemption_points) || 0);
+        finalPoints = currentPoints + pointsChange;
       }
-      if (reward_id && reward_points > 0) {
-        finalPoints = finalPoints - reward_points;
-      }
+
+      console.log('[processScannedQRInternal] Points update:', { 
+        current: currentPoints, 
+        change: pointsChange, 
+        final: finalPoints,
+        transactionType 
+      });
 
       try {
         if (userPointsRow) {
@@ -662,7 +809,12 @@ class TransactionController {
         } else {
           const { error } = await supabase
             .from('user_points')
-            .insert({ user_id: customer_id, store_id: qr_data.store_id, total_points: finalPoints, redeemed_points: reward_points > 0 ? reward_points : 0 });
+            .insert({ 
+              user_id: customer_id, 
+              store_id: qr_data.store_id, 
+              total_points: finalPoints, 
+              redeemed_points: reward_points > 0 ? reward_points : 0 
+            });
           if (error) console.error('Points insert error:', error);
         }
       } catch (err) {
@@ -678,6 +830,27 @@ class TransactionController {
         console.log('Marked pending transaction as used:', pendingId);
       }
 
+      // Mark all redemption codes as used (for mixed transactions)
+      if (qr_data.has_redemptions) {
+        const redemptionItems = (qr_data.items || []).filter(item => item.is_redemption);
+        for (const item of redemptionItems) {
+          if (item.pending_transaction_id) {
+            await supabase
+              .from('pending_transactions')
+              .update({ used: true })
+              .eq('id', item.pending_transaction_id);
+            console.log('Marked redemption code as used:', item.redemption_code, 'ID:', item.pending_transaction_id);
+          } else if (item.redemption_code) {
+            // Fallback: mark by short_code if ID not available
+            await supabase
+              .from('pending_transactions')
+              .update({ used: true })
+              .eq('short_code', item.redemption_code.toUpperCase());
+            console.log('Marked redemption code as used (by code):', item.redemption_code);
+          }
+        }
+      }
+
       // Remove from pending transactions if it was a manual code entry
       if (qr_data.short_code && global.pendingTransactions) {
         global.pendingTransactions.delete(qr_data.short_code);
@@ -688,7 +861,10 @@ class TransactionController {
         transaction: {
           reference_number: qr_data.reference_number,
           total_amount: qr_data.total_amount,
-          total_points: qr_data.total_points,
+          total_points: qr_data.total_points || qr_data.net_points,
+          purchase_points: qr_data.purchase_points,
+          redemption_points: qr_data.redemption_points,
+          net_points: qr_data.net_points,
           items_count: transactions.length
         }
       }, 201);

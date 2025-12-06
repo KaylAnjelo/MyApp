@@ -811,6 +811,91 @@ class RedemptionController {
       return sendError(res, 'Server error', 500, err.message);
     }
   }
+
+  async generateCartRedemptionCode(req, res) {
+    try {
+      const { user_id, cart_items, store_id, owner_id, total_points } = req.body;
+      console.log('generateCartRedemptionCode called with:', req.body);
+
+      const missingFields = [];
+      if (!user_id) missingFields.push('user_id');
+      if (!cart_items || !Array.isArray(cart_items) || cart_items.length === 0) missingFields.push('cart_items');
+      if (!store_id) missingFields.push('store_id');
+      if (!owner_id) missingFields.push('owner_id');
+      if (!total_points) missingFields.push('total_points');
+
+      if (missingFields.length > 0) {
+        console.warn('Missing required fields:', missingFields, req.body);
+        return sendError(
+          res,
+          `Missing required fields: ${missingFields.join(', ')}`,
+          400,
+          `Payload: ${JSON.stringify(req.body)}`
+        );
+      }
+
+      // Generate a short alphanumeric code
+      const short_code = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+      // Build reference number
+      const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      let storePart = 'STORE';
+      try {
+        const { data: storeData } = await supabase
+          .from('stores')
+          .select('store_name')
+          .eq('store_id', store_id)
+          .single();
+        storePart = (storeData?.store_name || 'STORE')
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .toUpperCase()
+          .slice(0, 4)
+          .padEnd(4, 'X');
+      } catch (e) {
+        console.warn('Could not fetch store for reference number, using default');
+      }
+      const random = Math.floor(1000 + Math.random() * 9000);
+      const reference_number = `${storePart}-${datePart}-${random}`;
+
+      // Wrap cart data in transaction_data JSONB
+      const transaction_data = {
+        user_id: parseInt(user_id),
+        cart_items: cart_items.map(item => ({
+          product_id: parseInt(item.product_id),
+          product_name: item.product_name,
+          quantity: parseInt(item.quantity),
+          price: parseFloat(item.price)
+        })),
+        store_id: parseInt(store_id),
+        owner_id: parseInt(owner_id),
+        total_points: parseInt(total_points),
+        is_cart: true // Flag to identify cart redemptions
+      };
+
+      // Set expiry (15 minutes)
+      const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+      const { data, error } = await supabase
+        .from('pending_transactions')
+        .insert({
+          short_code,
+          reference_number,
+          transaction_data,
+          expires_at,
+          used: false
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return sendError(res, 'Failed to save cart redemption code', 500, error.message);
+      }
+
+      return sendSuccess(res, { redemption_code: short_code, code: short_code, reference_number });
+    } catch (err) {
+      return sendError(res, 'Server error', 500, err.message);
+    }
+  }
 }
 
 module.exports = new RedemptionController();

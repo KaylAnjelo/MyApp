@@ -54,6 +54,9 @@ const CreateOrderScreen = ({ navigation }) => {
   const [rewardCode, setRewardCode] = useState('');
   const [rewardCodeStatus, setRewardCodeStatus] = useState(null); // null | 'valid' | 'invalid' | 'checking'
   const [appliedReward, setAppliedReward] = useState(null);
+  // Redemption codes for individual items
+  const [redemptionCodes, setRedemptionCodes] = useState({}); // { productId: 'CODE123' }
+  const [redemptionMode, setRedemptionMode] = useState({}); // { productId: true/false }
 
   useEffect(() => {
     loadVendorProducts();
@@ -103,8 +106,38 @@ const CreateOrderScreen = ({ navigation }) => {
             : item
         );
       }
-      return [...prevCart, { ...product, quantity: 1 }];
+      return [...prevCart, { ...product, quantity: 1, is_redemption: false }];
     });
+  };
+
+  const toggleRedemptionMode = (productId) => {
+    setRedemptionMode(prev => ({
+      ...prev,
+      [productId]: !prev[productId]
+    }));
+    
+    // Update cart item
+    setCart(prevCart => prevCart.map(item =>
+      item.id === productId
+        ? { ...item, is_redemption: !redemptionMode[productId] }
+        : item
+    ));
+    
+    // If turning off redemption, clear the code
+    if (redemptionMode[productId]) {
+      setRedemptionCodes(prev => {
+        const newCodes = { ...prev };
+        delete newCodes[productId];
+        return newCodes;
+      });
+    }
+  };
+
+  const updateRedemptionCode = (productId, code) => {
+    setRedemptionCodes(prev => ({
+      ...prev,
+      [productId]: code.toUpperCase()
+    }));
   };
 
   const removeFromCart = (productId) => {
@@ -165,29 +198,59 @@ const CreateOrderScreen = ({ navigation }) => {
       console.error('Missing vendorId or storeId:', { vendorId, storeId });
       return;
     }
+    
+    // Validate redemption codes for items marked as redemption
+    const redemptionItems = cart.filter(item => item.is_redemption);
+    for (const item of redemptionItems) {
+      if (!redemptionCodes[item.id] || redemptionCodes[item.id].length !== 6) {
+        Alert.alert('Missing Code', `Please enter a valid redemption code for ${item.name || item.product_name}`);
+        return;
+      }
+    }
+    
     setGeneratingQR(true);
     try {
-      const items = cart.map(item => ({
-        product_id: item.id,
-        product_name: item.name || item.product_name,
-        quantity: item.quantity,
-        price: parseFloat(item.price)
-      }));
-      // Include reward code if user entered one (backend will validate it).
-      // Previously we only sent the code when `appliedReward` was truthy (after client-side validation),
-      // which could cause the server to never receive the code if validation endpoint failed.
+      // Separate purchase and redemption items
+      const purchaseItems = cart
+        .filter(item => !item.is_redemption)
+        .map(item => ({
+          product_id: item.id,
+          product_name: item.name || item.product_name,
+          quantity: item.quantity,
+          price: parseFloat(item.price),
+          is_redemption: false
+        }));
+      
+      const redemptionItemsFormatted = cart
+        .filter(item => item.is_redemption)
+        .map(item => ({
+          product_id: item.id,
+          product_name: item.name || item.product_name,
+          quantity: item.quantity,
+          price: parseFloat(item.price),
+          is_redemption: true,
+          redemption_code: redemptionCodes[item.id]
+        }));
+      
       const payload = {
         vendor_id: vendorId,
         store_id: storeId,
-        items,
+        items: [...purchaseItems, ...redemptionItemsFormatted],
+        has_redemptions: redemptionItemsFormatted.length > 0,
         reward_code: rewardCode && rewardCode.trim() ? rewardCode.trim() : undefined
       };
+      
+      console.log('Generating transaction with payload:', payload);
+      
       const response = await apiService.generateTransactionQR(payload);
       if (response && response.qr_string && response.short_code) {
         setQrData(response.qr_string);
         setShortCode(response.short_code);
         setShowQRModal(true);
         setShowCartModal(false);
+        // Clear redemption states
+        setRedemptionCodes({});
+        setRedemptionMode({});
       } else {
         Alert.alert('Error', 'Invalid response from server');
         console.error('Invalid response:', response);
@@ -204,7 +267,12 @@ const CreateOrderScreen = ({ navigation }) => {
     setShowQRModal(false);
     setQrData(null);
     setShortCode(null);
-    setCart([]); // Clear cart after QR is shown
+    setCart([]);
+    setRedemptionCodes({});
+    setRedemptionMode({});
+    setRewardCode('');
+    setRewardCodeStatus(null);
+    setAppliedReward(null);
   };
 
   if (loading) {
@@ -296,14 +364,55 @@ const CreateOrderScreen = ({ navigation }) => {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { padding: 20, width: '90%' }]}> 
             <Text style={styles.modalTitle}>Review Cart</Text>
-            <ScrollView style={{ maxHeight: 250, width: '100%' }}>
+            <ScrollView style={{ maxHeight: 300, width: '100%' }}>
               {cart.map(item => (
-                <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                  <Text style={{ flex: 1 }}>{item.name || item.product_name} x{item.quantity}</Text>
-                  <Text style={{ width: 60, textAlign: 'right' }}>₱{(item.price * item.quantity).toFixed(2)}</Text>
-                  <TouchableOpacity onPress={() => removeFromCart(item.id)} style={{ marginLeft: 10 }}>
-                    <Icon name="remove-circle-outline" size={22} color="#d32f2f" />
-                  </TouchableOpacity>
+                <View key={item.id} style={{ marginBottom: 15, padding: 10, backgroundColor: item.is_redemption ? '#fff3e0' : '#f5f5f5', borderRadius: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <Text style={{ flex: 1, fontWeight: '500' }}>{item.name || item.product_name} x{item.quantity}</Text>
+                    <Text style={{ width: 80, textAlign: 'right', fontWeight: '600' }}>
+                      {item.is_redemption ? `${Math.round(item.price / 0.6)}pts` : `₱${(item.price * item.quantity).toFixed(2)}`}
+                    </Text>
+                    <TouchableOpacity onPress={() => removeFromCart(item.id)} style={{ marginLeft: 10 }}>
+                      <Icon name="remove-circle-outline" size={22} color="#d32f2f" />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {/* Redemption Toggle */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: item.is_redemption ? 8 : 0 }}>
+                    <TouchableOpacity 
+                      onPress={() => toggleRedemptionMode(item.id)}
+                      style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+                    >
+                      <Icon 
+                        name={item.is_redemption ? "checkbox" : "square-outline"} 
+                        size={20} 
+                        color={item.is_redemption ? "#ff6f00" : "#888"} 
+                      />
+                      <Text style={{ marginLeft: 6, fontSize: 13, color: item.is_redemption ? "#ff6f00" : "#666" }}>
+                        Redeem with points
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {/* Redemption Code Input (only if redemption mode is ON) */}
+                  {item.is_redemption && (
+                    <TextInput
+                      style={{
+                        borderWidth: 1,
+                        borderColor: redemptionCodes[item.id] ? '#4caf50' : '#ff6f00',
+                        borderRadius: 6,
+                        padding: 6,
+                        fontSize: 13,
+                        backgroundColor: '#fff',
+                      }}
+                      placeholder="Enter customer's redemption code"
+                      value={redemptionCodes[item.id] || ''}
+                      onChangeText={(text) => updateRedemptionCode(item.id, text)}
+                      autoCapitalize="characters"
+                      maxLength={6}
+                      editable={!generatingQR}
+                    />
+                  )}
                 </View>
               ))}
             </ScrollView>
