@@ -617,6 +617,16 @@ class TransactionController {
 
       // Get the transaction data
       const qrData = pending.transaction_data || pending.data;
+      
+      // Add reference_number from pending transaction if not already in qrData
+      if (!qrData.reference_number && pending.reference_number) {
+        qrData.reference_number = pending.reference_number;
+      }
+      
+      // Add transaction_date if missing (use current timestamp)
+      if (!qrData.transaction_date) {
+        qrData.transaction_date = new Date().toISOString();
+      }
 
       // Call internal processing method
       return this.processScannedQRInternal(req, res, customer_id, qrData, pendingId);
@@ -777,10 +787,33 @@ class TransactionController {
           // Points are negative for redemptions
           const pending = item.pending_data;
           if (pending) {
-            const redemptionPoints = pending.transaction_data.points_required || 
-                                    pending.transaction_data.total_points || 
-                                    Math.round(rawPrice / 0.6);
-            itemPoints = -Math.abs(redemptionPoints * item.quantity);
+            // Check if this is a code-only redemption (cart redemption)
+            const isCartRedemption = pending.transaction_data.is_cart === true;
+            
+            if (isCartRedemption) {
+              // For code-only redemption, total_points is already the TOTAL for all items
+              // Calculate this item's proportional share based on price * quantity
+              const totalPoints = pending.transaction_data.total_points || 0;
+              const allItems = pending.transaction_data.items || [];
+              
+              // Calculate total value of all items in the cart
+              const totalValue = allItems.reduce((sum, i) => sum + (parseFloat(i.price || 0) * parseInt(i.quantity || 1)), 0);
+              
+              // Calculate this item's value
+              const itemValue = rawPrice * item.quantity;
+              
+              // Proportionally distribute the total points
+              if (totalValue > 0) {
+                itemPoints = -Math.abs(Math.round((itemValue / totalValue) * totalPoints));
+              } else {
+                itemPoints = -Math.abs(Math.round(totalPoints / allItems.length));
+              }
+            } else {
+              // For regular redemption items, points_required is per item
+              const redemptionPoints = pending.transaction_data.points_required || 
+                                      Math.round(rawPrice / 0.6);
+              itemPoints = -Math.abs(redemptionPoints * item.quantity);
+            }
           } else {
             itemPoints = -Math.abs(Math.round(rawPrice / 0.6) * item.quantity);
           }
