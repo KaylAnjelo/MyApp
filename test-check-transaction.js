@@ -2,7 +2,7 @@
 const { supabase } = require('./config/supabase');
 
 async function checkTransaction() {
-  const refNumber = 'NUTE-20251207-7159'; // Latest test
+  const refNumber = 'NUTE-20251207-1650'; // Latest test
   console.log(`Checking for transaction with reference ${refNumber}...\n`);
   
   // Check transactions table
@@ -29,11 +29,11 @@ async function checkTransaction() {
     }
   }
   
-  // Check pending_transactions table
+  // Check pending_transactions table - use latest codes
   const { data: pending, error: pendError } = await supabase
     .from('pending_transactions')
     .select('*')
-    .or('short_code.eq.PIGBQ0,short_code.eq.HU9U6P');
+    .or('short_code.eq.5CDI5Z,short_code.eq.E37FJD');
   
   if (pendError) {
     console.error('Error querying pending transactions:', pendError);
@@ -44,6 +44,10 @@ async function checkTransaction() {
         console.log(`  - Code: ${p.short_code}`);
         console.log(`  - Used: ${p.used}`);
         console.log(`  - Expires: ${p.expires_at}`);
+        console.log(`  - Items in transaction_data:`, p.transaction_data?.items?.length || 0);
+        if (p.transaction_data?.items?.length > 0) {
+          console.log(`    First item:`, JSON.stringify(p.transaction_data.items[0]).substring(0, 100));
+        }
         console.log('---');
       });
     }

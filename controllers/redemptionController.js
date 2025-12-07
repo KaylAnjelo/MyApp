@@ -860,7 +860,7 @@ class RedemptionController {
       // Wrap cart data in transaction_data JSONB
       const transaction_data = {
         user_id: parseInt(user_id),
-        cart_items: cart_items.map(item => ({
+        items: cart_items.map(item => ({
           product_id: parseInt(item.product_id),
           product_name: item.product_name,
           quantity: parseInt(item.quantity),
