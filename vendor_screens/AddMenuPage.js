@@ -215,7 +215,8 @@ const CreateOrderScreen = ({ navigation }) => {
         vendor_id: vendorId,
         store_id: storeId,
         items: [...purchaseItems, ...redemptionItemsFormatted],
-        has_redemptions: redemptionItemsFormatted.length > 0,
+        has_redemptions: redemptionItemsFormatted.length > 0 || (isRedemptionMode && sharedRedemptionCode),
+        redemption_code: sharedRedemptionCode || undefined,
         reward_code: rewardCode && rewardCode.trim() ? rewardCode.trim() : undefined
       };
       

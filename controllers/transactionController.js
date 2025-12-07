@@ -45,6 +45,7 @@ class TransactionController {
         items, // Array of {product_id, product_name, quantity, price, is_redemption, redemption_code}
         reward_code, // Optional: reward code from modal
         has_redemptions, // Flag indicating mixed transaction
+        redemption_code, // Optional: single redemption code for code-only redemption
       } = req.body;
 
       console.log('Generate QR Request:', { vendor_id, store_id, itemCount: items?.length, reward_code, has_redemptions });
@@ -66,31 +67,63 @@ class TransactionController {
         const redemptionItems = items ? items.filter(item => item.is_redemption) : [];
         console.log('Validating redemption items:', redemptionItems.length);
         
-        for (const item of redemptionItems) {
-          if (!item.redemption_code || item.redemption_code.length !== 6) {
-            return sendError(res, `Missing or invalid redemption code for ${item.product_name}`, 400);
+        // Handle code-only redemption (no cart items)
+        if (redemptionItems.length === 0 && redemption_code) {
+          console.log('Code-only redemption detected, validating code:', redemption_code);
+          
+          if (redemption_code.length !== 6) {
+            return sendError(res, 'Invalid redemption code format (must be 6 characters)', 400);
           }
           
           // Verify redemption code exists and is valid
           const { data: pending, error: pendingError } = await supabase
             .from('pending_transactions')
             .select('*')
-            .eq('short_code', item.redemption_code.toUpperCase())
+            .eq('short_code', redemption_code.toUpperCase())
             .eq('used', false)
             .single();
           
           if (pendingError || !pending) {
-            console.error('Invalid redemption code:', item.redemption_code, pendingError);
-            return sendError(res, `Invalid or expired redemption code: ${item.redemption_code}`, 400);
+            console.error('Invalid redemption code:', redemption_code, pendingError);
+            return sendError(res, `Invalid or expired redemption code: ${redemption_code}`, 400);
           }
           
           // Check if code is expired
           if (new Date(pending.expires_at) < new Date()) {
-            return sendError(res, `Redemption code ${item.redemption_code} has expired`, 400);
+            return sendError(res, `Redemption code ${redemption_code} has expired`, 400);
           }
           
-          // Store the pending transaction data for later use
-          item.pending_transaction = pending;
+          console.log('Code-only redemption validated successfully');
+          // Store for later - we'll use this pending transaction data
+          req.codeOnlyRedemption = { code: redemption_code, pending };
+        } else {
+          // Cart-based redemption items validation
+          for (const item of redemptionItems) {
+            if (!item.redemption_code || item.redemption_code.length !== 6) {
+              return sendError(res, `Missing or invalid redemption code for ${item.product_name}`, 400);
+            }
+            
+            // Verify redemption code exists and is valid
+            const { data: pending, error: pendingError } = await supabase
+              .from('pending_transactions')
+              .select('*')
+              .eq('short_code', item.redemption_code.toUpperCase())
+              .eq('used', false)
+              .single();
+            
+            if (pendingError || !pending) {
+              console.error('Invalid redemption code:', item.redemption_code, pendingError);
+              return sendError(res, `Invalid or expired redemption code: ${item.redemption_code}`, 400);
+            }
+            
+            // Check if code is expired
+            if (new Date(pending.expires_at) < new Date()) {
+              return sendError(res, `Redemption code ${item.redemption_code} has expired`, 400);
+            }
+            
+            // Store the pending transaction data for later use
+            item.pending_transaction = pending;
+          }
         }
       }
 
@@ -268,13 +301,22 @@ class TransactionController {
       // Calculate redemption points
       let redemptionPoints = 0;
       if (has_redemptions) {
-        redemptionPoints = redemptionItems.reduce((sum, item) => {
-          const pending = item.pending_transaction;
-          const points = pending.transaction_data.points_required || 
-                        pending.transaction_data.total_points || 
-                        Math.round(item.price / 0.6);
-          return sum + (points * item.quantity);
-        }, 0);
+        // Handle code-only redemption
+        if (req.codeOnlyRedemption) {
+          const pending = req.codeOnlyRedemption.pending;
+          redemptionPoints = pending.transaction_data.points_required || 
+                            pending.transaction_data.total_points || 0;
+          console.log('Code-only redemption points:', redemptionPoints);
+        } else {
+          // Cart-based redemption
+          redemptionPoints = redemptionItems.reduce((sum, item) => {
+            const pending = item.pending_transaction;
+            const points = pending.transaction_data.points_required || 
+                          pending.transaction_data.total_points || 
+                          Math.round(item.price / 0.6);
+            return sum + (points * item.quantity);
+          }, 0);
+        }
       }
       
       const netPoints = purchasePoints - redemptionPoints;
@@ -304,6 +346,9 @@ class TransactionController {
           redemption_code: item.redemption_code || null,
           pending_transaction_id: item.pending_transaction?.id || null
         })),
+        // For code-only redemption, include the code and pending transaction ID
+        redemption_code: req.codeOnlyRedemption ? req.codeOnlyRedemption.code : undefined,
+        pending_transaction_id: req.codeOnlyRedemption ? req.codeOnlyRedemption.pending.id : undefined,
         total_amount: parseFloat(totalAmount),
         total_points: totalPoints, // Keep for backwards compatibility
         purchase_total: parseFloat(purchaseTotal.toFixed(2)),
@@ -617,9 +662,48 @@ class TransactionController {
         return sendError(res, 'Transaction already processed', 400);
       }
       
-      // Handle mixed transactions (has redemption items)
-      if (qr_data.has_redemptions) {
-        console.log('[processScannedQRInternal] Processing mixed transaction');
+      // Handle code-only redemption (no cart items, just redemption code)
+      if (qr_data.has_redemptions && qr_data.redemption_code && (!qr_data.items || qr_data.items.length === 0)) {
+        console.log('[processScannedQRInternal] Processing code-only redemption with code:', qr_data.redemption_code);
+        
+        // Fetch the customer's pending transaction
+        const { data: customerPending, error: customerPendingError } = await supabase
+          .from('pending_transactions')
+          .select('*')
+          .eq('short_code', qr_data.redemption_code.toUpperCase())
+          .eq('used', false)
+          .single();
+        
+        if (customerPendingError || !customerPending) {
+          console.error('Customer redemption code not found:', qr_data.redemption_code);
+          return sendError(res, `Invalid or expired redemption code: ${qr_data.redemption_code}`, 400);
+        }
+        
+        // Verify code belongs to this customer
+        const pendingCustomerId = customerPending.transaction_data.user_id || customerPending.transaction_data.customer_id;
+        if (pendingCustomerId !== customer_id) {
+          console.error('Redemption code ownership mismatch:', { pendingCustomerId, customer_id });
+          return sendError(res, 'This redemption code does not belong to you', 403);
+        }
+        
+        // Get items from customer's pending transaction
+        const customerItems = customerPending.transaction_data.items || [];
+        console.log('[processScannedQRInternal] Retrieved', customerItems.length, 'items from customer pending transaction');
+        
+        // Add items to qr_data for processing
+        qr_data.items = customerItems.map(item => ({
+          ...item,
+          is_redemption: true,
+          redemption_code: qr_data.redemption_code
+        }));
+        
+        // Store pending data for later processing
+        qr_data.customer_pending_id = customerPending.id;
+      }
+      
+      // Handle mixed transactions (has redemption items in cart)
+      if (qr_data.has_redemptions && qr_data.items && qr_data.items.length > 0) {
+        console.log('[processScannedQRInternal] Processing transaction with redemption items');
         
         // Validate redemption codes belong to this customer
         const redemptionItems = (qr_data.items || []).filter(item => item.is_redemption);
@@ -834,8 +918,18 @@ class TransactionController {
         console.log('Marked pending transaction as used:', pendingId);
       }
 
-      // Mark all redemption codes as used (for mixed transactions)
+      // Mark all redemption codes as used (for mixed transactions and code-only)
       if (qr_data.has_redemptions) {
+        // Mark customer's pending transaction for code-only redemption
+        if (qr_data.customer_pending_id) {
+          await supabase
+            .from('pending_transactions')
+            .update({ used: true })
+            .eq('id', qr_data.customer_pending_id);
+          console.log('Marked customer pending transaction as used (code-only):', qr_data.customer_pending_id);
+        }
+        
+        // Mark cart-based redemption codes
         const redemptionItems = (qr_data.items || []).filter(item => item.is_redemption);
         for (const item of redemptionItems) {
           if (item.pending_transaction_id) {
