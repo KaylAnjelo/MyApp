@@ -427,14 +427,18 @@ class TransactionController {
   // Process scanned QR code and create transaction
   async processScannedQR(req, res) {
     try {
+      console.log('=== processScannedQR called ===');
       const { qr_data, customer_id } = req.body;
+      console.log('Request body:', { customer_id, qr_data_type: typeof qr_data, qr_data_preview: JSON.stringify(qr_data).substring(0, 100) });
 
       if (!qr_data || !customer_id) {
+        console.error('Missing qr_data or customer_id');
         return sendError(res, 'QR data and customer ID are required', 400);
       }
 
       // Parse QR data if it's a string
       const transactionData = typeof qr_data === 'string' ? JSON.parse(qr_data) : qr_data;
+      console.log('Parsed transaction data:', { reference_number: transactionData.reference_number, has_redemptions: transactionData.has_redemptions });
 
       // Use the internal processing method
       return this.processScannedQRInternal(req, res, customer_id, transactionData);
@@ -698,6 +702,9 @@ class TransactionController {
           pending_data: customerPending // Attach the full pending transaction for points calculation
         }));
         
+        console.log('[processScannedQRInternal] Populated qr_data.items with', qr_data.items.length, 'items');
+        console.log('[processScannedQRInternal] First item:', JSON.stringify(qr_data.items[0]));
+        
         // Store pending data for later processing
         qr_data.customer_pending_id = customerPending.id;
       }
@@ -747,6 +754,8 @@ class TransactionController {
       // Determine fallback product id (use free_item_product_id or the first item if present)
       const fallbackProductId = qr_data.free_item_product_id != null ? Number(qr_data.free_item_product_id) : (qr_data.items && qr_data.items.length ? qr_data.items[0].product_id : null);
 
+      console.log('[processScannedQRInternal] About to create transaction rows from', (qr_data.items || []).length, 'items');
+      
       let transactionRows = (qr_data.items || []).map(item => {
         const rawPrice = parseFloat(item.price || 0);
         let effectivePrice = rawPrice;
@@ -829,6 +838,13 @@ class TransactionController {
         });
       }
 
+      console.log('[processScannedQRInternal] Inserting', transactionRows.length, 'transaction rows');
+      
+      if (transactionRows.length === 0) {
+        console.error('[processScannedQRInternal] ERROR: No transaction rows to insert! qr_data.items:', qr_data.items);
+        return sendError(res, 'No transaction data to process', 400);
+      }
+      
       const { data: transactions, error: transactionError } = await supabase
         .from('transactions')
         .insert(transactionRows)
@@ -838,6 +854,8 @@ class TransactionController {
         console.error('Transaction insert error:', transactionError);
         return sendError(res, transactionError.message, 400);
       }
+      
+      console.log('[processScannedQRInternal] Successfully inserted', transactions?.length || 0, 'transaction rows');
 
       // Compute and persist final points balance for this store
       // For mixed transactions, use net_points; otherwise use the old logic

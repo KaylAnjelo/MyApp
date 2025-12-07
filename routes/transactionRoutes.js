@@ -10,7 +10,11 @@ router.post('/generate-qr', (req, res) => transactionController.createTransactio
 router.post('/process-qr', (req, res) => transactionController.processScannedQR(req, res));
 
 // POST - Process manual code entry
-router.post('/process-code', (req, res) => transactionController.processShortCode(req, res));
+router.post('/process-code', (req, res) => {
+  console.log('=== /process-code route hit ===');
+  console.log('Request body:', req.body);
+  return transactionController.processShortCode(req, res);
+});
 
 // POST - Purchase product with points
 router.post('/purchase', (req, res) => transactionController.purchaseProduct(req, res));
