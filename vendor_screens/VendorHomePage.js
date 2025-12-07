@@ -24,8 +24,8 @@ const chartConfig = {
 
 // Color palette for product types - matches app's maroon theme
 const productTypeColors = {
-  'Meal': '#D22B2B',        // Main maroon red
-  'Drink': '#FF6B6B',    // Coral red
+  'Meals': '#D22B2B',        // Main maroon red
+  'Beverages': '#FF6B6B',    // Coral red
   'Snacks': '#FFA500',      // Orange
   'Sides': '#FFD700',     // Gold
   'Merchandise': '#8B4513', // Saddle brown

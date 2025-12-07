@@ -11,7 +11,7 @@ const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 // Color palette for product types
 const productTypeColors = {
-  'Meal': '#D22B2B',
+  'Meals': '#D22B2B',
   'Beverages': '#FF6B6B',
   'Sides': '#FFA500',
   'Dessert': '#FFD700',

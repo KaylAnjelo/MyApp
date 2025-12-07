@@ -690,11 +690,12 @@ class TransactionController {
         const customerItems = customerPending.transaction_data.items || [];
         console.log('[processScannedQRInternal] Retrieved', customerItems.length, 'items from customer pending transaction');
         
-        // Add items to qr_data for processing
+        // Add items to qr_data for processing with pending data attached
         qr_data.items = customerItems.map(item => ({
           ...item,
           is_redemption: true,
-          redemption_code: qr_data.redemption_code
+          redemption_code: qr_data.redemption_code,
+          pending_data: customerPending // Attach the full pending transaction for points calculation
         }));
         
         // Store pending data for later processing
