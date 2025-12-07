@@ -54,15 +54,16 @@ class TransactionController {
         return sendError(res, 'Vendor ID and Store ID are required', 400);
       }
 
-      // Allow empty `items` if a reward_code is provided (e.g., claiming free_item without adding products)
-      if ((!items || items.length === 0) && !(reward_code && reward_code.trim().length > 0)) {
-        console.error('Missing items and no reward code provided');
-        return sendError(res, 'Items are required unless a valid reward code is provided', 400);
+      // Allow empty `items` if a reward_code is provided OR if has_redemptions is true
+      // (redemption-only transactions don't need items in advance)
+      if ((!items || items.length === 0) && !(reward_code && reward_code.trim().length > 0) && !has_redemptions) {
+        console.error('Missing items, no reward code, and no redemption flag provided');
+        return sendError(res, 'Items are required unless a valid reward code or redemption code is provided', 400);
       }
       
       // If has_redemptions, validate redemption codes
       if (has_redemptions) {
-        const redemptionItems = items.filter(item => item.is_redemption);
+        const redemptionItems = items ? items.filter(item => item.is_redemption) : [];
         console.log('Validating redemption items:', redemptionItems.length);
         
         for (const item of redemptionItems) {
@@ -127,6 +128,9 @@ class TransactionController {
       }
 
       let cart = items && items.length ? [...items] : [];
+      
+      // If has_redemptions but no items, we'll fetch items from the redemption code later
+      const isRedemptionOnly = has_redemptions && (!items || items.length === 0);
       let appliedReward = null;
       let rewardInfo = null;
 

@@ -181,9 +181,9 @@ const CreateOrderScreen = ({ navigation }) => {
       return;
     }
     
-    // Validate that we have at least some items
-    if (cart.length === 0 && !rewardCode.trim()) {
-      showThemedAlert(setAlert, 'Empty Cart', 'Please add items to the cart or enter a reward code');
+    // Validate that we have at least some items OR a redemption code
+    if (cart.length === 0 && !rewardCode.trim() && !sharedRedemptionCode) {
+      showThemedAlert(setAlert, 'Empty Transaction', 'Please add items to the cart, enter a reward code, or enter a redemption code');
       return;
     }
     
@@ -441,7 +441,7 @@ const CreateOrderScreen = ({ navigation }) => {
               <View style={{ marginTop: 15, width: '100%' }}>
                 <Text style={{ fontWeight: '600', marginBottom: 6 }}>Customer Redemption Code (Required):</Text>
                 <Text style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
-                  Enter customer's 6-character redemption code
+                  Enter customer's 6-character redemption code. You can process redemption without adding items to cart.
                 </Text>
                 <TextInput
                   style={{
@@ -483,14 +483,14 @@ const CreateOrderScreen = ({ navigation }) => {
                 style={[
                   styles.modalConfirmButton,
                   (!!generatingQR ||
-                  (cart.length === 0 && !rewardCode.trim()) ||
+                  (cart.length === 0 && !rewardCode.trim() && !redemptionCodes.shared) ||
                   (!!rewardCode && rewardCodeStatus !== 'valid' && rewardCodeStatus !== null) ||
                   (isRedemptionMode && (!redemptionCodes.shared || redemptionCodes.shared.length !== 6))) && styles.modalConfirmButtonDisabled
                 ]}
                 onPress={finalizeTransaction}
                 disabled={
                   !!generatingQR ||
-                  (cart.length === 0 && !rewardCode.trim()) ||
+                  (cart.length === 0 && !rewardCode.trim() && !redemptionCodes.shared) ||
                   (!!rewardCode && rewardCodeStatus !== 'valid' && rewardCodeStatus !== null) ||
                   (isRedemptionMode && (!redemptionCodes.shared || redemptionCodes.shared.length !== 6))
                 }
