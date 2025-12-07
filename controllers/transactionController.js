@@ -670,18 +670,28 @@ class TransactionController {
       if (qr_data.has_redemptions && qr_data.redemption_code && (!qr_data.items || qr_data.items.length === 0)) {
         console.log('[processScannedQRInternal] Processing code-only redemption with code:', qr_data.redemption_code);
         
-        // Fetch the customer's pending transaction
-        const { data: customerPending, error: customerPendingError } = await supabase
+        // First check if code exists at all (used or not)
+        const { data: anyCode, error: anyError } = await supabase
           .from('pending_transactions')
           .select('*')
           .eq('short_code', qr_data.redemption_code.toUpperCase())
-          .eq('used', false)
           .single();
         
-        if (customerPendingError || !customerPending) {
-          console.error('Customer redemption code not found:', qr_data.redemption_code);
-          return sendError(res, `Invalid or expired redemption code: ${qr_data.redemption_code}`, 400);
+        if (anyError || !anyCode) {
+          console.error('[processScannedQRInternal] Customer code does not exist in database:', qr_data.redemption_code, anyError);
+          return sendError(res, `Invalid redemption code: ${qr_data.redemption_code}`, 400);
         }
+        
+        console.log('[processScannedQRInternal] Customer code found. Used:', anyCode.used, 'Expires:', anyCode.expires_at);
+        
+        // Check if already used
+        if (anyCode.used) {
+          console.error('[processScannedQRInternal] Customer code already used!');
+          return sendError(res, `This redemption code has already been used`, 400);
+        }
+        
+        // Fetch the customer's pending transaction
+        const customerPending = anyCode;
         
         // Verify code belongs to this customer
         const pendingCustomerId = customerPending.transaction_data.user_id || customerPending.transaction_data.customer_id;
