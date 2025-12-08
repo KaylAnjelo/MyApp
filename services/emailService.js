@@ -2,32 +2,16 @@ const nodemailer = require('nodemailer');
 
 class EmailService {
   constructor() {
-    // Use Resend API if available (faster, more reliable)
+    // Check which email service is configured
     this.useResend = !!process.env.RESEND_API_KEY;
+    this.useBrevoAPI = !!process.env.BREVO_API_KEY;
     
     if (this.useResend) {
       console.log('✅ Using Resend API for emails');
+    } else if (this.useBrevoAPI) {
+      console.log('✅ Using Brevo API for emails');
     } else {
-      console.log('Using SMTP for emails');
-      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-        console.error('⚠️ EMAIL_USER or EMAIL_PASSWORD not configured!');
-      }
-      
-      // Configure SMTP with timeout settings (Brevo/Sendinblue)
-      this.transporter = nodemailer.createTransport({
-        host: 'smtp-relay.brevo.com',
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASSWORD,
-        },
-        connectionTimeout: 10000, // 10 seconds
-        greetingTimeout: 10000,
-        socketTimeout: 20000,
-        logger: true,
-        debug: true,
-      });
+      console.log('⚠️ No API key configured - email service will not work');
     }
   }
 
@@ -55,7 +39,7 @@ class EmailService {
       console.log('Sending email to:', email);
       
       if (this.useResend) {
-        // Use Resend API (much faster)
+        // Use Resend API
         const response = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
@@ -76,15 +60,33 @@ class EmailService {
         }
         
         console.log('✅ Email sent via Resend to:', email);
-      } else {
-        // Fall back to SMTP
-        await this.transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: email,
-          subject: 'Your Verification Code - Suki App',
-          html: htmlContent,
+      } else if (this.useBrevoAPI) {
+        // Use Brevo API (v3)
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'api-key': process.env.BREVO_API_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            sender: {
+              name: 'Suki App',
+              email: process.env.EMAIL_FROM || 'sukikalmario828@gmail.com'
+            },
+            to: [{ email: email }],
+            subject: 'Your Verification Code - Suki App',
+            htmlContent: htmlContent
+          })
         });
-        console.log('✅ Email sent via SMTP to:', email);
+
+        if (!response.ok) {
+          const error = await response.text();
+          throw new Error(`Brevo API error: ${error}`);
+        }
+        
+        console.log('✅ Email sent via Brevo to:', email);
+      } else {
+        throw new Error('No email service configured');
       }
       
       return { success: true };
