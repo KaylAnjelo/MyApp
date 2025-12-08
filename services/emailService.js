@@ -2,6 +2,12 @@ const nodemailer = require('nodemailer');
 
 class EmailService {
   constructor() {
+    // Verify email credentials are configured
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+      console.error('⚠️ EMAIL_USER or EMAIL_PASSWORD not configured in environment variables!');
+      console.error('Email sending will fail. Please set these in Railway dashboard.');
+    }
+    
     // Configure your email service
     this.transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
@@ -46,11 +52,17 @@ class EmailService {
     };
 
     try {
+      console.log('Attempting to send email to:', email);
       await this.transporter.sendMail(mailOptions);
+      console.log('Email sent successfully to:', email);
       return { success: true };
     } catch (error) {
       console.error('Error sending email:', error);
-      throw new Error('Failed to send verification email');
+      console.error('Email config:', {
+        user: process.env.EMAIL_USER,
+        hasPassword: !!process.env.EMAIL_PASSWORD
+      });
+      throw new Error(`Failed to send verification email: ${error.message}`);
     }
   }
 }
