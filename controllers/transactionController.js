@@ -525,7 +525,8 @@ class TransactionController {
           *,
           products (
             product_name,
-            product_image
+            product_image,
+            product_type
           ),
           customer:user_id ( 
             first_name,
