@@ -3,7 +3,6 @@ const nodemailer = require('nodemailer');
 class EmailService {
   constructor() {
     // Use Resend API if available (faster, more reliable)
-    // Otherwise fall back to SMTP
     this.useResend = !!process.env.RESEND_API_KEY;
     
     if (this.useResend) {
@@ -14,17 +13,14 @@ class EmailService {
         console.error('⚠️ EMAIL_USER or EMAIL_PASSWORD not configured!');
       }
       
-      // Configure SMTP with timeout settings
+      // Configure SMTP with timeout settings (Brevo/Sendinblue)
       this.transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
+        host: 'smtp-relay.brevo.com',
         port: 587,
         secure: false,
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASSWORD,
-        },
-        tls: {
-          rejectUnauthorized: false,
         },
         connectionTimeout: 10000, // 10 seconds
         greetingTimeout: 10000,
@@ -67,7 +63,7 @@ class EmailService {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            from: process.env.EMAIL_FROM || 'Suki App <onboarding@resend.dev>',
+            from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
             to: email,
             subject: 'Your Verification Code - Suki App',
             html: htmlContent
