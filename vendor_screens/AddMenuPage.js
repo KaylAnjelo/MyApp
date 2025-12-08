@@ -346,15 +346,46 @@ const CreateOrderScreen = ({ navigation }) => {
             <Text style={styles.modalTitle}>Review Cart</Text>
             <ScrollView style={{ maxHeight: 300, width: '100%' }}>
               {cart.map(item => (
-                <View key={item.id} style={{ marginBottom: 15, padding: 10, backgroundColor: '#f5f5f5', borderRadius: 8 }}>
+                <View key={item.id} style={{ marginBottom: 12, padding: 10, backgroundColor: '#f5f5f5', borderRadius: 8 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ flex: 1, fontWeight: '500' }}>{item.name || item.product_name} x{item.quantity}</Text>
-                    <Text style={{ width: 80, textAlign: 'right', fontWeight: '600' }}>
+                    <Text style={{ flex: 1, fontWeight: '500', fontSize: 14 }}>{item.name || item.product_name}</Text>
+                    <Text style={{ fontWeight: '600', fontSize: 14, marginRight: 10 }}>
                       ₱{(item.price * item.quantity).toFixed(2)}
                     </Text>
-                    <TouchableOpacity onPress={() => removeFromCart(item.id)} style={{ marginLeft: 10 }}>
-                      <Icon name="remove-circle-outline" size={22} color="#d32f2f" />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <TouchableOpacity onPress={() => removeFromCart(item.id)} style={{ backgroundColor: '#d32f2f', borderRadius: 4, padding: 4 }}>
+                        <Icon name="remove" size={14} color="#fff" />
+                      </TouchableOpacity>
+                      <TextInput
+                        style={{
+                          borderWidth: 1,
+                          borderColor: '#ddd',
+                          borderRadius: 4,
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          marginHorizontal: 6,
+                          width: 40,
+                          textAlign: 'center',
+                          fontWeight: '600',
+                          backgroundColor: '#fff',
+                          fontSize: 13
+                        }}
+                        value={String(item.quantity)}
+                        onChangeText={(text) => {
+                          const num = parseInt(text) || 0;
+                          if (num > 0) {
+                            setCart(prevCart => prevCart.map(cartItem =>
+                              cartItem.id === item.id ? { ...cartItem, quantity: num } : cartItem
+                            ));
+                          }
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={3}
+                      />
+                      <TouchableOpacity onPress={() => addToCart(item)} style={{ backgroundColor: '#4caf50', borderRadius: 4, padding: 4 }}>
+                        <Icon name="add" size={14} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               ))}

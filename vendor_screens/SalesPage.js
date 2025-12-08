@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, SafeA
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { LineChart, BarChart } from 'react-native-chart-kit';
+import { PieChart } from 'react-native-chart-kit';
 import { Colors } from '../styles/theme';
 import apiService from '../services/apiService';
 
@@ -11,12 +11,12 @@ const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 // Color palette for product types
 const productTypeColors = {
-  'Meals': '#D22B2B',
-  'Beverages': '#FF6B6B',
-  'Sides': '#FFA500',
-  'Dessert': '#FFD700',
-  'Merchandise': '#8B4513',
-  'Other': '#696969'
+  'Meals': '#C0392B',
+  'Beverages': '#16A085',
+  'Sides': '#F39C12',
+  'Dessert': '#D35400',
+  'Merchandise': '#8E44AD',
+  'Other': '#7F8C8D'
 };
 
 const SalesPage = ({ navigation }) => {
@@ -30,10 +30,8 @@ const SalesPage = ({ navigation }) => {
   const [analyticsData, setAnalyticsData] = useState({
     todayRevenue: 0,
     todayOrders: 0,
-    weeklyPerformance: [],
-    topProducts: [],
     salesByType: {},
-    transactionProgress: { current: 0, target: 0 }
+    monthlyOrders: 0
   });
 
   useEffect(() => {
@@ -148,17 +146,16 @@ const SalesPage = ({ navigation }) => {
     const todayStr = today.toDateString();
     let todayRevenue = 0;
     let todayOrders = new Set();
+    let monthlyOrders = new Set();
 
-    // Group transactions by week and product type for salesByType
-    const weeklySalesByType = { 0: {}, 1: {}, 2: {}, 3: {} }; // Weeks 1-4
-    const productRevenue = {};
-    let totalOrders = 0;
+    // Group transactions by product type for salesByType
+    const salesByType = {};
 
     txns.forEach(txn => {
       const txnDate = new Date(txn.transaction_date);
       const txnDateStr = txnDate.toDateString();
-      const week = Math.floor((txnDate.getDate() - 1) / 7); // 0-3 for weeks
-      const productType = txn.products?.category || txn.category || 'Other';
+      // Get product type from products.product_type field
+      const productType = txn.products?.product_type || 'Other';
       const revenue = parseFloat(txn.price || 0) * parseFloat(txn.quantity || 1);
 
       // Today's metrics
@@ -167,99 +164,34 @@ const SalesPage = ({ navigation }) => {
         todayOrders.add(txn.reference_number);
       }
 
-      // Weekly sales by type
-      if (!weeklySalesByType[week]) weeklySalesByType[week] = {};
-      weeklySalesByType[week][productType] = (weeklySalesByType[week][productType] || 0) + revenue;
+      // Monthly orders (all transactions in selected month)
+      monthlyOrders.add(txn.reference_number);
 
-      // Top products
-      const productName = txn.products?.product_name || txn.product_name || 'Unknown Product';
-      productRevenue[productName] = (productRevenue[productName] || 0) + revenue;
-
-      totalOrders += 1; // Assuming each txn is an order item, but for progress, count unique reference_numbers
+      // Total sales by type
+      salesByType[productType] = (salesByType[productType] || 0) + revenue;
     });
 
     const todayOrdersCount = todayOrders.size;
-
-    // Prepare salesByType as array of weekly revenues per type
-    const salesByType = {};
-    Object.keys(productTypeColors).forEach(type => {
-      salesByType[type] = [0, 0, 0, 0];
-    });
-    Object.keys(weeklySalesByType).forEach(week => {
-      Object.keys(weeklySalesByType[week]).forEach(type => {
-        salesByType[type][week] = weeklySalesByType[week][type];
-      });
-    });
-
-    // Top products
-    const topProducts = Object.entries(productRevenue)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, revenue]) => ({ name, revenue }));
-
-    // Weekly performance (total revenue per week)
-    const weeklyPerformance = [0, 0, 0, 0];
-    Object.keys(weeklySalesByType).forEach(week => {
-      weeklyPerformance[week] = Object.values(weeklySalesByType[week]).reduce((sum, val) => sum + val, 0);
-    });
-
-    // Transaction progress: current is total unique orders in month, target is arbitrary (e.g., 100)
-    const uniqueOrders = new Set(txns.map(t => t.reference_number)).size;
-    const target = 100; // Example target, can be adjusted
+    const monthlyOrdersCount = monthlyOrders.size;
 
     setAnalyticsData({
       todayRevenue,
       todayOrders: todayOrdersCount,
-      weeklyPerformance,
-      topProducts,
       salesByType,
-      transactionProgress: { current: uniqueOrders, target }
+      monthlyOrders: monthlyOrdersCount
     });
   };
 
-  // Prepare line chart data for weekly performance by product type
-  const lineChartDatasets = [];
-  const legendItems = [];
+  // Prepare pie chart data for sales by product type
   const salesByType = analyticsData.salesByType || {};
-
-  Object.keys(salesByType).forEach(productType => {
-    const color = productTypeColors[productType] || productTypeColors['Other'];
-    lineChartDatasets.push({
-      data: salesByType[productType],
-      color: (opacity = 1) => color,
-      strokeWidth: 2.5
-    });
-    legendItems.push({ label: productType, color });
-  });
-
-  // Fallback if no product types
-  if (lineChartDatasets.length === 0) {
-    const weeklyRevenue = (analyticsData.weeklyPerformance || []).map(w => w.revenue || 0);
-    lineChartDatasets.push({
-      data: weeklyRevenue.length > 0 ? weeklyRevenue : [0, 0, 0, 0],
-      color: (opacity = 1) => `rgba(0, 191, 165, ${opacity})`,
-      strokeWidth: 3
-    });
-  }
-
-  const lineChartData = {
-    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-    datasets: lineChartDatasets
-  };
-
-  // Prepare bar chart data for top products
-  const topProducts = analyticsData.topProducts || [];
-  const barChartData = {
-    labels: topProducts.slice(0, 5).map(p => p.name.substring(0, 8)),
-    datasets: [{
-      data: topProducts.slice(0, 5).map(p => p.revenue || 0)
-    }]
-  };
-
-  // Progress bar values
-  const progressValue = analyticsData.transactionProgress?.current || 0;
-  const progressMax = analyticsData.transactionProgress?.target || 1;
-  const progressPercent = Math.round((progressValue / progressMax) * 100);
+  const pieChartData = Object.entries(salesByType).map(([type, revenue]) => ({
+    name: type,
+    revenue: revenue,
+    population: revenue,
+    color: productTypeColors[type] || productTypeColors['Other'],
+    legendFontColor: '#333',
+    legendFontSize: 13
+  }));
 
   if (loading) {
     return (
@@ -308,71 +240,46 @@ const SalesPage = ({ navigation }) => {
           </View>
         </ScrollView>
 
-        {/* Sales Performance Chart */}
-        <Text style={styles.sectionTitle}>Sales Performance by Product Type</Text>
-        <LineChart
-          data={lineChartData}
-          width={Dimensions.get('window').width - 40}
-          height={220}
-          chartConfig={{
-            backgroundGradientFrom: "#fff",
-            backgroundGradientTo: "#fff",
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
-            labelColor: (opacity = 1) => `rgba(0,0,0,${opacity})`,
-            propsForDots: {
-              r: "4",
-              strokeWidth: "2",
-              stroke: "#fff"
-            }
-          }}
-          bezier
-          style={{ borderRadius: 15, marginBottom: 10 }}
-        />
-        
-        {/* Legend */}
-        {legendItems.length > 0 && (
-          <View style={styles.legendContainer}>
-            {legendItems.map((item, index) => (
-              <View key={index} style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                <Text style={styles.legendText}>{item.label}</Text>
-              </View>
-            ))}
+        {/* Monthly Orders Progress */}
+        <View style={styles.progressSection}>
+          <Text style={styles.sectionTitle}>Monthly Orders</Text>
+          <View style={styles.ordersDisplay}>
+            <Text style={styles.ordersCount}>{analyticsData.monthlyOrders}</Text>
+            <Text style={styles.ordersLabel}>Total Orders This Month</Text>
           </View>
-        )}
-
-        {/* Transactions Progress Bar */}
-        <Text style={styles.sectionTitle}>Monthly Orders Progress</Text>
-        <View style={styles.progressBarContainer}>
-          <View style={styles.progressBarBackground}>
-            <View style={[styles.progressBarFill, { width: `${Math.min(progressPercent, 100)}%` }]} />
-          </View>
-          <Text style={styles.progressText}>{progressValue} / {progressMax} orders ({progressPercent}%)</Text>
         </View>
 
-        {/* Top Selling Products Bar Chart */}
-        <Text style={styles.sectionTitle}>Top Selling Products (Revenue)</Text>
-        {topProducts.length > 0 ? (
-          <BarChart
-            data={barChartData}
-            width={Dimensions.get('window').width - 40}
-            height={220}
-            chartConfig={{
-              backgroundGradientFrom: "#fff",
-              backgroundGradientTo: "#fff",
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(210, 43, 43, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(0,0,0,${opacity})`,
-              barPercentage: 0.6,
-            }}
-            fromZero
-            showValuesOnTopOfBars
-            style={{ borderRadius: 15, marginBottom: 80 }}
-            yAxisLabel="₱"
-          />
+        {/* Sales Distribution by Product Type */}
+        <Text style={styles.sectionTitle}>Sales Distribution by Product Type</Text>
+        {pieChartData.length > 0 ? (
+          <>
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <PieChart
+                data={pieChartData}
+                width={Dimensions.get('window').width}
+                height={240}
+                chartConfig={{
+                  color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                }}
+                accessor="population"
+                backgroundColor="transparent"
+                paddingLeft="0"
+                hasLegend={false}
+                center={[85, 0]}
+                absolute={false}
+              />
+            </View>
+            <View style={styles.legendContainer}>
+              {pieChartData.map((item, index) => (
+                <View key={index} style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                  <Text style={styles.legendText}>{item.name}: ₱{item.revenue.toFixed(2)}</Text>
+                </View>
+              ))}
+            </View>
+          </>
         ) : (
-          <Text style={styles.noDataText}>No product sales data yet</Text>
+          <Text style={styles.noDataText}>No sales data yet</Text>
         )}
       </ScrollView>
 
@@ -492,26 +399,6 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     color: '#222',
   },
-  progressBarContainer: {
-    marginBottom: 20,
-  },
-  progressBarBackground: {
-    height: 16,
-    backgroundColor: '#eee',
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  progressBarFill: {
-    height: 16,
-    backgroundColor: Colors.primary,
-    borderRadius: 8,
-  },
-  progressText: {
-    fontSize: 13,
-    color: '#333',
-    fontWeight: '600',
-  },
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -544,22 +431,47 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 14,
   },
+  noDataText: {
+    color: '#888',
+    fontSize: 14,
+    textAlign: 'center',
+    marginVertical: 20,
+  },
+  progressSection: {
+    marginBottom: 20,
+  },
+  ordersDisplay: {
+    backgroundColor: '#f8f8f8',
+    borderRadius: 15,
+    padding: 20,
+    alignItems: 'center',
+  },
+  ordersCount: {
+    fontSize: 48,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 5,
+    fontFamily: 'System',
+  },
+  ordersLabel: {
+    fontSize: 14,
+    color: '#000',
+    fontWeight: '400',
+    fontFamily: 'System',
+  },
   legendContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    marginTop: 10,
-    marginBottom: 20,
+    marginTop: 15,
+    marginBottom: 80,
     paddingHorizontal: 10,
-    backgroundColor: '#f9f9f9',
-    paddingVertical: 10,
-    borderRadius: 10,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 15,
-    marginBottom: 5,
+    marginHorizontal: 10,
+    marginVertical: 5,
   },
   legendDot: {
     width: 12,
@@ -571,12 +483,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#333',
     fontWeight: '500',
-  },
-  noDataText: {
-    color: '#888',
-    fontSize: 14,
-    textAlign: 'center',
-    marginVertical: 20,
   },
 });
 

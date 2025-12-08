@@ -6,14 +6,6 @@ import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 export default function NotificationsScreen({ navigation }) {
-  console.log('NotificationsScreen mounted');
-  // Debug: Confirm screen renders
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-      <Text style={{ fontSize: 22, color: '#d32f2f', fontWeight: 'bold' }}>Notifications Screen Loaded</Text>
-    </View>
-  );
-  // ...existing code...
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -164,7 +156,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: 10,
+    paddingTop: 50,
   },
   headerRow: {
     flexDirection: 'row',
