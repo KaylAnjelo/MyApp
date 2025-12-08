@@ -2,7 +2,7 @@
 // Replace `API_HOST` with your production backend URL before building release APKs
 // Example: export const API_HOST = 'https://api.myapp.com';
 
-export const API_HOST = 'http://localhost:3000'; // Local testing server URL
+export const API_HOST = 'https://suki-app.up.railway.app'; // Local testing server URL
 export const API_BASE_URL = `${API_HOST}/api`;
 
 // For health checks you may want the host without the /api suffix
