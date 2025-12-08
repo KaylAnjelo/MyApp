@@ -82,8 +82,8 @@ android {
         applicationId "com.suki_app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "2.0"
     }
     // Load signing properties from project root `key.properties` or module `key.properties` (not checked into VCS)
     def keystorePropertiesFile = rootProject.file("key.properties")

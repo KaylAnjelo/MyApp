@@ -308,21 +308,7 @@ export default function SpecificStoreScreen({ route, navigation }) {
       // Add product to cart
       addToCart(product);
       
-      // Show success message
-      if (isMounted) {
-        showThemedAlert(
-          setAlert,
-          'Added to Cart',
-          `${product.product_name || product.name} added to cart`,
-          [{ 
-            text: 'OK', 
-            onPress: () => {
-              console.log('Added to cart alert dismissed');
-              setAlert({ ...alert, visible: false });
-            }
-          }]
-        );
-      }
+      // No modal shown - item silently added to cart
     } catch (error) {
       console.error('Error adding to cart:', error);
       if (isMounted) {

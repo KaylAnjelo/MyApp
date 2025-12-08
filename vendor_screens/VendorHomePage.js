@@ -251,7 +251,6 @@ const VendorHomePage = ({ navigation }) => { // <-- Add navigation prop
 
   // Create datasets for each product type
   const datasets = [];
-  const legendItems = [];
   const salesByType = salesSummary.salesByType || {};
   
   console.log('Creating chart - salesByType:', salesByType);
@@ -273,11 +272,6 @@ const VendorHomePage = ({ navigation }) => { // <-- Add navigation prop
       data: weeklySales,
       color: (opacity = 1) => color,
       strokeWidth: 2.5
-    });
-    
-    legendItems.push({
-      label: productType,
-      color: color
     });
   });
 
@@ -316,16 +310,12 @@ const VendorHomePage = ({ navigation }) => { // <-- Add navigation prop
 
   return (
     <SafeAreaView style={styles.wrapper}>
+      <View style={styles.headerBar}>
+        <Text style={styles.headerTitle}>Dashboard</Text>
+      </View>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={styles.header}>
-          <Image
-            source={require('../assets/logo_maroon.png')}
-            style={styles.logoImage}/>
-          <TouchableOpacity>
-            <Icon name="notifications" size={24} color="#000" />
-          </TouchableOpacity>
-        </View>
+        
 
         {/* KPIs */}
         <View style={styles.statsContainer}>
@@ -365,33 +355,7 @@ const VendorHomePage = ({ navigation }) => { // <-- Add navigation prop
             style={{ borderRadius: 15 }}
           />
           
-          {/* Legend for product types */}
-          {legendItems.length > 0 && (
-            <View style={styles.legendContainer}>
-              {legendItems.map((item, index) => (
-                <View key={index} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                  <Text style={styles.legendText}>{item.label}</Text>
-                </View>
-              ))}
-            </View>
-          )}
           
-          {/* Summary stats below the legend */}
-          <View style={styles.summaryContainer}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Total Sales ({months[activeMonth]})</Text>
-              <Text style={styles.summaryValue}>
-                ₱{salesSummary.monthlySales.reduce((sum, val) => sum + (val || 0), 0).toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Avg Daily Sales</Text>
-              <Text style={styles.summaryValue}>
-                ₱{(salesSummary.monthlySales.reduce((sum, val) => sum + (val || 0), 0) / daysInMonth).toFixed(2)}
-              </Text>
-            </View>
-          </View>
         </View>
 
         {/* Top Selling Products */}
@@ -460,6 +424,18 @@ const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  headerBar: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -532,35 +508,6 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     backgroundColor: '#fff',
     paddingBottom: 10,
-  },
-  legendContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: 15,
-    marginBottom: 10,
-    paddingHorizontal: 10,
-    backgroundColor: '#f9f9f9',
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginHorizontal: 5,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 15,
-    marginBottom: 5,
-  },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 6,
-  },
-  legendText: {
-    fontSize: 13,
-    color: '#333',
-    fontWeight: '500',
   },
   summaryContainer: {
     flexDirection: 'row',

@@ -99,18 +99,18 @@ export default function VendorProfilePage({ navigation }) {
           try {
             const profileData = await apiService.getUserProfile(currentUserId);
             if (profileData) {
-              console.log('✅ Fresh profile loaded:', profileData);
+              console.log('Fresh profile loaded:', profileData);
               setProfile(profileData);
               await AsyncStorage.setItem('@app_user', JSON.stringify(profileData));
             }
           } catch (err) {
-            console.warn('⚠️ Failed to fetch fresh profile:', err.message);
+            console.warn('Failed to fetch fresh profile:', err.message);
           }
         } else {
-          console.warn('⚠️ No user ID found to fetch profile');
+          console.warn('No user ID found to fetch profile');
         }
       } catch (error) {
-        console.error('❌ Error fetching profile data:', error);
+        console.error('Error fetching profile data:', error);
         setProfileError(error.message || 'Failed to load profile data');
       } finally {
         setLoading(false);
@@ -120,20 +120,20 @@ export default function VendorProfilePage({ navigation }) {
     fetchProfileData();
   }, []);
 
-  // ✅ 2. Fetch store once profile is ready
+  // 2. Fetch store once profile is ready
   useEffect(() => {
     const fetchStoreData = async () => {
       if (!profile) return;
 
       try {
         const storesData = await apiService.getStores();
-        console.log('🛒 Stores fetched:', storesData?.length);
-        console.log('🧩 Stores Data Sample:', storesData);
+        console.log('Stores fetched:', storesData?.length);
+        console.log('Stores Data Sample:', storesData);
 
 
         if (storesData && storesData.length > 0) {
           const userId = profile.user_id || profile.id;
-          console.log('👤 Current user ID:', userId);
+          console.log('Current user ID:', userId);
 
           // Find store where the vendor is part of
           const userStore = storesData.find(
@@ -141,7 +141,7 @@ export default function VendorProfilePage({ navigation }) {
           );
 
           if (userStore) {
-            console.log('✅ Store found:', userStore);
+            console.log('Store found:', userStore);
 
             // Fetch owner details if missing
             if (!userStore.owner_name || !userStore.owner_contact) {
@@ -155,29 +155,29 @@ export default function VendorProfilePage({ navigation }) {
                   userStore.owner_contact = ownerData.contact_number;
                 }
               } catch (ownerErr) {
-                console.warn('⚠️ Failed to fetch owner details:', ownerErr.message);
+                console.warn('Failed to fetch owner details:', ownerErr.message);
               }
             }
 
             setStore(userStore);
           } else {
-            console.log('⚠️ No store found for user:', userId);
+            console.log('No store found for user:', userId);
           }
         }
       } catch (err) {
-        console.warn('⚠️ Failed to fetch store data:', err.message);
+        console.warn('Failed to fetch store data:', err.message);
       }
     };
 
     fetchStoreData();
   }, [profile]);
 
-  // 🧹 Logout
+  // Logout
   const handleLogout = () => {
     setLogoutModalVisible(true);
   };
 
-  // 🛠 Placeholder actions
+  // Placeholder actions
   const handleSelectImage = async () => {
     if (uploading) return; // Prevent multiple taps during upload
     
@@ -246,8 +246,8 @@ export default function VendorProfilePage({ navigation }) {
       setUploading(true);
       
       const userId = profile?.user_id || profile?.userId;
-      console.log('🔍 Remove image - userId:', userId);
-      console.log('🔍 Remove image - profile:', profile);
+      console.log('Remove image - userId:', userId);
+      console.log('Remove image - profile:', profile);
       
       if (!userId) {
         showThemedAlert(setAlert, 'Error', 'User information not found. Please sign in again.');
@@ -255,7 +255,7 @@ export default function VendorProfilePage({ navigation }) {
       }
 
       // Remove image from server
-      console.log('🗑️ Calling removeProfileImage API...');
+      console.log('Calling removeProfileImage API...');
       await apiService.removeProfileImage(userId);
       
       // Update local profile state to remove image
@@ -319,9 +319,19 @@ export default function VendorProfilePage({ navigation }) {
     }
   };
 
-  const handleChangePassword = () => showThemedAlert(setAlert, 'Change Password', 'Password change will be implemented');
+  const handleChangePassword = async () => {
+    try {
+      const userData = await AsyncStorage.getItem('@app_user');
+      const user = userData ? JSON.parse(userData) : {};
+      const userId = user.user_id || user.id;
+      const email = user.email || user.user_email;
+      navigation.navigate('ChangePassword', { userId, email });
+    } catch (e) {
+      navigation.navigate('ChangePassword'); // fallback
+    }
+  };
 
-  // 📝 Name editing functions
+  // Name editing functions
   const handleEditName = () => {
     setTempFirstName(profile?.first_name || '');
     setTempLastName(profile?.last_name || '');
@@ -372,7 +382,7 @@ export default function VendorProfilePage({ navigation }) {
     }
   };
 
-  // 🕑 Loading state
+  // Loading state
   if (loading) {
     return (
       <SafeAreaView style={styles.wrapper}>
@@ -387,7 +397,7 @@ export default function VendorProfilePage({ navigation }) {
     );
   }
 
-  // ❌ Error state
+  //  Error state
   if (profileError) {
     return (
       <SafeAreaView style={styles.wrapper}>
@@ -411,7 +421,7 @@ export default function VendorProfilePage({ navigation }) {
     );
   }
 
-  // ✅ Main UI
+  //  Main UI
   return (
     <SafeAreaView style={styles.wrapper}>
       {/* Header */}
