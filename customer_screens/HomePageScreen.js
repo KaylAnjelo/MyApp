@@ -197,12 +197,17 @@ export default function HomePageScreen({ navigation }) {
             const recent = Object.values(grouped)
               .sort((a, b) => b.date - a.date)
               .slice(0, 5)
-              .map(activity => ({
-                ...activity,
-                formattedDate: activity.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                amount: `₱${activity.total.toFixed(2)}`,
-                pointsEarned: `+${activity.points} pts`
-              }));
+              .map(activity => {
+                // Check if it's a redemption by type or negative points
+                const isRedemption = activity.type.toLowerCase().includes('redeem') || activity.points < 0;
+                const pointsValue = Math.round(Math.abs(activity.points));
+                return {
+                  ...activity,
+                  formattedDate: activity.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                  amount: `₱${activity.total.toFixed(2)}`,
+                  pointsEarned: isRedemption ? `-${pointsValue} pts` : `+${pointsValue} pts`
+                };
+              });
             
             setRecentActivities(recent);
           }

@@ -1,0 +1,278 @@
+================================================================================
+SUKI REWARDS SYSTEM - COMPREHENSIVE SYSTEM DOCUMENTATION
+================================================================================
+
+1. SYSTEM OVERVIEW
+================================================================================
+The Suki Rewards System is a loyalty rewards platform built on a Node.js/Express 
+backend with PostgreSQL (Supabase) database, serving both a React Native mobile 
+application for customers and vendors, and a web-based admin panel. The system 
+enables customers to earn points through purchases, redeem rewards, and vendors 
+to process transactions via QR code scanning. The architecture follows a RESTful 
+API design pattern with JWT-based authentication and role-based access control.
+
+2. BACKEND ARCHITECTURE
+================================================================================
+The backend is structured using Express.js with modular controller-based routing. 
+Core modules include: authController (authentication & user management), 
+productController (inventory management), redemptionController (reward processing), 
+transactionController (purchase tracking), and notificationsController (push 
+notifications). Environment configuration is managed through .env files containing 
+database credentials, JWT secrets, email service configuration, and API base URLs. 
+The system uses Supabase client for database operations with connection pooling. 
+Middleware layers handle error processing (errorHandler.js), CORS configuration, 
+and JSON body parsing. Deployment is managed through Railway with automatic builds 
+from the main branch, using Procfile for process management and environment 
+variables for production configuration.
+
+3. AUTHENTICATION & AUTHORIZATION
+================================================================================
+User authentication utilizes JWT tokens with a two-tier system: access tokens 
+(24-hour expiration) for API authorization and refresh tokens for session 
+persistence. Token generation occurs during login via authController.login(), 
+creating a payload containing user_id, username, email, and role. Token validation 
+happens on protected routes through middleware that verifies signature, expiration, 
+and user existence. Password security implements bcrypt hashing with salt rounds. 
+The system enforces role-based access control with three tiers: customer, vendor, 
+and admin. Admin accounts have elevated privileges for user management, analytics 
+access, and system configuration. First-time vendor accounts created by admins 
+require password change on initial login via must_change_password flag. OTP-based 
+password reset flows use in-memory storage (otpStore Map) with 15-minute expiration, 
+generating 6-digit codes sent via email through a Node.js mail service. Reset 
+tokens are separate from OTPs, generated after verification and stored temporarily 
+for the password change operation.
+
+4. API DESIGN & STRUCTURE
+================================================================================
+The API follows RESTful conventions with routes organized in /routes directory: 
+authRoutes.js (POST /auth/login, /auth/register, /auth/send-otp, /auth/verify-otp, 
+/auth/change-password), productRoutes.js (GET /products, /products/:id, POST 
+/products, PUT /products/:id), redemptionRoutes.js (POST /rewards/redemptions/
+generate-code, /rewards/redemptions/redeem-code), transactionRoutes.js (GET 
+/transactions/:userId, POST /transactions/create), and notificationRoutes.js 
+(GET /notifications/:userId, PUT /notifications/:id/read). Request validation 
+is implemented at controller level, checking required fields and data types before 
+processing. Error handling uses centralized middleware (errorHandler.js) that 
+catches exceptions, formats error responses with consistent structure {success: 
+false, message, error}, and logs errors for debugging. Database operations use 
+Supabase client with parameterized queries to prevent SQL injection. Critical 
+multi-step operations (transaction creation with points update) are wrapped in 
+try-catch blocks with rollback logic, though native PostgreSQL transactions 
+are not explicitly used—relying instead on application-level consistency checks.
+
+5. REACT NATIVE MOBILE APPLICATION
+================================================================================
+The mobile application consists of 26 screens divided between customer (16 screens) 
+and vendor (10 screens) interfaces. Customer screens include: LaunchScreen (app 
+entry), GetStartedScreen (onboarding), SignInScreen (authentication with FontAwesome 
+eye icons for password visibility), SignUpCustomerScreen (registration with email 
+verification), ForgotPasswordScreen/VerifyOTPScreen/ResetPasswordScreen (password 
+recovery flow), HomePageScreen (dashboard with highest points display, popular 
+stores carousel, recent activities list with proper +/- point formatting), 
+StoresScreen (store directory), SpecificStoreScreen (store details with product 
+catalog and redemption interface), ScannerScreen (QR code scanner for transactions), 
+ActivityScreen (transaction history with filterable tabs for All/Purchase/Redemption), 
+TransactionDetailsScreen (itemized receipt view with redemption/purchase point 
+distinction), MyPointsScreen (points balance per store), MyRewardsScreen (earned 
+rewards catalog), NotificationsScreen (push notification center with unread badge), 
+ProfilePageScreen (user profile management with photo upload), and ChangePasswordScreen 
+(password update with strength meter). Vendor screens include: VendorHomePage 
+(dashboard with transaction summary and quick stats), AddMenuPage (product 
+management and QR code generation for purchases/redemptions), TransactionPage 
+(transaction history), SalesPage (sales analytics), and VendorProfilePage (vendor 
+account settings). Navigation uses React Navigation v6 with stack navigators and 
+bottom tab navigation. State management relies on React hooks (useState, useEffect, 
+useContext) and AsyncStorage for persistent data (user session, cached data). 
+API communication occurs through apiService.js using fetch with base URL configuration, 
+automatic JSON parsing, and error handling. Reusable components include ThemedAlert 
+(custom modal replacing native Alert.alert with maroon theme #7D0006), theme.js 
+(centralized Colors, Typography, Spacing, Radii, Shadows), and form input components. 
+The app uses react-native-vector-icons (FontAwesome, FontAwesome5, Ionicons) for 
+iconography, react-native-camera-kit for QR scanning, react-native-image-picker 
+for photo uploads, and @react-native-async-storage/async-storage for local storage.
+
+6. WEB-BASED ADMIN SYSTEM
+================================================================================
+The admin system is a web dashboard for system administrators with role hierarchy 
+enforcement. Admin users can create vendor accounts, assign store associations, 
+view system-wide analytics (total users, transactions, revenue), manage store 
+configurations, approve/reject vendor applications, and export transaction reports. 
+Analytics features include transaction volume graphs, revenue tracking by store, 
+customer acquisition metrics, and redemption rate analysis. Data management tools 
+allow CSV export of transactions, user listings, and sales reports. The admin 
+panel includes audit logging for sensitive operations (user creation, role changes, 
+store assignments). Admin authentication uses the same JWT system as mobile apps 
+but with admin role verification. The interface is built with server-side rendering 
+or can be implemented as a React web app connecting to the same Express API endpoints.
+
+7. CUSTOMER-VENDOR WORKFLOW
+================================================================================
+The customer-vendor transaction workflow operates through QR code-based interactions. 
+For purchases: (1) Vendor creates transaction in AddMenuPage by selecting products 
+and quantities, (2) System generates QR code containing transaction data and 
+reference number via POST /transactions/create, (3) Customer scans QR code using 
+ScannerScreen, (4) System validates transaction and credits points to customer 
+account, (5) Vendor receives confirmation and transaction appears in both parties' 
+history. For redemptions: (1) Customer selects reward in SpecificStoreScreen, 
+(2) System validates sufficient points via getUserPoints API, (3) Confirmation 
+modal displays point requirement, (4) Upon confirmation, POST /rewards/redemptions/
+generate-code creates entry in pending_transactions table with short_code (6-character 
+alphanumeric), reference_number (format: STORE-YYYYMMDD-RAND), transaction_data 
+(JSONB), expires_at (15-minute expiration), and used flag, (5) Modal displays 
+short_code to customer with 15-minute countdown timer, (6) Customer provides 
+short_code to vendor, (7) Vendor enters code in AddMenuPage redemption section, 
+(8) System validates code via pending_transactions lookup checking expiration 
+and used status, (9) If valid, marks code as used, deducts points from customer 
+account, creates transaction record, and completes redemption. Short-code expiration 
+is enforced through expires_at timestamp comparison in redemptionController.
+redeemCode() method, returning error if current time exceeds expiration. Transactional 
+integrity is maintained through database constraints (unique short_code, foreign 
+key relationships), application-level validation (checking points availability 
+before generating code), and status flags (used boolean to prevent double redemption).
+
+8. LOGGING & MONITORING STRATEGY
+================================================================================
+The system implements console-based logging throughout the application. User 
+actions logged include: authentication attempts (login success/failure with 
+username and timestamp), transaction creation (reference number, amount, points, 
+store), redemption code generation (short_code, customer_id, points required), 
+code redemption attempts (code, vendor_id, success/failure), password reset 
+requests (email, OTP generation), and profile updates (user_id, fields changed). 
+Logs are written to stdout using console.log/console.error and captured by Railway's 
+logging system. Error logs include stack traces for debugging. Critical operations 
+log both initiation and completion states. In production, logs can be reviewed 
+through Railway dashboard's log viewer with filtering by timestamp and search 
+terms. No database logging table is currently implemented—all logs are application-level 
+console output. Future enhancement recommendations include structured logging 
+with Winston or Bunyan, log aggregation service (Datadog, New Relic), and database 
+audit tables for compliance requirements.
+
+9. DATABASE SCHEMA & DESIGN
+================================================================================
+The PostgreSQL database schema includes core tables: users (user_id PK, username, 
+email, password_hash, role, must_change_password, created_at), stores (store_id 
+PK, store_name, store_image, store_code, is_active), products (product_id PK, 
+store_id FK, product_name, price, points, image, is_available), rewards (reward_id 
+PK, store_id FK, reward_name, points_required, description, image), transactions 
+(transaction_id PK, reference_number UNIQUE, customer_id FK, vendor_id FK, 
+store_id FK, transaction_type, transaction_date, total, points), transaction_items 
+(item_id PK, transaction_id FK, product_id FK, quantity, price, points), 
+pending_transactions (id PK, short_code UNIQUE, reference_number, customer_id 
+FK, store_id FK, transaction_data JSONB, expires_at, used, created_at), 
+customer_points (id PK, customer_id FK, store_id FK, available_points, total_earned, 
+total_redeemed), notifications (notification_id PK, user_id FK, title, message, 
+is_read, created_at), and user_rewards (id PK, customer_id FK, reward_id FK, 
+redeemed_at, used). Foreign key relationships enforce referential integrity. 
+Indexes exist on reference_number, short_code, customer_id, and store_id for 
+query performance. The schema supports multi-store operations with store_id 
+associations throughout.
+
+10. INSTALLATION & ENVIRONMENT SETUP
+================================================================================
+Backend setup requires Node.js v16+, npm, and PostgreSQL access. Steps: (1) Clone 
+repository, (2) Run npm install to install dependencies (express, bcrypt, jsonwebtoken, 
+@supabase/supabase-js, dotenv, cors, nodemailer, body-parser), (3) Create .env 
+file with: SUPABASE_URL, SUPABASE_ANON_KEY, JWT_SECRET, PORT, EMAIL_USER, 
+EMAIL_PASS, API_BASE_URL, (4) Run database migrations in /migrations directory 
+to create tables, (5) Seed initial data if needed (admin user, test stores), 
+(6) Start server with npm start or node server.js, (7) Verify server running 
+on specified PORT. Mobile app setup requires React Native CLI or Expo, Android 
+Studio/Xcode for device builds. Steps: (1) Navigate to project root, (2) Run 
+npm install, (3) Configure config/api.js with backend API_BASE_URL, (4) For 
+Android: Run npx react-native run-android or build APK with gradlew assembleRelease, 
+(5) For iOS: Run npx react-native run-ios or build with Xcode. Environment 
+configuration distinguishes development (localhost API) from production (Railway 
+URL). Railway deployment connects GitHub repository, sets environment variables 
+in dashboard, and auto-deploys on push to main branch.
+
+11. API REFERENCE SUMMARY
+================================================================================
+Authentication endpoints: POST /api/auth/login (body: username, password; returns: 
+token, user object), POST /api/auth/register (body: email, username, password, 
+role, storeCode; returns: user object), POST /api/auth/send-otp (body: email), 
+POST /api/auth/verify-otp (body: email, otp; returns: resetToken), POST /api/auth/
+change-password (body: email, resetToken, newPassword). Product endpoints: GET 
+/api/products (returns: array of products), GET /api/products/:id, POST /api/products 
+(admin only; body: product_name, price, points, store_id), PUT /api/products/:id. 
+Transaction endpoints: GET /api/transactions/:userId?role=customer/vendor, POST 
+/api/transactions/create (body: vendor_id, customer_id, store_id, items array, 
+transaction_type). Redemption endpoints: POST /api/rewards/redemptions/generate-code 
+(body: customer_id, store_id, reward_id, points_required; returns: short_code, 
+reference_number), POST /api/rewards/redemptions/redeem-code (body: short_code, 
+vendor_id). Points endpoints: GET /api/points/:userId/:storeId (returns: 
+available_points, total_earned, total_redeemed). All authenticated endpoints 
+require Authorization: Bearer <token> header. Error responses follow format: 
+{success: false, message: string, error: string}. Success responses: {success: 
+true, data: object, message: string}.
+
+12. TESTING APPROACH & DEVICE COMPATIBILITY
+================================================================================
+Testing strategy includes manual testing on physical devices (Android 10+, iOS 
+14+), API testing via Postman/Thunder Client collections, and database validation 
+through Supabase dashboard. Test scenarios cover: user registration and login 
+flows, QR code generation and scanning, point accumulation and redemption, expired 
+code handling, concurrent transaction processing, network failure recovery, and 
+offline data persistence. Device compatibility targets Android 8.0+ (API level 
+26) and iOS 13+. React Native version 0.70+ ensures modern device support. Camera 
+permissions required for QR scanning tested on Samsung Galaxy, Google Pixel, 
+iPhone models. Push notifications validated through Firebase Cloud Messaging 
+(if implemented). Performance testing monitors API response times (<500ms for 
+most endpoints), database query optimization (indexed lookups), and mobile app 
+memory usage. Security testing validates JWT expiration, SQL injection prevention 
+through parameterized queries, XSS protection in inputs, and HTTPS enforcement 
+in production.
+
+13. SYSTEM DIAGRAMS
+================================================================================
+Entity Relationship Diagram (ERD): Users table (1-to-many) customer_points, 
+transactions, notifications; Stores table (1-to-many) products, rewards, transactions; 
+Products/Rewards (many-to-1) stores; Transactions (many-to-1) users (customer), 
+users (vendor), stores; Transaction_items (many-to-1) transactions, products; 
+Pending_transactions (many-to-1) users (customer), stores. Workflow Diagram: 
+Customer Purchase Flow: (1) Vendor creates transaction → (2) Generate QR code 
+→ (3) Customer scans → (4) Validate transaction → (5) Credit points → (6) Save 
+to transaction history. Redemption Flow: (1) Customer selects reward → (2) 
+Validate points → (3) Generate short_code → (4) Display to customer → (5) 
+Customer provides code to vendor → (6) Vendor validates code → (7) Deduct points 
+→ (8) Mark code as used → (9) Complete redemption. Architecture Diagram: Mobile 
+Apps (React Native) ↔ REST API (Express.js) ↔ Database (PostgreSQL/Supabase); 
+Supporting services: Email Service (Nodemailer), Cloud Storage (Supabase Storage 
+for images), Push Notifications (optional FCM).
+
+14. KNOWN LIMITATIONS & FUTURE ENHANCEMENTS
+================================================================================
+Current limitations include: (1) In-memory OTP storage loses data on server 
+restart (solution: Redis or database storage), (2) No real-time synchronization 
+between customer/vendor apps (solution: WebSocket implementation), (3) Limited 
+admin analytics granularity (solution: advanced reporting module), (4) Manual 
+code entry for redemptions susceptible to user error (solution: QR-based redemption 
+codes), (5) No transaction rollback for database failures (solution: implement 
+PostgreSQL transactions), (6) Console-only logging insufficient for production 
+monitoring (solution: structured logging service). Future enhancements: Push 
+notification system for transaction confirmations, receipt delivery, and promotional 
+campaigns; Advanced analytics dashboard with revenue forecasting, customer segmentation, 
+and churn prediction; Loyalty tier system with bronze/silver/gold member levels; 
+Social sharing features for earned rewards; Store locator with map integration; 
+Receipt OCR for manual transaction entry; Multi-currency support for international 
+expansion; API rate limiting and request throttling; Two-factor authentication 
+for high-value transactions; Blockchain integration for reward immutability.
+
+15. SUPPORT & MAINTENANCE
+================================================================================
+System maintenance includes regular database backups through Supabase automatic 
+snapshots, dependency updates for security patches (npm audit), log rotation 
+to prevent storage overflow, and performance monitoring via Railway metrics. 
+Support documentation resides in project README.md with setup instructions, 
+BACKEND_SETUP.md for deployment guidelines, and inline code comments for developer 
+reference. Bug reporting uses GitHub Issues with labels for priority and category. 
+Version control follows GitFlow branching strategy: main branch for production, 
+develop branch for integration, feature branches for new development. Database 
+migrations are version-controlled in /migrations folder with timestamp prefixes. 
+Production hotfixes follow emergency deployment process with immediate Railway 
+rebuild after PR approval.
+
+================================================================================
+END OF DOCUMENTATION
+Version: 1.0
+Last Updated: December 8, 2025
+Contact: System Administrator

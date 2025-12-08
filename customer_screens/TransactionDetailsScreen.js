@@ -153,7 +153,11 @@ export default function TransactionDetailsScreen({ route, navigation }) {
               </View>
               <View style={{ height: 8 }} />
               <View style={styles.pointsPill}>
-                <Text style={styles.pointsText}>+{grouped.points} pts</Text>
+                <Text style={styles.pointsText}>
+                  {(grouped.type.toLowerCase().includes('redeem') || grouped.points < 0) 
+                    ? `-${Math.round(Math.abs(grouped.points))}` 
+                    : `+${Math.round(Math.abs(grouped.points))}`} pts
+                </Text>
               </View>
             </View>
 
