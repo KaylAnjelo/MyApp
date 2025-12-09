@@ -10,6 +10,7 @@ const productRoutes = require("./routes/productRoutes"); // import product route
 const userRoutes = require("./routes/userRoutes"); // import user/profile routes
 const transactionRoutes = require("./routes/transactionRoutes"); // import transaction routes
 const rewardRoutes = require("./routes/rewardRoutes"); // import reward routes
+const pointsRoutes = require("./routes/pointsRoutes"); // import points routes
 const redemptionController = require('./controllers/redemptionController');
 
 const app = express();
@@ -39,6 +40,7 @@ app.use("/api", productRoutes); // for /api/products
 app.use("/api", userRoutes); // for /api/user/profile
 app.use("/api/transactions", transactionRoutes); // for /api/transactions
 app.use("/api/rewards", rewardRoutes); // for /api/rewards
+app.use("/api/points", pointsRoutes); // for /api/points
 
 // Direct endpoint to match client path (non-/api prefix)
 app.post('/redemptions/generate-code', (req, res) => redemptionController.generateRedemptionCode(req, res));

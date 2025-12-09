@@ -22,18 +22,24 @@ const MyPointsScreen = ({ navigation }) => {
 
           // Fetch stores first
           const storesData = await apiService.getStores();
+          console.log('[MyPoints] Stores data fetched:', JSON.stringify(storesData, null, 2));
 
           // Fetch points for each store individually
           const storesWithPointsPromises = storesData.map(async (store) => {
             try {
               const storeId = store.store_id || store.id;
+              console.log('[MyPoints] Fetching points for userId:', currentUserId, 'storeId:', storeId);
               const pointsData = await apiService.getUserPoints(currentUserId, storeId);
+              console.log('[MyPoints] Points data received:', pointsData);
+              const customerPoints = pointsData?.total_points || 0;
+              console.log('[MyPoints] Customer points for store', storeId, ':', customerPoints);
               return {
                 ...store,
-                customerPoints: pointsData?.total_points || 0,
+                customerPoints: customerPoints,
                 claimThreshold: store.claim_threshold || store.claimThreshold || 100 // Default threshold
               };
             } catch (err) {
+              console.log('[MyPoints] Error fetching points for store', store.store_id || store.id, ':', err.message);
               // If no points record for this store, return 0
               return {
                 ...store,
@@ -44,6 +50,7 @@ const MyPointsScreen = ({ navigation }) => {
           });
 
           const storesWithPoints = await Promise.all(storesWithPointsPromises);
+          console.log('[MyPoints] All stores with points:', JSON.stringify(storesWithPoints, null, 2));
           setStores(storesWithPoints);
         }
       } catch (error) {

@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii } from '../styles/theme';
 import apiService from '../services/apiService'; // replace with your actual API service
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import FontawesomeIcon from 'react-native-vector-icons/FontAwesome';
 
 export default function SignUpCustomerScreen() {
   const navigation = useNavigation();
@@ -24,6 +25,23 @@ export default function SignUpCustomerScreen() {
     password: ''
   });
 
+  // Password strength meter
+  const getPasswordStrength = (password) => {
+    let score = 0;
+    if (!password) return { label: 'Enter password', color: '#ccc', score: 0 };
+    if (password.length >= 8) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[a-z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+    if (score <= 2) return { label: 'Weak', color: '#d32f2f', score };
+    if (score === 3 || score === 4) return { label: 'Medium', color: '#fbc02d', score };
+    if (score >= 5) return { label: 'Strong', color: '#388e3c', score };
+    return { label: 'Weak', color: '#d32f2f', score };
+  };
+
+  const passwordStrength = getPasswordStrength(formData.password);
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -31,6 +49,33 @@ export default function SignUpCustomerScreen() {
   const handleSendOTP = async () => {
     if (!formData.firstName || !formData.lastName || !formData.phone || !formData.email || !formData.password) {
       showThemedAlert(setAlert, 'Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (passwordStrength.label === 'Weak') {
+      showThemedAlert(setAlert, 'Weak Password', 'Please choose a stronger password.');
+      return;
+    }
+
+    // Enforce password requirements
+    if (formData.password.length < 8) {
+      showThemedAlert(setAlert, 'Error', 'Password must be at least 8 characters long.');
+      return;
+    }
+    if (!/[A-Z]/.test(formData.password)) {
+      showThemedAlert(setAlert, 'Error', 'Password must contain at least one uppercase letter.');
+      return;
+    }
+    if (!/[a-z]/.test(formData.password)) {
+      showThemedAlert(setAlert, 'Error', 'Password must contain at least one lowercase letter.');
+      return;
+    }
+    if (!/[0-9]/.test(formData.password)) {
+      showThemedAlert(setAlert, 'Error', 'Password must contain at least one number.');
+      return;
+    }
+    if (!/[^A-Za-z0-9]/.test(formData.password)) {
+      showThemedAlert(setAlert, 'Error', 'Password must contain at least one special character.');
       return;
     }
 
@@ -150,10 +195,21 @@ export default function SignUpCustomerScreen() {
             style={styles.input}
             placeholderTextColor="#888"
             keyboardType="phone-pad"
+            maxLength={13}
             value={formData.phone}
             onChangeText={(value) => {
+              // Remove all non-numeric characters
               const numericValue = value.replace(/[^0-9]/g, '');
-              handleInputChange('phone', numericValue);
+              
+              // Format: XXXX XXX XXXX
+              let formatted = numericValue;
+              if (numericValue.length > 4 && numericValue.length <= 7) {
+                formatted = numericValue.slice(0, 4) + ' ' + numericValue.slice(4);
+              } else if (numericValue.length > 7) {
+                formatted = numericValue.slice(0, 4) + ' ' + numericValue.slice(4, 7) + ' ' + numericValue.slice(7, 11);
+              }
+              
+              handleInputChange('phone', formatted);
             }}
           />
           <TextInput 
@@ -187,11 +243,39 @@ export default function SignUpCustomerScreen() {
               accessibilityLabel={showPassword ? "Hide password" : "Show password"}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Text style={{ color: Colors.primary, fontWeight: 'bold', fontSize: 18 }}>
-                {showPassword ? '🙈' : '👀'}
-              </Text>
+              <Icon 
+                name={showPassword ? 'eye-slash' : 'eye'} 
+                size={20} 
+                color="#131212ff"
+              />
             </TouchableOpacity>
           </View>
+
+          {/* Password requirements */}
+          {formData.password.length > 0 && (
+            <View style={styles.requirementsContainer}>
+              <Text style={styles.requirementsTitle}>Password requirements:</Text>
+              <Text style={styles.requirement}>• At least 8 characters</Text>
+              <Text style={styles.requirement}>• Contains uppercase and lowercase letters</Text>
+              <Text style={styles.requirement}>• Contains a number</Text>
+              <Text style={styles.requirement}>• Contains a special character</Text>
+            </View>
+          )}
+
+          {/* Password strength meter */}
+          {formData.password.length > 0 && (
+            <View style={styles.strengthMeterContainer}>
+              <View style={[styles.strengthBar, { backgroundColor: passwordStrength.color, width: `${passwordStrength.score * 20}%` }]} />
+              <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>{passwordStrength.label}</Text>
+            </View>
+          )}
+
+          {/* Weak password warning */}
+          {passwordStrength.label === 'Weak' && formData.password.length > 0 && (
+            <Text style={styles.weakPasswordWarning}>
+              Your password is too weak. Please choose a stronger password.
+            </Text>
+          )}
 
           {/* Terms Switch */}
           <View style={styles.checkboxRow}>
@@ -372,6 +456,49 @@ const styles = StyleSheet.create({
     fontSize: Typography.small,
     fontWeight: '600',
     marginTop: Spacing.md,
+  },
+  strengthMeterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    marginTop: Spacing.xs,
+  },
+  strengthBar: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ccc',
+    marginRight: 10,
+    minWidth: 40,
+    maxWidth: 100,
+    flexGrow: 1,
+  },
+  strengthLabel: {
+    fontSize: Typography.small,
+    fontWeight: 'bold',
+    minWidth: 60,
+  },
+  requirementsContainer: {
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  requirementsTitle: {
+    fontSize: Typography.small,
+    fontWeight: 'bold',
+    color: Colors.textSecondary,
+    marginBottom: 2,
+  },
+  requirement: {
+    fontSize: Typography.small,
+    color: Colors.textSecondary,
+    marginLeft: 8,
+  },
+  weakPasswordWarning: {
+    color: '#d32f2f',
+    marginBottom: Spacing.md,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: Typography.small,
   },
   orText: {
     textAlign: 'center',

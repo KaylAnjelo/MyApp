@@ -104,6 +104,7 @@ export default function HomePageScreen({ navigation }) {
         apiService.getStores(),
         apiService.getProducts(),
       ]);
+      console.log('[HomePage] Stores data fetched:', JSON.stringify(storesData, null, 2));
       setStores(storesData || []);
       setProducts(productsData || []);
 
@@ -117,14 +118,19 @@ export default function HomePageScreen({ navigation }) {
           const storePointsPromises = storesData.map(async (store) => {
             try {
               const storeId = store.store_id || store.id;
+              console.log('[HomePage] Fetching points for userId:', userId, 'storeId:', storeId);
               const pointsData = await apiService.getUserPoints(userId, storeId);
+              console.log('[HomePage] Points data received:', pointsData);
+              const availablePoints = pointsData?.total_points || 0;
+              console.log('[HomePage] Available points for store', storeId, ':', availablePoints);
               return {
                 store_id: storeId,
                 store_name: store.store_name || store.name,
-                available_points: pointsData?.total_points || 0,
+                available_points: availablePoints,
                 storeImage: store.store_image
               };
             } catch (err) {
+              console.log('[HomePage] Error fetching points for store', store.store_id || store.id, ':', err.message);
               // If no points record for this store, return 0
               return {
                 store_id: store.store_id || store.id,
@@ -136,6 +142,7 @@ export default function HomePageScreen({ navigation }) {
           });
           
           const pointsByStore = await Promise.all(storePointsPromises);
+          console.log('[HomePage] All points by store:', JSON.stringify(pointsByStore, null, 2));
           
           // Handle points by store
           if (pointsByStore && pointsByStore.length > 0) {
@@ -143,8 +150,10 @@ export default function HomePageScreen({ navigation }) {
             const highest = pointsByStore.reduce((max, current) =>
               (current.available_points || 0) > (max.available_points || 0) ? current : max
             );
+            console.log('[HomePage] Highest points store:', highest);
             
             if (highest.available_points > 0) {
+              console.log('[HomePage] Setting highest points store with', highest.available_points, 'points');
               setHighestPointsStore({
                 storeName: highest.store_name || 'Store',
                 points: highest.available_points || 0,

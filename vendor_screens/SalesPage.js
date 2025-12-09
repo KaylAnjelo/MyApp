@@ -164,7 +164,7 @@ const SalesPage = ({ navigation }) => {
 
   const computeAnalytics = (txns) => {
     console.log(`📊 Computing analytics for ${txns.length} transactions`);
-    
+ 
     const today = new Date();
     const todayStr = today.toDateString();
     let todayRevenue = 0;
@@ -176,7 +176,7 @@ const SalesPage = ({ navigation }) => {
 
     txns.forEach((txn, index) => {
       if (!txn.transaction_date) {
-        console.log(`⚠️ Transaction ${index} missing transaction_date`);
+        console.log(` Transaction ${index} missing transaction_date`);
         return;
       }
 
@@ -191,7 +191,7 @@ const SalesPage = ({ navigation }) => {
       const quantity = parseFloat(txn.quantity || 1);
       const revenue = price * quantity;
 
-      console.log(`📦 Txn ${index}: type=${productType}, price=${price}, qty=${quantity}, revenue=${revenue}`);
+      console.log(` Txn ${index}: type=${productType}, price=${price}, qty=${quantity}, revenue=${revenue}`);
 
       // Today's metrics
       if (txnDateStr === todayStr) {
@@ -213,7 +213,7 @@ const SalesPage = ({ navigation }) => {
     const todayOrdersCount = todayOrders.size;
     const monthlyOrdersCount = monthlyOrders.size;
 
-    console.log(`📊 Analytics computed:
+    console.log(` Analytics computed:
       - Today Revenue: ₱${todayRevenue.toFixed(2)}
       - Today Orders: ${todayOrdersCount}
       - Monthly Orders: ${monthlyOrdersCount}

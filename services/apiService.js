@@ -410,6 +410,25 @@ class ApiService {
     return this.request(`/user/${userId}/points-by-store`);
   }
 
+  // 🔄 POINTS SYNC (diagnostic and maintenance)
+  async syncUserPoints(userId) {
+    if (!userId) throw new Error('Missing userId');
+    return this.request(`/points/sync/${userId}`, {
+      method: 'POST',
+    });
+  }
+
+  async syncAllUsersPoints() {
+    return this.request('/points/sync-all', {
+      method: 'POST',
+    });
+  }
+
+  async checkUserData(userId, limit = 10) {
+    if (!userId) throw new Error('Missing userId');
+    return this.request(`/points/check/${userId}?limit=${limit}`);
+  }
+
   // ✅ NEW METHOD: Get all transactions for a specific store
   async getStoreTransactions(storeId, vendorId = null) {
   if (!storeId) throw new Error('Missing storeId');
