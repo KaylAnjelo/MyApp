@@ -96,18 +96,15 @@ export default function MyRewardsScreen({ navigation }) {
   };
 
   const showRedemptionCode = async () => {
-    // Mark as used in backend
+    // Just show the code - don't mark as used until vendor actually redeems it
     if (selectedReward?.claimed_reward_id != null) {
       try {
-        await apiService.useClaimedReward(selectedReward.claimed_reward_id);
         setCodeInput(selectedReward.promotion_code ? selectedReward.promotion_code : `RWD-${selectedReward.claimed_reward_id}`);
         setModalStage('code');
-        // Await loadRewards to ensure UI updates after backend update
-        await loadRewards();
         // Store the selected voucher for automatic discount application in TransactionPage
         await AsyncStorage.setItem('@selected_voucher', JSON.stringify(selectedReward));
       } catch (err) {
-        showThemedAlert(setAlert, 'Error', 'Failed to mark voucher as used.');
+        showThemedAlert(setAlert, 'Error', 'Failed to prepare voucher.');
       }
     } else {
       // fallback: just show code

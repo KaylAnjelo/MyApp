@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Image, Modal, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
@@ -23,6 +23,29 @@ export default function SignInScreen() {
     setModalVisible(true);
   };
 
+  // Check for saved credentials on mount
+  useEffect(() => {
+    checkSavedCredentials();
+  }, []);
+
+  const checkSavedCredentials = async () => {
+    try {
+      const savedRememberMe = await AsyncStorage.getItem('@remember_me');
+      
+      if (savedRememberMe === 'true') {
+        const savedUsername = await AsyncStorage.getItem('@saved_username');
+        const savedPassword = await AsyncStorage.getItem('@saved_password');
+        
+        // Pre-fill the username and password fields
+        if (savedUsername) setUsername(savedUsername);
+        if (savedPassword) setPassword(savedPassword);
+        setRememberMe(true);
+      }
+    } catch (error) {
+      console.log('Error checking saved credentials:', error);
+    }
+  };
+
   const handleSignIn = async () => {
     if (!username || !password) {
       showModal('Missing Fields', 'Please enter both username and password');
@@ -34,9 +57,20 @@ export default function SignInScreen() {
       const response = await apiService.login(username, password);
       console.log('Login successful:', response);
 
-      // Save user data to AsyncStorage for profile screen
+      // Save user data and remember me preference
       if (response.user) {
         await AsyncStorage.setItem('@app_user', JSON.stringify(response.user));
+        
+        // Save or clear credentials based on remember me preference
+        if (rememberMe) {
+          await AsyncStorage.setItem('@remember_me', 'true');
+          await AsyncStorage.setItem('@saved_username', username);
+          await AsyncStorage.setItem('@saved_password', password);
+        } else {
+          await AsyncStorage.removeItem('@remember_me');
+          await AsyncStorage.removeItem('@saved_username');
+          await AsyncStorage.removeItem('@saved_password');
+        }
       }
 
       // Check must_change_password flag
@@ -129,7 +163,7 @@ export default function SignInScreen() {
               <Switch
                 value={rememberMe}
                 onValueChange={setRememberMe}
-                trackColor={{ false: "#fff", true: "#fff" }}
+                trackColor={{ false: "#fff", true: "#d63a3aff" }}
                 thumbColor="#7D0006"/>
               <Text style={styles.rememberMeText}>Remember me</Text>
             </View>
