@@ -5,7 +5,7 @@ import { View, Text, StyleSheet,
 import FontAwesome from 'react-native-vector-icons/Ionicons';
 import { ThemedAlert, showThemedAlert } from '../components/ThemedAlert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import apiService from '../services/apiService'; // ✅ adjust path if needed
+import apiService from '../services/apiService'; // adjust path if needed
 import { Colors } from '../styles/theme';
 
 const filters = ['All', 'Purchase', 'Redemption']; // Corrected filter names to match backend 'transaction_type'

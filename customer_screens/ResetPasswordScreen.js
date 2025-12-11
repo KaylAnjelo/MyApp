@@ -17,9 +17,50 @@ export default function ResetPasswordScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
 
+  // Password strength meter
+  const getPasswordStrength = (password) => {
+    let score = 0;
+    if (!password) return { label: 'Enter password', color: '#ccc', score: 0 };
+    if (password.length >= 8) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[a-z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+    if (score <= 2) return { label: 'Weak', color: '#d32f2f', score };
+    if (score === 3 || score === 4) return { label: 'Medium', color: '#fbc02d', score };
+    if (score >= 5) return { label: 'Strong', color: '#388e3c', score };
+    return { label: 'Weak', color: '#d32f2f', score };
+  };
+
+  const passwordStrength = getPasswordStrength(password);
+
   const handleResetPassword = async () => {
     if (!password || !confirmPassword) {
       showThemedAlert(setAlert, 'Missing Fields', 'Please enter and confirm your new password.');
+      return;
+    }
+    if (password.length < 8) {
+      showThemedAlert(setAlert, 'Error', 'Password must be at least 8 characters long');
+      return;
+    }
+    if (passwordStrength.label === 'Weak') {
+      showThemedAlert(setAlert, 'Weak Password', 'Please choose a stronger password.');
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      showThemedAlert(setAlert, 'Error', 'Password must contain at least one uppercase letter.');
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      showThemedAlert(setAlert, 'Error', 'Password must contain at least one lowercase letter.');
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      showThemedAlert(setAlert, 'Error', 'Password must contain at least one number.');
+      return;
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      showThemedAlert(setAlert, 'Error', 'Password must contain at least one special character.');
       return;
     }
     if (password !== confirmPassword) {
@@ -47,6 +88,15 @@ export default function ResetPasswordScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Reset Password</Text>
       <Text style={styles.subtitle}>Enter your new password.</Text>
+
+      {/* Password requirements description */}
+      <View style={styles.requirementsContainer}>
+        <Text style={styles.requirementsTitle}>Password requirements:</Text>
+        <Text style={styles.requirement}>• At least 8 characters</Text>
+        <Text style={styles.requirement}>• Contains uppercase and lowercase letters</Text>
+        <Text style={styles.requirement}>• Contains a number</Text>
+        <Text style={styles.requirement}>• Contains a special character</Text>
+      </View>
       
       <View style={styles.inputContainer}>
         <View style={{ flexDirection: 'row', alignItems: 'center', position: 'relative' }}>
@@ -83,6 +133,14 @@ export default function ResetPasswordScreen() {
         </View>
       </View>
 
+      {/* Password strength meter */}
+      {password.length > 0 && (
+        <View style={styles.strengthMeterContainer}>
+          <View style={[styles.strengthBar, { backgroundColor: passwordStrength.color, width: `${passwordStrength.score * 20}%` }]} />
+          <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>{passwordStrength.label}</Text>
+        </View>
+      )}
+
       <View style={styles.inputContainer}>
         <View style={{ flexDirection: 'row', alignItems: 'center', position: 'relative' }}>
           <TextInput
@@ -117,6 +175,12 @@ export default function ResetPasswordScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {passwordStrength.label === 'Weak' && password.length > 0 && (
+        <Text style={styles.weakPasswordWarning}>
+          Your password is too weak. Please choose a stronger password.
+        </Text>
+      )}
 
       <TouchableOpacity
         style={[styles.button, loading && styles.buttonDisabled]}
@@ -184,5 +248,49 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  requirementsContainer: {
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    width: '100%',
+  },
+  requirementsTitle: {
+    fontSize: Typography.small,
+    fontWeight: 'bold',
+    color: Colors.textSecondary,
+    marginBottom: 2,
+  },
+  requirement: {
+    fontSize: Typography.small,
+    color: Colors.textSecondary,
+    marginLeft: 8,
+  },
+  strengthMeterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    marginLeft: 4,
+  },
+  strengthBar: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ccc',
+    marginRight: 10,
+    minWidth: 40,
+    maxWidth: 100,
+    flexGrow: 1,
+  },
+  strengthLabel: {
+    fontSize: Typography.small,
+    fontWeight: 'bold',
+    minWidth: 60,
+  },
+  weakPasswordWarning: {
+    color: '#d32f2f',
+    marginBottom: Spacing.md,
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: Typography.small,
+    width: '100%',
   },
 });

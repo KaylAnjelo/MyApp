@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Image, Alert, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Image, Modal, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../styles/theme';
@@ -13,10 +13,19 @@ export default function SignInScreen() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalMessage, setModalMessage] = useState('');
+
+  const showModal = (title, message) => {
+    setModalTitle(title);
+    setModalMessage(message);
+    setModalVisible(true);
+  };
 
   const handleSignIn = async () => {
     if (!username || !password) {
-      Alert.alert('Missing Fields', 'Please enter both username and password');
+      showModal('Missing Fields', 'Please enter both username and password');
       return;
     }
 
@@ -45,7 +54,7 @@ export default function SignInScreen() {
         navigation.replace('HomePage', { user: response.user });
       }
     } catch (error) {
-      Alert.alert('Login Failed', error.message || 'Invalid username or password');
+      showModal('Login Failed', error.message || 'Invalid username or password');
     } finally {
       setLoading(false);
     }
@@ -152,6 +161,27 @@ export default function SignInScreen() {
 
       </View>
     </ScrollView>
+
+    {/* Error Modal */}
+    <Modal
+      transparent
+      animationType="fade"
+      visible={modalVisible}
+      onRequestClose={() => setModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>{modalTitle}</Text>
+          <Text style={styles.modalMessage}>{modalMessage}</Text>
+          <TouchableOpacity
+            style={styles.modalButton}
+            onPress={() => setModalVisible(false)}
+          >
+            <Text style={styles.modalButtonText}>OK</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   </KeyboardAvoidingView>
 );
 
@@ -165,9 +195,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoContainer: {
-    position: 'absolute',
-    top: 50,
     alignSelf: 'center',
+    marginTop: 20,
+    marginBottom: 20,
   },
   logoImage: {
     width: 150,
@@ -239,8 +269,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 40,
-    position: 'absolute',
-    bottom: 50,
+    marginBottom: 50,
   },
   signupText: {
     fontSize: Typography.body,
@@ -250,5 +279,43 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: 'bold',
     textDecorationLine: 'underline',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '85%',
+    backgroundColor: Colors.white,
+    borderRadius: Radii.lg,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    ...Shadows.light,
+  },
+  modalTitle: {
+    fontSize: Typography.h3,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: Spacing.sm,
+  },
+  modalMessage: {
+    fontSize: Typography.body,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  modalButton: {
+    width: '100%',
+    paddingVertical: Spacing.sm,
+    borderRadius: Radii.md,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    fontSize: Typography.body,
+    fontWeight: '600',
+    color: Colors.white,
   },
 });
