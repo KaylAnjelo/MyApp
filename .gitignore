@@ -33,6 +33,9 @@ local.properties
 .cxx/
 *.keystore
 !debug.keystore
+*.jks
+*.env
+!.env.example
 .kotlin/
 
 # node.js
@@ -74,11 +77,10 @@ yarn-error.log
 !.yarn/sdks
 !.yarn/versions
 
+# Local credentials and signing material
+.env
+key.properties
+android/key.properties
 
-    .env
-    key.properties
-    /android/key.properties
-    /android/my-release-key.jks
-
-    #privacy policy
-    /PRIVACY_POLICY.md
+#privacy policy
+/PRIVACY_POLICY.md
