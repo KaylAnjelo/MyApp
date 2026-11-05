@@ -18,4 +18,12 @@ buildscript {
     }
 }
 
+subprojects { subproject ->
+    if (subproject.name == "react-native-community_checkbox") {
+        subproject.plugins.withId("com.android.library") {
+            subproject.android.buildFeatures.buildConfig = true
+        }
+    }
+}
+
 apply plugin: "com.facebook.react.rootproject"
