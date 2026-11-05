@@ -30,12 +30,19 @@ import NotificationsScreen from './features/customer/screens/NotificationsScreen
 import ForgotPasswordScreen from './features/customer/screens/ForgotPasswordScreen';
 import VerifyOTPScreen from './features/customer/screens/VerifyOTPScreen';
 import ResetPasswordScreen from './features/customer/screens/ResetPasswordScreen';
+
+// Import DevScreenMenu only in development
+const DevScreenMenu = __DEV__ ? require('./dev/DevScreenMenu').default : null;
+
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+  const initialRoute = __DEV__ ? 'DevScreenMenu' : 'Launch';
+
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false, animation: 'none' }}>
+      <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false, animation: 'none' }}>
+        {__DEV__ && <Stack.Screen name="DevScreenMenu" component={DevScreenMenu} />}
         <Stack.Screen name="Launch" component={LaunchScreen} />
         <Stack.Screen name="GetStarted" component={GetStartedScreen} />
         <Stack.Screen name="SignUp" component={SignUpUserTypeScreen} />

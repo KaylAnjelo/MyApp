@@ -4,7 +4,7 @@ Suki is a React Native mobile app with a Node.js/Express backend.
 
 ## Requirements
 
-- Node.js 18 or newer (npm is included)
+- Node.js 22.13.0+, 24.3.0+, or 26+ (npm is included)
 - Android Studio with the Android SDK and an emulator, or a connected Android device
 - JDK 17 for Android builds
 - For iOS builds: macOS, Xcode, Ruby, and CocoaPods
