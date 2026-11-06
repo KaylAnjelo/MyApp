@@ -1,6 +1,8 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect } from 'react';
+import { View } from 'react-native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import LaunchScreen from './features/customer/screens/LaunchScreen';
 import GetStartedScreen from './features/customer/screens/GetStartedScreen';
@@ -30,49 +32,70 @@ import NotificationsScreen from './features/customer/screens/NotificationsScreen
 import ForgotPasswordScreen from './features/customer/screens/ForgotPasswordScreen';
 import VerifyOTPScreen from './features/customer/screens/VerifyOTPScreen';
 import ResetPasswordScreen from './features/customer/screens/ResetPasswordScreen';
+import DevMenuButton from './dev/DevMenuButton';
 
 // Import DevScreenMenu only in development
 const DevScreenMenu = __DEV__ ? require('./dev/DevScreenMenu').default : null;
 
+export const navigationRef = createNavigationContainerRef();
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   const initialRoute = __DEV__ ? 'DevScreenMenu' : 'Launch';
 
-  return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false, animation: 'none' }}>
-        {__DEV__ && <Stack.Screen name="DevScreenMenu" component={DevScreenMenu} />}
-        <Stack.Screen name="Launch" component={LaunchScreen} />
-        <Stack.Screen name="GetStarted" component={GetStartedScreen} />
-        <Stack.Screen name="SignUp" component={SignUpUserTypeScreen} />
-        <Stack.Screen name="SignIn" component={SignInScreen} />
-        <Stack.Screen name="HomePage" component={HomePageScreen} />   
-        <Stack.Screen name="Stores" component={StoresScreen} />
-        <Stack.Screen name="SpecificStore" component={SpecificStoreScreen} />
-        <Stack.Screen name="AllProducts" component={AllProductsScreen} />
-        <Stack.Screen name="SignUpVendor" component={SignUpVendorScreen} />
-        <Stack.Screen name="SignUpCustomer" component={SignUpCustomerScreen} />
-        <Stack.Screen name="MyPoints" component={MyPointsScreen} />
-        <Stack.Screen name="MyRewards" component={MyRewardsPage} />
-        <Stack.Screen name="ProfilePage" component={ProfilePageScreen} />
-        <Stack.Screen name="ActivityScreen" component={ActivityScreen} />
-        <Stack.Screen name="VendorHomePage" component={VendorHomePage} />
-        <Stack.Screen name="SalesPage" component={SalesPage} />
-        <Stack.Screen name="VendorProfilePage" component={VendorProfilePage} />
-        <Stack.Screen name="TransactionPage" component={TransactionPage} />
-        <Stack.Screen name="ScannerScreen" component={ScannerScreen} />
-        <Stack.Screen name="CreateOrder" component={CreateOrderScreen} />
-        <Stack.Screen name="PointsHistory" component={PointsHistoryScreen} />
-        <Stack.Screen name="TransactionDetails" component={TransactionDetailsScreen} />
-        <Stack.Screen name="VTransactionDetail" component={VendorTransactionDetail} />
-        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
-        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-        <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
-        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+  useEffect(() => {
+    if (__DEV__) {
+      AsyncStorage.getItem('@app_user').then((user) => {
+        if (!user) {
+          AsyncStorage.setItem('@app_user', JSON.stringify({
+            user_id: 'dev-customer-id',
+            username: 'testcustomer',
+            role: 'customer',
+            email: 'customer@test.com',
+            first_name: 'Test',
+            last_name: 'Customer',
+          }));
+        }
+      });
+    }
+  }, []);
 
-        <Stack.Screen name="Notifications" component={NotificationsScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+  return (
+    <View style={{ flex: 1 }}>
+      <NavigationContainer ref={navigationRef}>
+        <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false, animation: 'none' }}>
+          {__DEV__ && <Stack.Screen name="DevScreenMenu" component={DevScreenMenu} />}
+          <Stack.Screen name="Launch" component={LaunchScreen} />
+          <Stack.Screen name="GetStarted" component={GetStartedScreen} />
+          <Stack.Screen name="SignUp" component={SignUpUserTypeScreen} />
+          <Stack.Screen name="SignIn" component={SignInScreen} />
+          <Stack.Screen name="HomePage" component={HomePageScreen} />
+          <Stack.Screen name="Stores" component={StoresScreen} />
+          <Stack.Screen name="SpecificStore" component={SpecificStoreScreen} />
+          <Stack.Screen name="AllProducts" component={AllProductsScreen} />
+          <Stack.Screen name="SignUpVendor" component={SignUpVendorScreen} />
+          <Stack.Screen name="SignUpCustomer" component={SignUpCustomerScreen} />
+          <Stack.Screen name="MyPoints" component={MyPointsScreen} />
+          <Stack.Screen name="MyRewards" component={MyRewardsPage} />
+          <Stack.Screen name="ProfilePage" component={ProfilePageScreen} />
+          <Stack.Screen name="ActivityScreen" component={ActivityScreen} />
+          <Stack.Screen name="VendorHomePage" component={VendorHomePage} />
+          <Stack.Screen name="SalesPage" component={SalesPage} />
+          <Stack.Screen name="VendorProfilePage" component={VendorProfilePage} />
+          <Stack.Screen name="TransactionPage" component={TransactionPage} />
+          <Stack.Screen name="ScannerScreen" component={ScannerScreen} />
+          <Stack.Screen name="CreateOrder" component={CreateOrderScreen} />
+          <Stack.Screen name="PointsHistory" component={PointsHistoryScreen} />
+          <Stack.Screen name="TransactionDetails" component={TransactionDetailsScreen} />
+          <Stack.Screen name="VTransactionDetail" component={VendorTransactionDetail} />
+          <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
+          <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+      <DevMenuButton />
+    </View>
   );
 }

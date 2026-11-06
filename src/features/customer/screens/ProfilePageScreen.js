@@ -6,6 +6,7 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../../../styles/theme';
+import ScreenHeader from '../../../components/ScreenHeader';
 import apiService from '../../../services/apiService';
 
 export default function ProfilePageScreen({ navigation }) {
@@ -257,11 +258,12 @@ export default function ProfilePageScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.pageContent}>
-        <View style={styles.headerTop}>
-          <View style={{ width: 24 }} />
-          <Text style={styles.headerTitle}>Profile</Text>
-          <View style={styles.headerRight} />
-        </View>
+        <ScreenHeader
+          title="Profile"
+          leftWidth={24}
+          rightWidth={24}
+          style={{ paddingTop: Spacing.sm }}
+        />
 
         <View style={styles.bodyContent}>
           <Text style={styles.sectionHeader}>Profile Settings</Text>
@@ -439,21 +441,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   scroll: { flex: 1 },
   pageContent: { flexGrow: 1 },
-  headerTop: {
-    backgroundColor: Colors.primary,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerRight: { width: 20 },
-  headerTitle: {
-    color: Colors.white,
-    fontSize: Typography.h3,
-    fontWeight: '700',
-  },
   bodyContent: { padding: Spacing.xl, paddingBottom: Spacing.quad * 2 },
   sectionHeader: { fontSize: Typography.h3, fontWeight: '600', color: Colors.textPrimary, marginBottom: Spacing.lg },
   avatarContainer: { 
@@ -511,8 +498,8 @@ const styles = StyleSheet.create({
   logoutText: { fontSize: Typography.body, color: '#d32f2f', fontWeight: '600' },
   logoutIconPill: { backgroundColor: '#fcdcdc', borderRadius: 12, padding: 4, alignItems: 'center', justifyContent: 'center' },
 
-  bottomNav: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', height: 64, backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: '#eee' },
-  navItem: { alignItems: 'center', justifyContent: 'center' },
+  bottomNav: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', height: 64, backgroundColor: Colors.white, borderTopWidth: 1, borderTopColor: '#eee' },
+  navItem: { width: '20%', alignItems: 'center', justifyContent: 'center' },
   navText: { fontSize: Typography.small, color: '#555' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },

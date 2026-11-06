@@ -1,31 +1,27 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Radii } from '../styles/theme';
 
-const CUSTOMER_SCREENS = [
-  { name: 'HomePage', label: 'Customer Home Page' },
-  { name: 'Stores', label: 'Stores List' },
-  { name: 'SpecificStore', label: 'Specific Store' },
-  { name: 'AllProducts', label: 'All Products' },
-  { name: 'MyPoints', label: 'My Points' },
-  { name: 'MyRewards', label: 'My Rewards' },
-  { name: 'ProfilePage', label: 'Customer Profile' },
-  { name: 'ActivityScreen', label: 'Customer Activity' },
-  { name: 'ScannerScreen', label: 'QR Scanner Screen' },
-  { name: 'PointsHistory', label: 'Points History' },
-  { name: 'TransactionDetails', label: 'Transaction Details' },
-  { name: 'Notifications', label: 'Notifications' },
-];
+const MOCK_CUSTOMER = {
+  user_id: 'dev-customer-id',
+  username: 'testcustomer',
+  role: 'customer',
+  email: 'customer@test.com',
+  first_name: 'Test',
+  last_name: 'Customer',
+};
 
-const VENDOR_SCREENS = [
-  { name: 'VendorHomePage', label: 'Vendor Home Page' },
-  { name: 'SalesPage', label: 'Vendor Sales Page' },
-  { name: 'VendorProfilePage', label: 'Vendor Profile' },
-  { name: 'TransactionPage', label: 'Vendor Transactions' },
-  { name: 'CreateOrder', label: 'Create Order / Add Menu' },
-  { name: 'VTransactionDetail', label: 'Vendor Transaction Detail' },
-];
+const MOCK_VENDOR = {
+  user_id: 'dev-vendor-id',
+  username: 'testvendor',
+  role: 'vendor',
+  email: 'vendor@test.com',
+  first_name: 'Test',
+  last_name: 'Vendor',
+};
 
 const AUTH_SCREENS = [
   { name: 'Launch', label: 'Launch Screen' },
@@ -34,7 +30,6 @@ const AUTH_SCREENS = [
   { name: 'SignUp', label: 'Sign Up (User Type)' },
   { name: 'SignUpCustomer', label: 'Sign Up Customer' },
   { name: 'SignUpVendor', label: 'Sign Up Vendor' },
-  { name: 'ChangePassword', label: 'Change Password' },
   { name: 'ForgotPassword', label: 'Forgot Password' },
   { name: 'VerifyOTP', label: 'Verify OTP' },
   { name: 'ResetPassword', label: 'Reset Password' },
@@ -42,61 +37,74 @@ const AUTH_SCREENS = [
 
 export default function DevScreenMenu() {
   const navigation = useNavigation();
-  const [activeTab, setActiveTab] = useState('customer'); // 'customer' | 'vendor' | 'auth'
+  const [showAuthScreens, setShowAuthScreens] = useState(false);
 
-  const getScreens = () => {
-    if (activeTab === 'customer') return CUSTOMER_SCREENS;
-    if (activeTab === 'vendor') return VENDOR_SCREENS;
-    return AUTH_SCREENS;
+  const handleNavigate = async (userType) => {
+    try {
+      const isCustomer = userType === 'customer';
+      const mockUser = isCustomer ? MOCK_CUSTOMER : MOCK_VENDOR;
+      const homeScreen = isCustomer ? 'HomePage' : 'VendorHomePage';
+      await AsyncStorage.setItem('@app_user', JSON.stringify(mockUser));
+      navigation.navigate(homeScreen);
+    } catch (e) {
+      alert('Error opening ' + userType + ' home: ' + e.message);
+    }
+  };
+
+  const handleAuthNavigate = (screenName) => {
+    try {
+      navigation.navigate(screenName);
+    } catch (e) {
+      alert('Error navigating to ' + screenName + ': ' + e.message);
+    }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Dev Screen Navigator</Text>
-      <Text style={styles.subHeader}>Select a category and tap any screen to open it:</Text>
+      <Text style={styles.subHeader}>Choose a screen to open:</Text>
 
-      {/* Tabs */}
-      <View style={styles.tabContainer}>
+      <View style={styles.options}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'customer' && styles.activeTab]}
-          onPress={() => setActiveTab('customer')}
+          style={styles.option}
+          onPress={() => handleNavigate('customer')}
         >
-          <Text style={[styles.tabText, activeTab === 'customer' && styles.activeTabText]}>Customer</Text>
+          <Text style={styles.optionText}>Customer</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'vendor' && styles.activeTab]}
-          onPress={() => setActiveTab('vendor')}
+          style={styles.option}
+          onPress={() => handleNavigate('vendor')}
         >
-          <Text style={[styles.tabText, activeTab === 'vendor' && styles.activeTabText]}>Vendor</Text>
+          <Text style={styles.optionText}>Vendor</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'auth' && styles.activeTab]}
-          onPress={() => setActiveTab('auth')}
+          style={[styles.option, showAuthScreens && styles.authOptionExpanded]}
+          onPress={() => setShowAuthScreens(!showAuthScreens)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showAuthScreens }}
         >
-          <Text style={[styles.tabText, activeTab === 'auth' && styles.activeTabText]}>Auth & Launch</Text>
+          <Text style={styles.optionText}>Auth & Launch</Text>
+          {showAuthScreens && (
+            <Ionicons name="chevron-up" size={20} color={Colors.white} />
+          )}
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {getScreens().map((screen) => (
-          <TouchableOpacity
-            key={screen.name}
-            style={styles.button}
-            onPress={() => {
-              try {
-                navigation.navigate(screen.name);
-              } catch (e) {
-                alert('Error navigating to ' + screen.name + ': ' + e.message);
-              }
-            }}
-          >
-            <Text style={styles.buttonTitle}>{screen.label}</Text>
-            <Text style={styles.buttonSubtitle}>{screen.name}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {showAuthScreens && (
+        <ScrollView contentContainerStyle={styles.authScreens}>
+          {AUTH_SCREENS.map((screen) => (
+            <TouchableOpacity
+              key={screen.name}
+              style={styles.authScreen}
+              onPress={() => handleAuthNavigate(screen.name)}
+            >
+              <Text style={styles.authScreenText}>{screen.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -120,49 +128,41 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     textAlign: 'center',
   },
-  tabContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  options: {
+    flexDirection: 'column',
     marginBottom: Spacing.md,
     paddingHorizontal: Spacing.lg,
   },
-  tab: {
-    flex: 1,
+  option: {
+    width: '100%',
     paddingVertical: Spacing.md,
     alignItems: 'center',
-    backgroundColor: '#e0e0e0',
-    marginHorizontal: 4,
+    backgroundColor: Colors.primary,
+    marginBottom: Spacing.sm,
     borderRadius: Radii.md,
   },
-  activeTab: {
-    backgroundColor: Colors.primary,
-  },
-  tabText: {
+  optionText: {
     fontWeight: 'bold',
-    color: Colors.textPrimary,
-    fontSize: Typography.small,
-  },
-  activeTabText: {
     color: Colors.white,
-  },
-  content: {
-    padding: Spacing.xl,
-    paddingBottom: 60,
-  },
-  button: {
-    backgroundColor: Colors.primary,
-    padding: Spacing.lg,
-    borderRadius: Radii.lg,
-    marginBottom: Spacing.md,
-  },
-  buttonTitle: {
-    color: Colors.white,
-    fontWeight: 'bold',
     fontSize: Typography.body,
   },
-  buttonSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: Typography.small,
-    marginTop: 2,
+  authOptionExpanded: {
+    gap: Spacing.xs,
+  },
+  authScreens: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xl,
+  },
+  authScreen: {
+    backgroundColor: '#e0e0e0',
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderRadius: Radii.md,
+  },
+  authScreenText: {
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    fontSize: Typography.body,
+    textAlign: 'center',
   },
 });

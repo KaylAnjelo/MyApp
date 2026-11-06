@@ -6,6 +6,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { PieChart } from 'react-native-chart-kit';
 import { Colors } from '../../../styles/theme';
 import apiService from '../../../services/apiService';
+import ScreenHeader from '../../../components/ScreenHeader';
 
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -241,9 +242,7 @@ const SalesPage = ({ navigation }) => {
   if (loading) {
     return (
       <SafeAreaView style={styles.wrapper}>
-        <View style={styles.headerBar}>
-          <Text style={styles.headerTitle}>My Sales</Text>
-        </View>
+        <ScreenHeader title="My Sales" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#D22B2B" />
           <Text style={styles.loadingText}>Loading analytics...</Text>
@@ -254,9 +253,7 @@ const SalesPage = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.wrapper}>
-      <View style={styles.headerBar}>
-        <Text style={styles.headerTitle}>My Sales</Text>
-      </View>
+      <ScreenHeader title="My Sales" />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Summary Cards */}
         <View style={styles.summaryCards}>
@@ -373,18 +370,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  headerBar: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 20,
@@ -446,7 +431,7 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     alignItems: 'center',
     height: 65,
     backgroundColor: '#fff',
@@ -459,7 +444,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   navItem: {
+    width: '20%',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   navText: {
     fontSize: 11,

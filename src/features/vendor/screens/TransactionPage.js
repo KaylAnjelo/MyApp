@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet,
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, View, Text, StyleSheet,
   TouchableOpacity, FlatList, SafeAreaView,
   ActivityIndicator, } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/Ionicons';
 import { ThemedAlert, showThemedAlert } from '../../../components/ThemedAlert';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiService from '../../../services/apiService'; // adjust path if needed
-import { Colors } from '../../../styles/theme';
+import { Colors, Typography, Spacing } from '../../../styles/theme';
+import ScreenHeader from '../../../components/ScreenHeader';
 
 const filters = ['All', 'Purchase', 'Redemption']; // Corrected filter names to match backend 'transaction_type'
 
@@ -16,6 +17,8 @@ const TransactionPage = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sidebarProgress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     fetchTransactions();
@@ -222,6 +225,16 @@ const TransactionPage = ({ navigation }) => {
       ? transactions
       : transactions.filter((t) => t.type === activeFilter);
 
+  const toggleSidebar = () => {
+    const nextOpen = !sidebarOpen;
+    setSidebarOpen(nextOpen);
+    Animated.timing(sidebarProgress, {
+      toValue: nextOpen ? 1 : 0,
+      duration: 250,
+      useNativeDriver: false,
+    }).start();
+  };
+
   const renderTransaction = ({ item }) => (
     <TouchableOpacity 
       style={styles.transactionRow}
@@ -253,51 +266,81 @@ const TransactionPage = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.wrapper}>
-      {/* Header */}
-      <View style={styles.headerBar}>
-        <Text style={styles.headerTitle}>Transactions</Text>
-      </View>
+      <ScreenHeader title="Transactions" />
 
-      {/* Filters */}
-      <View style={styles.filterRow}>
-        {filters.map((filter) => (
-          <TouchableOpacity
-            key={filter}
-            style={[
-              styles.filterBtn,
-              activeFilter === filter ? styles.activeFilterBtn : styles.outlinedFilterBtn,
-            ]}
-            onPress={() => setActiveFilter(filter)}
-          >
-            <Text
+      <View style={styles.contentRow}>
+        <Animated.View
+          style={[
+            styles.filterSidebar,
+            {
+              width: sidebarProgress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 112],
+              }),
+              opacity: sidebarProgress,
+            },
+          ]}
+          pointerEvents={sidebarOpen ? 'auto' : 'none'}
+          accessibilityElementsHidden={!sidebarOpen}
+          importantForAccessibility={sidebarOpen ? 'auto' : 'no-hide-descendants'}
+        >
+          {filters.map((filter) => (
+            <TouchableOpacity
+              key={filter}
               style={[
-                styles.filterText,
-                activeFilter === filter ? styles.activeFilterText : styles.outlinedFilterText,
+                styles.filterBtn,
+                activeFilter === filter ? styles.activeFilterBtn : styles.outlinedFilterBtn,
               ]}
+              onPress={() => setActiveFilter(filter)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityState={{ selected: activeFilter === filter }}
             >
-              {filter}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+              <Text
+                style={[
+                  styles.filterText,
+                  activeFilter === filter ? styles.activeFilterText : styles.outlinedFilterText,
+                ]}
+              >
+                {filter}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </Animated.View>
 
-      {/* Transaction List */}
-      {loading ? (
-        <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 50 }} />
-      ) : (
-        <FlatList
-          data={filteredTransactions}
-          renderItem={renderTransaction}
-          keyExtractor={(item) => item.id} // Use the grouped reference_number as the key
-          contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={styles.divider} />}
-          ListEmptyComponent={() => (
-            <Text style={{ textAlign: 'center', marginTop: 50, color: '#999' }}>
-              No transactions found for this store.
-            </Text>
+        <TouchableOpacity
+          style={styles.sidebarToggle}
+          onPress={toggleSidebar}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={sidebarOpen ? 'Close filters' : 'Open filters'}
+        >
+          <FontAwesome
+            name={sidebarOpen ? 'chevron-back' : 'chevron-forward'}
+            size={18}
+            color={Colors.primary}
+          />
+        </TouchableOpacity>
+
+        <View style={styles.listContainer}>
+          {loading ? (
+            <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 50 }} />
+          ) : (
+            <FlatList
+              data={filteredTransactions}
+              renderItem={renderTransaction}
+              keyExtractor={(item) => item.id} // Use the grouped reference_number as the key
+              contentContainerStyle={styles.listContent}
+              ItemSeparatorComponent={() => <View style={styles.divider} />}
+              ListEmptyComponent={() => (
+                <Text style={{ textAlign: 'center', marginTop: 50, color: '#999' }}>
+                  No transactions found for this store.
+                </Text>
+              )}
+            />
           )}
-        />
-      )}
+        </View>
+      </View>
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
@@ -344,29 +387,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  headerBar: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 18,
+  contentRow: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  filterSidebar: {
+    padding: 8,
+    borderRightWidth: 1,
+    borderRightColor: '#eee',
+    backgroundColor: '#fafafa',
+    gap: 8,
+    overflow: 'hidden',
+  },
+  sidebarToggle: {
+    width: 32,
+    minWidth: 32,
+    maxWidth: 32,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRightWidth: 1,
+    borderRightColor: '#eee',
+    backgroundColor: '#fff',
   },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginVertical: 16,
-    gap: 10,
+  listContainer: {
+    flex: 1,
   },
   filterBtn: {
+    width: '100%',
     borderRadius: 20,
     paddingVertical: 8,
-    paddingHorizontal: 22,
-    marginHorizontal: 4,
+    paddingHorizontal: 6,
+    alignItems: 'center',
   },
   activeFilterBtn: {
     backgroundColor: Colors.primary,
@@ -458,7 +510,7 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     alignItems: 'center',
     height: 65,
     backgroundColor: '#fff',
@@ -471,7 +523,9 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
   },
   navItem: {
+    width: '20%',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   navText: {
     fontSize: 11,

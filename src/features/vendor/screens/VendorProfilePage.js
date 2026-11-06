@@ -10,6 +10,7 @@ import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../../../styles/theme';
 import apiService from '../../../services/apiService';
+import ScreenHeader from '../../../components/ScreenHeader';
 
 export default function VendorProfilePage({ navigation }) {
   const [profile, setProfile] = useState(null);
@@ -386,9 +387,7 @@ export default function VendorProfilePage({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.wrapper}>
-        <View style={styles.headerBar}>
-          <Text style={styles.headerTitle}>Profile</Text>
-        </View>
+        <ScreenHeader title="Profile" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Loading profile...</Text>
@@ -401,9 +400,7 @@ export default function VendorProfilePage({ navigation }) {
   if (profileError) {
     return (
       <SafeAreaView style={styles.wrapper}>
-        <View style={styles.headerBar}>
-          <Text style={styles.headerTitle}>Profile</Text>
-        </View>
+        <ScreenHeader title="Profile" />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{profileError}</Text>
           <TouchableOpacity
@@ -425,9 +422,7 @@ export default function VendorProfilePage({ navigation }) {
   return (
     <SafeAreaView style={styles.wrapper}>
       {/* Header */}
-      <View style={styles.headerBar}>
-        <Text style={styles.headerTitle}>Profile</Text>
-      </View>
+      <ScreenHeader title="Profile" />
 
       <ScrollView
         style={styles.scrollView}
@@ -658,18 +653,6 @@ export default function VendorProfilePage({ navigation }) {
 // 🧱 Styles (unchanged)
 const styles = StyleSheet.create({
   wrapper: { flex: 1, backgroundColor: '#fff' },
-  headerBar: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20 },
   myStoreTitle: { fontSize: 20, fontWeight: 'bold', color: '#000', marginBottom: 16, marginTop: 8 },
@@ -930,7 +913,7 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     alignItems: 'center',
     height: 65,
     backgroundColor: '#fff',
@@ -942,7 +925,7 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
   },
-  navItem: { alignItems: 'center' },
+  navItem: { width: '20%', alignItems: 'center', justifyContent: 'center' },
   navText: { fontSize: 11, marginTop: 2 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
   loadingText: { marginTop: 16, fontSize: 16, color: '#666' },

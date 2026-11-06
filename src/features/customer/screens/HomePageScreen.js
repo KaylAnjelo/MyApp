@@ -7,6 +7,7 @@ import FontAwesome from 'react-native-vector-icons/FontAwesome5';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../../../styles/theme';
 import apiService from '../../../services/apiService';
+import ScreenHeader from '../../../components/ScreenHeader';
 
 export default function HomePageScreen({ navigation }) {
   const [showBanner, setShowBanner] = useState(false);
@@ -274,17 +275,29 @@ export default function HomePageScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <Image source={require('../../../../assets/logo_maroon.png')} style={styles.logoImage} />
-          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ position: 'relative' }}>
-            <Ionicons name="notifications-outline" size={26} color={Colors.primary} />
-            {unreadNotifications > 0 && (
-              <View style={styles.notificationBadge}>
-                <Text style={styles.notificationBadgeText}>{unreadNotifications}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          backgroundColor="transparent"
+          expandSides
+          paddingHorizontal={0}
+          paddingVertical={0}
+          style={{ marginHorizontal: -20, marginBottom: 20 }}
+          leftStyle={{ alignItems: 'flex-start' }}
+          rightStyle={{ alignItems: 'flex-end' }}
+          left={<Image source={require('../../../../assets/logo_maroon.png')} style={styles.logoImage} />}
+          right={
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Notifications')}
+              style={styles.notificationButton}
+            >
+              <Ionicons name="notifications-outline" size={26} color={Colors.primary} />
+              {unreadNotifications > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>{unreadNotifications}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          }
+        />
 
         {/* Top cards: Highest Available Points + My Rewards */}
         <View style={styles.cardContainer}>
@@ -443,16 +456,16 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 90,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
   logoImage: {
     width: 120,
     height: 40,
     resizeMode: 'contain',
+  },
+  notificationButton: {
+    width: 120,
+    alignItems: 'flex-end',
+    position: 'relative',
+    transform: [{ translateX: -40 }],
   },
   cardContainer: {
     flexDirection: 'row',
@@ -614,7 +627,7 @@ const styles = StyleSheet.create({
   // bottom nav
   bottomNav: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     alignItems: 'center',
     height: 65,
     backgroundColor: Colors.white,
@@ -625,7 +638,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
   },
-  navItem: { alignItems: 'center' },
+  navItem: { width: '20%', alignItems: 'center', justifyContent: 'center' },
   navText: { fontSize: 11, marginTop: 2, color: '#555' },
   loadingContainer: { justifyContent: 'center', alignItems: 'center', flex: 1 },
   loadingText: { marginTop: 10, fontSize: Typography.body, color: Colors.textSecondary },

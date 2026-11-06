@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet,
+import React, { useState, useEffect, useRef } from 'react';
+import { Animated, View, Text, StyleSheet,
   SafeAreaView, TouchableOpacity, FlatList,
   ActivityIndicator, } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -8,6 +8,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../../../styles/theme';
 import apiService from '../../../services/apiService';
 import { ThemedAlert, showThemedAlert } from '../../../components/ThemedAlert';
+import ScreenHeader from '../../../components/ScreenHeader';
 
 export default function ActivityScreen({ navigation }) {
   const [filter, setFilter] = useState('All');
@@ -15,6 +16,8 @@ export default function ActivityScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [alert, setAlert] = useState({ visible: false, title: '', message: '', buttons: [] });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sidebarProgress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     fetchTransactions();
@@ -115,6 +118,20 @@ export default function ActivityScreen({ navigation }) {
     if (filter === 'Redemption') return txn.type === 'Redemption';
     return true;
   });
+  const emptyTitle = filter === 'All' ? 'No transactions yet' : `No ${filter.toLowerCase()}s yet`;
+  const emptySubtitle = filter === 'All'
+    ? 'Your transactions will appear here'
+    : `Your ${filter.toLowerCase()}s will appear here`;
+
+  const toggleSidebar = () => {
+    const nextOpen = !sidebarOpen;
+    setSidebarOpen(nextOpen);
+    Animated.timing(sidebarProgress, {
+      toValue: nextOpen ? 1 : 0,
+      duration: 250,
+      useNativeDriver: false,
+    }).start();
+  };
 
   console.log('=== ACTIVITY SCREEN FILTER DEBUG ===');
   console.log('Current filter:', filter);
@@ -148,49 +165,74 @@ export default function ActivityScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.wrapper}>
-      <View style={styles.header}>
-        {/* Spacer to center the title (no back chevron) */}
-        <View style={{ width: 36 }} />
-        <Text style={styles.title}>Transaction History</Text>
-        <View style={{ width: 36 }} />
-      </View>
+      <ScreenHeader title="Transaction History" />
 
-      <View style={styles.segmentRow}>
-        {['All', 'Purchase', 'Redemption'].map(s => (
-          <TouchableOpacity
-            key={s}
-            style={[styles.segment, filter === s && styles.segmentActive]}
-            onPress={() => setFilter(s)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.segmentText, filter === s && styles.segmentTextActive]}>{s}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <View style={styles.body}>
+        <Animated.View
+          style={[
+            styles.sidebar,
+            {
+              width: sidebarProgress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 112],
+              }),
+              opacity: sidebarProgress,
+            },
+          ]}
+          pointerEvents={sidebarOpen ? 'auto' : 'none'}
+          accessibilityElementsHidden={!sidebarOpen}
+          importantForAccessibility={sidebarOpen ? 'auto' : 'no-hide-descendants'}
+        >
+          {['All', 'Purchase', 'Redemption'].map(s => (
+            <TouchableOpacity
+              key={s}
+              style={[styles.sidebarItem, filter === s && styles.sidebarItemActive]}
+              onPress={() => setFilter(s)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityState={{ selected: filter === s }}
+            >
+              <Text style={[styles.sidebarText, filter === s && styles.sidebarTextActive]}>{s}</Text>
+            </TouchableOpacity>
+          ))}
+        </Animated.View>
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading transactions...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filtered}
-          renderItem={renderTransaction}
-          keyExtractor={item => item.id}
-          ItemSeparatorComponent={() => <View style={styles.divider} />}
-          contentContainerStyle={styles.listContent}
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-          ListEmptyComponent={() => (
-            <View style={styles.empty}>
-              <FontAwesome name="inbox" size={50} color="#ccc" />
-              <Text style={styles.emptyText}>No redemptions yet</Text>
-              <Text style={styles.emptySubtext}>Your redemptions will appear here</Text>
+        <TouchableOpacity
+          style={styles.sidebarToggle}
+          onPress={toggleSidebar}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={sidebarOpen ? 'Close filters' : 'Open filters'}
+        >
+          <FontAwesome name={sidebarOpen ? 'angle-left' : 'angle-right'} size={24} color={Colors.primary} />
+        </TouchableOpacity>
+
+        <View style={styles.listContainer}>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={styles.loadingText}>Loading transactions...</Text>
             </View>
+          ) : (
+            <FlatList
+              data={filtered}
+              renderItem={renderTransaction}
+              keyExtractor={item => item.id}
+              ItemSeparatorComponent={() => <View style={styles.divider} />}
+              contentContainerStyle={styles.listContent}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              ListEmptyComponent={() => (
+                <View style={styles.empty}>
+                  <FontAwesome name="inbox" size={50} color="#ccc" />
+                  <Text style={styles.emptyText}>{emptyTitle}</Text>
+                  <Text style={styles.emptySubtext}>{emptySubtitle}</Text>
+                </View>
+              )}
+            />
           )}
-        />
-      )}
+        </View>
+      </View>
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNav}>
@@ -233,33 +275,43 @@ export default function ActivityScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   wrapper: { flex: 1, backgroundColor: '#fff' },
-  header: {
-    backgroundColor: Colors.primary,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  body: { flex: 1, flexDirection: 'row' },
+  sidebar: {
+    padding: Spacing.sm,
+    borderRightWidth: 1,
+    borderRightColor: '#eee',
+    backgroundColor: '#fafafa',
+    gap: Spacing.sm,
+    overflow: 'hidden',
   },
-  backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  title: { color: '#fff', fontSize: Typography.h3, fontWeight: '700' },
-  segmentRow: { flexDirection: 'row', padding: Spacing.lg, justifyContent: 'center', gap: 45 },
-  segment: {
+  sidebarToggle: {
+    width: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRightWidth: 1,
+    borderRightColor: '#eee',
+    backgroundColor: '#fff',
+  },
+  sidebarItem: {
+    width: '100%',
     borderRadius: Radii.xl || 20,
     borderWidth: 1,
     borderColor: Colors.primary,
-    paddingVertical: 8,
-    paddingHorizontal: 20,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: 6,
     backgroundColor: '#fff',
+    alignItems: 'center',
+    
   },
-  segmentActive: { 
-    backgroundColor: Colors.primary, 
-    elevation: 2, 
-    shadowColor: '#000' 
+  sidebarItemActive: {
+    backgroundColor: Colors.primary,
+    elevation: 2,
+    shadowColor: '#000',
   },
-  segmentText: { color: Colors.primary, fontWeight: '600' },
-  segmentTextActive: { color: '#fff' },
-  listContent: { paddingHorizontal: Spacing.lg, paddingBottom: 20 },
+  sidebarText: { color: Colors.primary, fontWeight: '600', fontSize: Typography.small },
+  sidebarTextActive: { color: '#fff' },
+  listContainer: { flex: 1 },
+  listContent: { paddingHorizontal: Spacing.md, paddingBottom: 20 },
   row: { flexDirection: 'row', paddingVertical: 16, alignItems: 'center', justifyContent: 'space-between' },
   left: { flex: 1 },
   right: { width: 100, alignItems: 'flex-end' },
@@ -276,7 +328,7 @@ const styles = StyleSheet.create({
   emptySubtext: { color: Colors.textSecondary, fontSize: 14, marginTop: 8 },
   bottomNav: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     alignItems: 'center',
     height: 65,
     backgroundColor: Colors.white,
@@ -288,7 +340,9 @@ const styles = StyleSheet.create({
     right: 0,
   },
   navItem: {
+    width: '20%',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   navText: {
     fontSize: 11,

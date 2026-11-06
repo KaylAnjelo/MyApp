@@ -15,6 +15,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import QRCode from 'react-native-qrcode-svg';
 import apiService from '../../../services/apiService';
 import { ThemedAlert, showThemedAlert } from '../../../components/ThemedAlert';
+import ScreenHeader from '../../../components/ScreenHeader';
 
 // --- Constants ---
 const PRIMARY_RED = '#8B0000'; // Dark Red
@@ -258,13 +259,7 @@ const CreateOrderScreen = ({ navigation }) => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          {/* Removed inline comment: was "Left spacer for centering" */}
-          <View style={{width: 24}} /> 
-          <Text style={styles.headerTitle}>Create Order</Text>
-          {/* Removed inline comment: was "Right spacer for centering" */}
-          <View style={{width: 24}} /> 
-        </View>
+        <ScreenHeader title="Create Order" leftWidth={24} rightWidth={24} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={PRIMARY_RED} />
           <Text style={styles.loadingText}>Loading products...</Text>
@@ -276,13 +271,7 @@ const CreateOrderScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       {/* --- Header (App Bar) --- */}
-      <View style={styles.header}>
-        {/* Left spacer for centering - FIX: Removed inline comment that caused string error */}
-        <View style={{width: 24}} /> 
-        <Text style={styles.headerTitle}>Create Order</Text>
-        {/* Right spacer for centering - FIX: Removed inline comment that caused string error */}
-        <View style={{width: 24}} /> 
-      </View>
+      <ScreenHeader title="Create Order" leftWidth={24} rightWidth={24} />
 
       {/* --- Body (Scrollable Menu List) --- */}
       <ScrollView style={styles.body}>
@@ -628,21 +617,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingBottom: 65, // Add padding to account for bottom navigation
   },
-  // Header Styles
-  header: {
-    backgroundColor: PRIMARY_RED,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 15,
-    paddingHorizontal: 15,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-
   // Menu List Styles
   body: {
     flex: 1,
@@ -873,7 +847,7 @@ const styles = StyleSheet.create({
   // Bottom Navigation Bar Styles
   bottomNav: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     alignItems: 'center',
     height: 65,
     backgroundColor: '#fff',
@@ -886,7 +860,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   navItem: {
+    width: '20%',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   navText: {
     fontSize: 11,

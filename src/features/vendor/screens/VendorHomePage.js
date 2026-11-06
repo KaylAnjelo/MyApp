@@ -6,6 +6,7 @@ import { ThemedAlert, showThemedAlert } from '../../../components/ThemedAlert';
 import { LineChart } from 'react-native-chart-kit';
 import { Colors } from '../../../styles/theme';
 import apiService from '../../../services/apiService';
+import ScreenHeader from '../../../components/ScreenHeader';
 
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
 
@@ -310,9 +311,7 @@ const VendorHomePage = ({ navigation }) => { // <-- Add navigation prop
 
   return (
     <SafeAreaView style={styles.wrapper}>
-      <View style={styles.headerBar}>
-        <Text style={styles.headerTitle}>Dashboard</Text>
-      </View>
+      <ScreenHeader title="Dashboard" />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
         
@@ -424,18 +423,6 @@ const styles = StyleSheet.create({
   wrapper: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  headerBar: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: 'bold',
-    letterSpacing: 1,
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -591,7 +578,7 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     alignItems: 'center',
     height: 65,
     backgroundColor: '#fff',
@@ -604,7 +591,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   navItem: {
+    width: '20%',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   navText: {
     fontSize: 11,

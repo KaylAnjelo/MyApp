@@ -13,6 +13,7 @@ import FontAwesome from 'react-native-vector-icons/FontAwesome5';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, Typography, Spacing, Radii, Shadows } from '../../../styles/theme';
 import apiService from '../../../services/apiService';
+import ScreenHeader from '../../../components/ScreenHeader';
 
 export default function StoresScreen({ navigation }) {
   const [stores, setStores] = useState([]);
@@ -65,12 +66,13 @@ export default function StoresScreen({ navigation }) {
         }
       >
         {/* Header */}
-        <View style={styles.header}>
-          {/* Spacer to keep title centered (no back button on Stores screen) */}
-          <View style={{ width: 24 }} />
-          <Text style={styles.headerTitle}>Stores</Text>
-          <View style={styles.headerRight} />
-        </View>
+        <ScreenHeader
+          title="Stores"
+          leftWidth={24}
+          rightWidth={24}
+          style={{ marginHorizontal: -Spacing.lg, marginBottom: Spacing.xl }}
+          paddingHorizontal={Spacing.lg}
+        />
 
         {/* Stores Grid */}
         <View style={styles.storesGrid}>
@@ -164,6 +166,7 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     padding: Spacing.lg,
+    paddingTop: 0,
     paddingBottom: 100,
   },
   loadingContainer: {
@@ -174,20 +177,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: Typography.body,
     color: Colors.textSecondary,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  headerTitle: {
-    fontSize: Typography.h2,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
-  },
-  headerRight: {
-    width: 20,
   },
   storesGrid: {
     flexDirection: 'row',
@@ -256,7 +245,7 @@ const styles = StyleSheet.create({
   },
   bottomNav: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     alignItems: 'center',
     height: 65,
     backgroundColor: Colors.white,
@@ -268,7 +257,9 @@ const styles = StyleSheet.create({
     right: 0,
   },
   navItem: {
+    width: '20%',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   navText: {
     fontSize: 11,
